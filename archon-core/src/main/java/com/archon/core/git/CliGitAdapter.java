@@ -15,13 +15,14 @@ import java.util.concurrent.TimeUnit;
  */
 public class CliGitAdapter implements GitAdapter {
 
-    private static final long TIMEOUT_SECONDS = 30;
+    private static final long TIMEOUT_SECONDS = 60;
 
     @Override
     public List<String> getChangedFiles(Path repoRoot, String baseRef, String headRef) {
+        // Use diff-tree which is faster than diff for commit ranges
         List<String> result = execute(
             repoRoot,
-            "git", "diff", "--name-only", baseRef, headRef
+            "git", "diff-tree", "--no-commit-id", "--name-only", "-r", baseRef, headRef
         );
         // Filter empty lines
         List<String> files = new ArrayList<>();
