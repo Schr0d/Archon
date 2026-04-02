@@ -1,3 +1,7 @@
+plugins {
+    id("com.github.johnrengelman.shadow") version "8.1.+"
+}
+
 dependencies {
     implementation(project(":archon-core"))
     implementation(project(":archon-java"))
@@ -10,4 +14,15 @@ tasks.jar {
     manifest {
         attributes["Main-Class"] = "com.archon.cli.ArchonCli"
     }
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("archon")
+    archiveVersion.set("0.1.0")
+    archiveClassifier.set("")
+    mergeServiceFiles()
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
 }
