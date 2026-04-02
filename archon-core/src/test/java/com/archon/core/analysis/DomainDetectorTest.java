@@ -55,7 +55,8 @@ class DomainDetectorTest {
 
         DomainResult result = new DomainDetector().assignDomains(graph, Map.of());
 
-        assertTrue(result.getDomain("com.fuwa.system.domain.SysUser").isPresent());
+        assertEquals("system", result.getDomain("com.fuwa.system.domain.SysUser").orElse(null));
+        assertEquals(Confidence.MEDIUM, result.getConfidence("com.fuwa.system.domain.SysUser"));
     }
 
     @Test
@@ -64,6 +65,7 @@ class DomainDetectorTest {
 
         DomainResult result = new DomainDetector().assignDomains(graph, Map.of());
 
+        assertEquals("x", result.getDomain("x.Service").orElse(null));
         assertEquals(Confidence.LOW, result.getConfidence("x.Service"));
     }
 
