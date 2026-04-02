@@ -17,6 +17,15 @@ import java.util.Set;
  * Depth-limited with cross-domain tracking.
  */
 public class ImpactPropagator {
+    private final LayerClassifier layerClassifier;
+
+    public ImpactPropagator() {
+        this.layerClassifier = new LayerClassifier();
+    }
+
+    public ImpactPropagator(LayerClassifier layerClassifier) {
+        this.layerClassifier = layerClassifier != null ? layerClassifier : new LayerClassifier();
+    }
 
     /**
      * Propagate impact from a target node through its dependents.
@@ -78,7 +87,7 @@ public class ImpactPropagator {
                            : RiskLevel.LOW;
 
             impactedNodes.add(new ImpactResult.ImpactNode(
-                current, currentDomain, currentDepth, risk));
+                current, currentDomain, currentDepth, risk, layerClassifier.classify(current)));
 
             if (currentDepth < maxDepth) {
                 for (String dependent : graph.getDependents(current)) {

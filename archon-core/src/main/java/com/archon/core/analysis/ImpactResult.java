@@ -17,18 +17,27 @@ public class ImpactResult {
         private final String domain;
         private final int depth;
         private final RiskLevel risk;
+        private final ArchLayer layer;
 
-        public ImpactNode(String nodeId, String domain, int depth, RiskLevel risk) {
+        // New constructor with layer
+        public ImpactNode(String nodeId, String domain, int depth, RiskLevel risk, ArchLayer layer) {
             this.nodeId = nodeId;
             this.domain = domain;
             this.depth = depth;
             this.risk = risk;
+            this.layer = layer != null ? layer : ArchLayer.UNKNOWN;
+        }
+
+        // Backward-compatible constructor
+        public ImpactNode(String nodeId, String domain, int depth, RiskLevel risk) {
+            this(nodeId, domain, depth, risk, ArchLayer.UNKNOWN);
         }
 
         public String getNodeId() { return nodeId; }
         public Optional<String> getDomain() { return Optional.ofNullable(domain); }
         public int getDepth() { return depth; }
         public RiskLevel getRisk() { return risk; }
+        public ArchLayer getLayer() { return layer; }
     }
 
     private final String target;
