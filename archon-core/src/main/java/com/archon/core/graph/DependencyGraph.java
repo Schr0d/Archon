@@ -117,7 +117,7 @@ public class DependencyGraph {
                 throw new IllegalArgumentException("Edge target node not found: " + tgt);
             }
             if (src.equals(tgt)) {
-                throw new IllegalArgumentException("Self-referencing edges not allowed: " + src);
+                return this; // skip self-referencing edges
             }
 
             forwardAdj.computeIfAbsent(src, k -> new LinkedHashSet<>()).add(tgt);
