@@ -14,7 +14,9 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Parses Java source trees and builds a dependency graph.
@@ -35,15 +37,21 @@ public class JavaParserPlugin {
             return new ParseResult(graphBuilder.build(), blindSpots, errors);
         }
 
-        // Step 2: Parse each Java file
+        // Step 2: First pass — collect all source FQCNs
         JavaParser javaParser = new JavaParser();
-        AstVisitor astVisitor = new AstVisitor();
+        Set<String> sourceClasses = new HashSet<>();
+        for (ModuleDetector.SourceRoot sourceRoot : sourceRoots) {
+            collectSourceFqcns(sourceRoot.getPath(), javaParser, sourceClasses, errors);
+        }
+
+        // Step 3: Second pass — build graph with filtering (only source-tree classes)
+        AstVisitor astVisitor = new AstVisitor(sourceClasses);
 
         for (ModuleDetector.SourceRoot sourceRoot : sourceRoots) {
             parseSourceRoot(sourceRoot.getPath(), javaParser, astVisitor, graphBuilder, errors);
         }
 
-        // Step 3: Detect blind spots
+        // Step 4: Detect blind spots
         BlindSpotDetector blindSpotDetector = new BlindSpotDetector();
         for (ModuleDetector.SourceRoot sourceRoot : sourceRoots) {
             blindSpots.addAll(blindSpotDetector.detect(sourceRoot.getPath()));
@@ -72,6 +80,57 @@ public class JavaParserPlugin {
         } catch (IOException e) {
             errors.add(new ParseError(sourceRoot.toString(), 0,
                 "Failed to walk source directory: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * First pass: walk all Java files and collect their FQCNs into a set.
+     * This set is later passed to AstVisitor so it only creates graph nodes
+     * for classes that actually exist in the source tree.
+     */
+    private void collectSourceFqcns(Path sourceRoot, JavaParser javaParser,
+                                     Set<String> sourceClasses, List<ParseError> errors) {
+        if (!Files.isDirectory(sourceRoot)) {
+            return;
+        }
+
+        try {
+            Files.walkFileTree(sourceRoot, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (file.toString().endsWith(".java")) {
+                        collectFqcnsFromFile(file, javaParser, sourceClasses, errors);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            errors.add(new ParseError(sourceRoot.toString(), 0,
+                "Failed to walk source directory for FQCN collection: " + e.getMessage()));
+        }
+    }
+
+    private void collectFqcnsFromFile(Path file, JavaParser javaParser,
+                                       Set<String> sourceClasses, List<ParseError> errors) {
+        try {
+            var parseResult = javaParser.parse(file);
+            if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
+                CompilationUnit cu = parseResult.getResult().get();
+                String packageName = cu.getPackageDeclaration()
+                    .map(pd -> pd.getName().asString())
+                    .orElse("");
+                for (com.github.javaparser.ast.body.TypeDeclaration<?> typeDecl : cu.getTypes()) {
+                    String fqcn = packageName.isEmpty()
+                        ? typeDecl.getName().asString()
+                        : packageName + "." + typeDecl.getName().asString();
+                    sourceClasses.add(fqcn);
+                }
+            }
+            // Silently skip files that fail to parse in the collection pass;
+            // they'll be reported as errors during the main parsing pass.
+        } catch (IOException e) {
+            errors.add(new ParseError(file.toString(), 0,
+                "Failed to read file for FQCN collection: " + e.getMessage()));
         }
     }
 
