@@ -1,5 +1,7 @@
 # Domain Analyzer & Dependency Guard PRD（v0.5 - Trust & ECP Edition）
 
+> **Implementation status (2026-04-02):** v0.1 implements core analysis (sections 3.1-3.6 partially). Blind spot detection uses heuristic string matching (section 3.4). Confidence scoring exists but is not yet calibrated against real projects. ECP engine (section 3.8) and LLM integration boundaries (section 3.9) are v0.4 scope.
+
 ---
 
 ## 1. 一句话定义（升级）

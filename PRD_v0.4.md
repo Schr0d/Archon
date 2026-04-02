@@ -1,5 +1,7 @@
 # Domain Analyzer & Dependency Guard PRD（v0.4 - Systems Engineering Edition）
 
+> **Implementation status (2026-04-02):** v0.1 complete. CLI + Java parser + analysis engines (cycles, coupling, domains, impact, rules, blind spots) working. Tested on 1043-class RuoYi monolith. v0.1.1 in progress: external class filtering, adaptive thresholds, smarter domain detection. Sections 3-7 of this PRD remain the reference architecture; implementation status tracked in CLAUDE.md roadmap.
+
 ---
 
 ## 1. 一句话定义（Reframed）
