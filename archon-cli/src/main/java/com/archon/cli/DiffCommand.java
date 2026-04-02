@@ -63,6 +63,7 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Resolve refs
+        printStep("Resolving refs...");
         String baseSha, headSha;
         try {
             baseSha = git.resolveRef(repoRoot, baseRef);
@@ -73,6 +74,7 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Get changed files
+        printStep("Computing changed files...");
         List<String> changedFiles;
         try {
             changedFiles = git.getChangedFiles(repoRoot, baseSha, headSha);
@@ -89,18 +91,24 @@ public class DiffCommand implements Callable<Integer> {
         ArchonConfig config = ArchonConfig.loadOrDefault(root.resolve(".archon.yml"));
 
         // Parse head graph (working tree)
+        printStep("Parsing head graph (" + changedFiles.size() + " files changed)...");
         JavaParserPlugin plugin = new JavaParserPlugin();
         JavaParserPlugin.ParseResult headResult = plugin.parse(root, config);
         DependencyGraph headGraph = headResult.getGraph();
+        printStep("Head graph: " + headGraph.getNodeIds().size() + " classes, " + headGraph.edgeCount() + " edges");
 
         // Parse base graph (from git show for changed files + reuse head for unchanged)
+        printStep("Building base graph...");
         DependencyGraph baseGraph = buildBaseGraph(git, repoRoot, root, changedFiles, headGraph, config, plugin);
+        printStep("Base graph: " + baseGraph.getNodeIds().size() + " classes, " + baseGraph.edgeCount() + " edges");
 
         // Diff the graphs
+        printStep("Diffing graphs...");
         GraphDiffer graphDiffer = new GraphDiffer();
         GraphDiff graphDiff = graphDiffer.diff(baseGraph, headGraph);
 
         // Domain detection on head graph
+        printStep("Detecting domains...");
         DomainDetector domainDetector = new DomainDetector();
         DomainResult domainResult = domainDetector.assignDomains(headGraph, config.getDomains());
         Map<String, String> domainMap = domainResult.getDomains();
@@ -122,11 +130,13 @@ public class DiffCommand implements Callable<Integer> {
         for (Edge e : graphDiff.getRemovedEdges()) { changedClasses.add(e.getSource()); }
 
         // Risk synthesis
+        printStep("Synthesizing risk...");
         RiskSynthesizer riskSynthesizer = new RiskSynthesizer();
         RiskSummary riskSummary = riskSynthesizer.synthesize(
             headGraph, domainMap, changedClasses, graphDiff, config.getCriticalPaths());
 
         // Impact propagation from each changed class
+        printStep("Propagating impact (depth " + maxDepth + ")...");
         ImpactPropagator propagator = new ImpactPropagator();
         List<ImpactResult.ImpactNode> allImpactedNodes = new ArrayList<>();
         Set<String> seenNodes = new HashSet<>();
@@ -336,5 +346,9 @@ public class DiffCommand implements Callable<Integer> {
         return (int) report.getImpactedNodes().stream()
             .filter(n -> n.getNodeId().equals(fqcn))
             .count();
+    }
+
+    private void printStep(String message) {
+        System.out.println("\u001B[2m  " + message + "\u001B[0m");
     }
 }
