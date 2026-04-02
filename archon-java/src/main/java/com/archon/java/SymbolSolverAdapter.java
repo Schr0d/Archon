@@ -4,9 +4,7 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
@@ -20,11 +18,9 @@ import java.nio.file.Path;
  * Returns true if symbol solving succeeded, false if it should fall back.
  */
 public class SymbolSolverAdapter {
-    private final Path sourceRoot;
     private final CombinedTypeSolver typeSolver;
 
     public SymbolSolverAdapter(Path sourceRoot) {
-        this.sourceRoot = sourceRoot;
         if (sourceRoot != null && Files.isDirectory(sourceRoot)) {
             this.typeSolver = new CombinedTypeSolver(
                 new ReflectionTypeSolver(),
