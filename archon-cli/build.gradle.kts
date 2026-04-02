@@ -18,7 +18,7 @@ tasks.jar {
 
 tasks.shadowJar {
     archiveBaseName.set("archon")
-    archiveVersion.set("0.1.0")
+    archiveVersion.set("0.1.1")
     archiveClassifier.set("")
     mergeServiceFiles()
 }
