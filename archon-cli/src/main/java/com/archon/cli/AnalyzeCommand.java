@@ -4,6 +4,8 @@ import com.archon.core.analysis.CouplingAnalyzer;
 import com.archon.core.analysis.CycleDetector;
 import com.archon.core.analysis.DomainDetector;
 import com.archon.core.analysis.DomainResult;
+import com.archon.core.analysis.ThresholdCalculator;
+import com.archon.core.analysis.Thresholds;
 import com.archon.core.config.ArchonConfig;
 import com.archon.core.graph.BlindSpot;
 import com.archon.core.graph.DependencyGraph;
@@ -14,6 +16,7 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -68,6 +71,7 @@ public class AnalyzeCommand implements Callable<Integer> {
         Map<String, String> domainMap = domainResult.getDomains();
 
         long distinctDomains = domainMap.values().stream().distinct().count();
+        Thresholds thresholds = ThresholdCalculator.calculate(graph.nodeCount(), (int) distinctDomains);
         if (distinctDomains > 0) {
             System.out.println("Domains detected: " + distinctDomains + " (" + domainMap.size() + " classes mapped)");
             if (verbose) {
@@ -91,25 +95,41 @@ public class AnalyzeCommand implements Callable<Integer> {
 
         // Step 4: Coupling hotspots
         CouplingAnalyzer couplingAnalyzer = new CouplingAnalyzer();
-        List<Node> hotspots = couplingAnalyzer.findHotspots(graph, 5);
+        List<Node> hotspots = couplingAnalyzer.findHotspots(graph, thresholds.getCouplingThreshold());
         if (hotspots.isEmpty()) {
-            System.out.println("\nCoupling hotspots: none (all in-degree <= 5)");
+            System.out.println("\nCoupling hotspots: none (in-degree <= " + thresholds.getCouplingThreshold() + ")");
         } else {
-            System.out.println("\n\u001B[33mCoupling hotspots (in-degree > 5):\u001B[0m");
-            for (Node node : hotspots) {
+            System.out.println("\n\u001B[33mCoupling hotspots (in-degree > " + thresholds.getCouplingThreshold() + "):\u001B[0m");
+            int displayCap = thresholds.getHotspotDisplayCap();
+            List<Node> displayed = hotspots.stream().limit(displayCap).collect(Collectors.toList());
+            for (Node node : displayed) {
                 System.out.println("  " + node.getId() + " (in-degree: " + node.getInDegree() + ")");
+            }
+            long remaining = hotspots.size() - displayed.size();
+            if (remaining > 0) {
+                System.out.println("  ... and " + remaining + " more above threshold " + thresholds.getCouplingThreshold());
             }
         }
 
         // Step 5: Blind spots
         List<BlindSpot> blindSpots = result.getBlindSpots();
+        Map<String, List<BlindSpot>> byFile = blindSpots.stream()
+            .collect(Collectors.groupingBy(BlindSpot::getFile, LinkedHashMap::new, Collectors.toList()));
         if (blindSpots.isEmpty()) {
             System.out.println("\nBlind spots: none");
         } else {
-            System.out.println("\n\u001B[36mBlind spots (" + blindSpots.size() + "):\u001B[0m");
-            for (BlindSpot bs : blindSpots) {
-                System.out.println("  [" + bs.getType() + "] " + bs.getFile() + ":" + bs.getLine()
-                    + " " + bs.getPattern());
+            System.out.println("\n\u001B[36mBlind spots (" + byFile.size() + " files, "
+                + blindSpots.size() + " occurrences):\u001B[0m");
+            for (var entry : byFile.entrySet()) {
+                List<BlindSpot> spots = entry.getValue();
+                String file = entry.getKey();
+                String fileName = file.contains(java.io.File.separator)
+                    ? file.substring(file.lastIndexOf(java.io.File.separatorChar) + 1)
+                    : file;
+                String patterns = spots.stream().map(BlindSpot::getPattern).distinct().collect(Collectors.joining(", "));
+                System.out.println("  [" + spots.get(0).getType() + "] " + fileName + " \u2014 "
+                    + spots.size() + " occurrence" + (spots.size() > 1 ? "s" : "")
+                    + " (" + patterns + ")");
             }
         }
 
@@ -123,9 +143,10 @@ public class AnalyzeCommand implements Callable<Integer> {
         System.out.println("\n--- Summary ---");
         System.out.println("Nodes:       " + graph.nodeCount());
         System.out.println("Edges:       " + graph.edgeCount());
+        System.out.println("Domains:     " + distinctDomains);
         System.out.println("Cycles:      " + cycles.size());
-        System.out.println("Hotspots:    " + hotspots.size());
-        System.out.println("Blind spots: " + blindSpots.size());
+        System.out.println("Hotspots:    " + hotspots.size() + " (threshold: " + thresholds.getCouplingThreshold() + ")");
+        System.out.println("Blind spots: " + byFile.size() + " files (" + blindSpots.size() + " occurrences)");
         System.out.println("Errors:      " + result.getErrors().size());
 
         return (!cycles.isEmpty()) ? 1 : 0;
