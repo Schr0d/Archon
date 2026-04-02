@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.archon.core.analysis.Thresholds;
+
 /**
  * Evaluates architecture rules against a dependency graph.
  * Consumes pre-computed analysis results (cycles, domain map).
@@ -23,7 +25,27 @@ public class RuleValidator {
             checkNoCycle(cycles, violations);
         }
 
-        checkMaxCrossDomain(graph, config, domainMap, violations);
+        checkMaxCrossDomain(graph, config, domainMap, violations, config.getMaxCrossDomain());
+        checkMaxCallDepth(graph, config, violations);
+        checkForbidCoreEntityLeakage(graph, config, domainMap, violations);
+
+        return violations;
+    }
+
+    /**
+     * Overload that uses adaptive thresholds from ThresholdCalculator.
+     */
+    public List<RuleViolation> validate(DependencyGraph graph, ArchonConfig config,
+                                         Map<String, String> domainMap,
+                                         List<List<String>> cycles,
+                                         Thresholds thresholds) {
+        List<RuleViolation> violations = new ArrayList<>();
+
+        if (config.isNoCycle()) {
+            checkNoCycle(cycles, violations);
+        }
+
+        checkMaxCrossDomain(graph, config, domainMap, violations, thresholds.getCrossDomainMax());
         checkMaxCallDepth(graph, config, violations);
         checkForbidCoreEntityLeakage(graph, config, domainMap, violations);
 
@@ -42,7 +64,8 @@ public class RuleValidator {
 
     private void checkMaxCrossDomain(DependencyGraph graph, ArchonConfig config,
                                       Map<String, String> domainMap,
-                                      List<RuleViolation> violations) {
+                                      List<RuleViolation> violations,
+                                      int maxCrossDomain) {
         for (String nodeId : graph.getNodeIds()) {
             Set<String> crossDomains = new HashSet<>();
             for (String dependent : graph.getDependents(nodeId)) {
@@ -52,12 +75,12 @@ public class RuleValidator {
                     crossDomains.add(depDomain);
                 }
             }
-            if (crossDomains.size() > config.getMaxCrossDomain()) {
+            if (crossDomains.size() > maxCrossDomain) {
                 violations.add(new RuleViolation(
                     "max_cross_domain",
                     "WARNING",
                     nodeId + " has dependents from " + crossDomains.size()
-                        + " domains (max: " + config.getMaxCrossDomain() + "): "
+                        + " domains (max: " + maxCrossDomain + "): "
                         + String.join(", ", crossDomains)
                 ));
             }

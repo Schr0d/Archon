@@ -3,6 +3,8 @@ package com.archon.cli;
 import com.archon.core.analysis.CycleDetector;
 import com.archon.core.analysis.DomainDetector;
 import com.archon.core.analysis.DomainResult;
+import com.archon.core.analysis.ThresholdCalculator;
+import com.archon.core.analysis.Thresholds;
 import com.archon.core.config.ArchonConfig;
 import com.archon.core.config.RuleValidator;
 import com.archon.core.config.RuleViolation;
@@ -58,9 +60,13 @@ public class CheckCommand implements Callable<Integer> {
         DomainResult domainResult = domainDetector.assignDomains(graph, config.getDomains());
         Map<String, String> domainMap = domainResult.getDomains();
 
+        // Compute adaptive thresholds
+        long distinctDomains = domainMap.values().stream().distinct().count();
+        Thresholds thresholds = ThresholdCalculator.calculate(graph.nodeCount(), (int) distinctDomains);
+
         // Validate rules
         RuleValidator validator = new RuleValidator();
-        List<RuleViolation> violations = validator.validate(graph, config, domainMap, cycles);
+        List<RuleViolation> violations = validator.validate(graph, config, domainMap, cycles, thresholds);
 
         // Output
         if (violations.isEmpty()) {
