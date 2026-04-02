@@ -114,7 +114,7 @@ public class DependencyGraph {
                 throw new IllegalArgumentException("Edge source node not found: " + src);
             }
             if (!nodes.containsKey(tgt)) {
-                throw new IllegalArgumentException("Edge target node not found: " + tgt);
+                return this; // skip edges to missing targets (external classes)
             }
             if (src.equals(tgt)) {
                 return this; // skip self-referencing edges
