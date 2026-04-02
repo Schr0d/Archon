@@ -14,6 +14,8 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
+import com.archon.core.analysis.ArchLayer;
 
 @Command(
     name = "impact",
@@ -89,9 +91,22 @@ public class ImpactCommand implements Callable<Integer> {
             String indent = "  ".repeat(node.getDepth());
             String domain = node.getDomain().orElse("");
             String domainTag = domain.isEmpty() ? "" : " [" + domain + "]";
+            String layerTag = " [" + node.getLayer() + "]";
             String riskTag = colorRisk(node.getRisk());
             System.out.println(indent + "L" + node.getDepth() + " " + node.getNodeId()
-                + domainTag + " " + riskTag);
+                + domainTag + layerTag + " " + riskTag);
+        }
+
+        // Layer breakdown
+        Map<ArchLayer, Long> layerCounts = impact.getImpactedNodes().stream()
+            .collect(Collectors.groupingBy(
+                ImpactResult.ImpactNode::getLayer, Collectors.counting()));
+        if (!layerCounts.isEmpty()) {
+            System.out.println();
+            System.out.println("Layer breakdown:");
+            for (Map.Entry<ArchLayer, Long> entry : layerCounts.entrySet()) {
+                System.out.println("  " + entry.getKey() + ": " + entry.getValue());
+            }
         }
 
         return 0;
