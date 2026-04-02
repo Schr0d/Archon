@@ -70,6 +70,17 @@ public class DependencyGraph {
         return edges.values().stream().mapToInt(Map::size).sum();
     }
 
+    /**
+     * Returns all edges in the graph.
+     */
+    public Set<Edge> getAllEdges() {
+        Set<Edge> result = new LinkedHashSet<>();
+        for (Map<String, Edge> targets : edges.values()) {
+            result.addAll(targets.values());
+        }
+        return result;
+    }
+
     public boolean containsNode(String id) {
         return nodes.containsKey(id);
     }
