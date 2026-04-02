@@ -16,6 +16,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -58,6 +59,39 @@ public class JavaParserPlugin {
         }
 
         return new ParseResult(graphBuilder.build(), blindSpots, errors);
+    }
+
+    /**
+     * Parse Java source from in-memory content map.
+     * Used by diff analysis to parse base versions of changed files from git show.
+     *
+     * @param fileContents     map of relative file path -> file content string
+     * @param knownSourceClasses  complete set of source FQCNs (from head graph + base FQCNs)
+     * @return ParseResult with the dependency graph
+     */
+    public ParseResult parseFromContent(Map<Path, String> fileContents, Set<String> knownSourceClasses) {
+        List<ParseError> errors = new ArrayList<>();
+        GraphBuilder graphBuilder = GraphBuilder.builder();
+
+        if (fileContents.isEmpty()) {
+            return new ParseResult(graphBuilder.build(), List.of(), errors);
+        }
+
+        // Collect FQCNs from the provided content
+        Set<String> sourceClasses = new HashSet<>(knownSourceClasses);
+        JavaParser javaParser = new JavaParser();
+        for (Map.Entry<Path, String> entry : fileContents.entrySet()) {
+            collectFqcnsFromContent(entry.getKey().toString(), entry.getValue(), javaParser, sourceClasses, errors);
+        }
+
+        // Build graph with AstVisitor using the combined source class set
+        AstVisitor astVisitor = new AstVisitor(sourceClasses);
+        for (Map.Entry<Path, String> entry : fileContents.entrySet()) {
+            parseContentFile(entry.getKey().toString(), entry.getValue(), javaParser, astVisitor, graphBuilder, errors);
+        }
+
+        // No blind spot detection for content-based parsing (no filesystem to scan)
+        return new ParseResult(graphBuilder.build(), List.of(), errors);
     }
 
     private void parseSourceRoot(Path sourceRoot, JavaParser javaParser,
@@ -152,6 +186,49 @@ public class JavaParserPlugin {
         } catch (IOException e) {
             errors.add(new ParseError(file.toString(), 0,
                 "Failed to read file: " + e.getMessage()));
+        }
+    }
+
+    private void collectFqcnsFromContent(String fileName, String content, JavaParser javaParser,
+                                          Set<String> sourceClasses, List<ParseError> errors) {
+        try {
+            var parseResult = javaParser.parse(content);
+            if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
+                CompilationUnit cu = parseResult.getResult().get();
+                String packageName = cu.getPackageDeclaration()
+                    .map(pd -> pd.getName().asString())
+                    .orElse("");
+                for (com.github.javaparser.ast.body.TypeDeclaration<?> typeDecl : cu.getTypes()) {
+                    String fqcn = packageName.isEmpty()
+                        ? typeDecl.getName().asString()
+                        : packageName + "." + typeDecl.getName().asString();
+                    sourceClasses.add(fqcn);
+                }
+            }
+        } catch (Exception e) {
+            errors.add(new ParseError(fileName, 0,
+                "Failed to parse content for FQCN collection: " + e.getMessage()));
+        }
+    }
+
+    private void parseContentFile(String fileName, String content, JavaParser javaParser,
+                                   AstVisitor astVisitor, GraphBuilder graphBuilder,
+                                   List<ParseError> errors) {
+        try {
+            var parseResult = javaParser.parse(content);
+            if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
+                CompilationUnit cu = parseResult.getResult().get();
+                astVisitor.visit(cu, graphBuilder);
+            } else {
+                String message = parseResult.getProblems().stream()
+                    .map(p -> p.getMessage())
+                    .reduce((a, b) -> a + "; " + b)
+                    .orElse("Unknown parse error");
+                errors.add(new ParseError(fileName, 0, message));
+            }
+        } catch (Exception e) {
+            errors.add(new ParseError(fileName, 0,
+                "Failed to parse content: " + e.getMessage()));
         }
     }
 
