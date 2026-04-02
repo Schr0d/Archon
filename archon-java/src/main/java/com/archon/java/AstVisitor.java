@@ -17,11 +17,21 @@ import java.util.Set;
 
 /**
  * Walks JavaParser AST and extracts nodes + edges into a GraphBuilder.
- * Tracks added nodes to ensure edge targets exist before creating edges.
+ * Only creates graph nodes for classes that exist in the user's source tree,
+ * silently skipping external dependencies (JDK, libraries, etc.).
  */
 public class AstVisitor {
 
+    private final Set<String> sourceClasses;
     private final Set<String> addedNodes = new HashSet<>();
+
+    /**
+     * Creates an AstVisitor that only creates nodes for classes in the given set.
+     * @param sourceClasses fully-qualified class names that exist in the source tree
+     */
+    public AstVisitor(Set<String> sourceClasses) {
+        this.sourceClasses = sourceClasses;
+    }
 
     /**
      * Visit a CompilationUnit and extract class declarations, imports, and type hierarchies.
@@ -37,14 +47,19 @@ public class AstVisitor {
     }
 
     /**
-     * Ensures a node exists in the graph builder. Creates a placeholder if needed.
-     * When the target's own file is parsed later, it will overwrite this placeholder.
+     * Ensures a node exists in the graph builder, but only for source-tree classes.
+     * External classes (not in sourceClasses) are silently skipped.
+     * @return true if the node is a source class (exists or just added), false if external
      */
-    private void ensureNodeExists(String fqcn, GraphBuilder graphBuilder) {
+    private boolean ensureNodeExists(String fqcn, GraphBuilder graphBuilder) {
+        if (!sourceClasses.contains(fqcn)) {
+            return false; // external class — skip node and edge
+        }
         if (!addedNodes.contains(fqcn)) {
             graphBuilder.addNode(Node.builder().id(fqcn).type(NodeType.CLASS).build());
             addedNodes.add(fqcn);
         }
+        return true;
     }
 
     private void processTypeDeclaration(TypeDeclaration<?> typeDecl, String packageName,
@@ -52,7 +67,11 @@ public class AstVisitor {
         String fqcn = packageName.isEmpty() ? typeDecl.getName().asString()
             : packageName + "." + typeDecl.getName().asString();
 
-        ensureNodeExists(fqcn, graphBuilder);
+        // The class being parsed is always a source class — always add its node
+        if (!addedNodes.contains(fqcn)) {
+            graphBuilder.addNode(Node.builder().id(fqcn).type(NodeType.CLASS).build());
+            addedNodes.add(fqcn);
+        }
 
         // Process imports FIRST (as IMPORTS edges), then extends/implements will
         // overwrite with more specific edge types for the same source→target pair.
@@ -61,14 +80,15 @@ public class AstVisitor {
             for (com.github.javaparser.ast.ImportDeclaration importDecl : cuOpt.get().getImports()) {
                 if (!importDecl.isAsterisk() && !importDecl.isStatic()) {
                     String importName = importDecl.getName().asString();
-                    ensureNodeExists(importName, graphBuilder);
-                    graphBuilder.addEdge(Edge.builder()
-                        .source(fqcn)
-                        .target(importName)
-                        .type(EdgeType.IMPORTS)
-                        .confidence(Confidence.HIGH)
-                        .evidence("import " + importName)
-                        .build());
+                    if (ensureNodeExists(importName, graphBuilder)) {
+                        graphBuilder.addEdge(Edge.builder()
+                            .source(fqcn)
+                            .target(importName)
+                            .type(EdgeType.IMPORTS)
+                            .confidence(Confidence.HIGH)
+                            .evidence("import " + importName)
+                            .build());
+                    }
                 }
             }
         }
@@ -79,26 +99,28 @@ public class AstVisitor {
 
             for (com.github.javaparser.ast.type.ClassOrInterfaceType extended : classDecl.getExtendedTypes()) {
                 String superFqcn = resolveType(extended.getName().asString(), packageName, classDecl);
-                ensureNodeExists(superFqcn, graphBuilder);
-                graphBuilder.addEdge(Edge.builder()
-                    .source(fqcn)
-                    .target(superFqcn)
-                    .type(EdgeType.EXTENDS)
-                    .confidence(Confidence.HIGH)
-                    .evidence("extends " + extended.getName().asString())
-                    .build());
+                if (ensureNodeExists(superFqcn, graphBuilder)) {
+                    graphBuilder.addEdge(Edge.builder()
+                        .source(fqcn)
+                        .target(superFqcn)
+                        .type(EdgeType.EXTENDS)
+                        .confidence(Confidence.HIGH)
+                        .evidence("extends " + extended.getName().asString())
+                        .build());
+                }
             }
 
             for (com.github.javaparser.ast.type.ClassOrInterfaceType implemented : classDecl.getImplementedTypes()) {
                 String ifaceFqcn = resolveType(implemented.getName().asString(), packageName, classDecl);
-                ensureNodeExists(ifaceFqcn, graphBuilder);
-                graphBuilder.addEdge(Edge.builder()
-                    .source(fqcn)
-                    .target(ifaceFqcn)
-                    .type(EdgeType.IMPLEMENTS)
-                    .confidence(Confidence.HIGH)
-                    .evidence("implements " + implemented.getName().asString())
-                    .build());
+                if (ensureNodeExists(ifaceFqcn, graphBuilder)) {
+                    graphBuilder.addEdge(Edge.builder()
+                        .source(fqcn)
+                        .target(ifaceFqcn)
+                        .type(EdgeType.IMPLEMENTS)
+                        .confidence(Confidence.HIGH)
+                        .evidence("implements " + implemented.getName().asString())
+                        .build());
+                }
             }
         }
 

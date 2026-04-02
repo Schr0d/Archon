@@ -12,12 +12,11 @@ import com.github.javaparser.ast.CompilationUnit;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AstVisitorTest {
-
-    private AstVisitor visitor = new AstVisitor();
 
     private CompilationUnit parse(String source) {
         return new JavaParser().parse(source).getResult().orElseThrow();
@@ -29,6 +28,8 @@ class AstVisitorTest {
         CompilationUnit cu = parse(source);
         GraphBuilder builder = GraphBuilder.builder();
 
+        Set<String> sourceClasses = Set.of("com.fuwa.system.domain.SysUser");
+        AstVisitor visitor = new AstVisitor(sourceClasses);
         visitor.visit(cu, builder);
 
         DependencyGraph graph = builder.build();
@@ -45,6 +46,11 @@ class AstVisitorTest {
         CompilationUnit cu = parse(source);
         GraphBuilder builder = GraphBuilder.builder();
 
+        Set<String> sourceClasses = Set.of(
+            "com.fuwa.framework.security.LoginService",
+            "com.fuwa.system.domain.SysUser"
+        );
+        AstVisitor visitor = new AstVisitor(sourceClasses);
         visitor.visit(cu, builder);
 
         DependencyGraph graph = builder.build();
@@ -64,6 +70,11 @@ class AstVisitorTest {
         CompilationUnit cu = parse(source);
         GraphBuilder builder = GraphBuilder.builder();
 
+        Set<String> sourceClasses = Set.of(
+            "com.fuwa.system.service.SysUserServiceImpl",
+            "com.fuwa.system.domain.SysUser"
+        );
+        AstVisitor visitor = new AstVisitor(sourceClasses);
         visitor.visit(cu, builder);
 
         DependencyGraph graph = builder.build();
@@ -80,6 +91,11 @@ class AstVisitorTest {
         CompilationUnit cu = parse(source);
         GraphBuilder builder = GraphBuilder.builder();
 
+        Set<String> sourceClasses = Set.of(
+            "com.fuwa.system.service.SysUserServiceImpl",
+            "com.fuwa.system.service.ISysUserService"
+        );
+        AstVisitor visitor = new AstVisitor(sourceClasses);
         visitor.visit(cu, builder);
 
         DependencyGraph graph = builder.build();
@@ -94,6 +110,8 @@ class AstVisitorTest {
         CompilationUnit cu = parse(source);
         GraphBuilder builder = GraphBuilder.builder();
 
+        Set<String> sourceClasses = Set.of("Standalone");
+        AstVisitor visitor = new AstVisitor(sourceClasses);
         visitor.visit(cu, builder);
 
         DependencyGraph graph = builder.build();
@@ -106,6 +124,8 @@ class AstVisitorTest {
         CompilationUnit cu = parse(source);
         GraphBuilder builder = GraphBuilder.builder();
 
+        Set<String> sourceClasses = Set.of("com.fuwa.system.service.ISysUserService");
+        AstVisitor visitor = new AstVisitor(sourceClasses);
         visitor.visit(cu, builder);
 
         DependencyGraph graph = builder.build();
@@ -121,10 +141,48 @@ class AstVisitorTest {
         CompilationUnit cu = parse(source);
         GraphBuilder builder = GraphBuilder.builder();
 
+        Set<String> sourceClasses = Set.of("com.fuwa.system.InnerA", "com.fuwa.system.InnerB");
+        AstVisitor visitor = new AstVisitor(sourceClasses);
         visitor.visit(cu, builder);
 
         DependencyGraph graph = builder.build();
         assertTrue(graph.getNode("com.fuwa.system.InnerA").isPresent());
         assertTrue(graph.getNode("com.fuwa.system.InnerB").isPresent());
+    }
+
+    @Test
+    void visit_externalImport_notAddedToGraph() {
+        String source = """
+            package com.example;
+            import java.util.List;
+            public class Foo { }
+            """;
+        Set<String> sourceClasses = Set.of("com.example.Foo");
+        GraphBuilder builder = GraphBuilder.builder();
+        AstVisitor visitor = new AstVisitor(sourceClasses);
+        CompilationUnit cu = parse(source);
+        visitor.visit(cu, builder);
+        DependencyGraph graph = builder.build();
+        assertTrue(graph.containsNode("com.example.Foo"));
+        assertFalse(graph.containsNode("java.util.List"));
+        assertEquals(0, graph.edgeCount());
+    }
+
+    @Test
+    void visit_sourceClassImport_addedToGraph() {
+        String source = """
+            package com.example;
+            import com.example.Bar;
+            public class Foo { }
+            """;
+        Set<String> sourceClasses = Set.of("com.example.Foo", "com.example.Bar");
+        GraphBuilder builder = GraphBuilder.builder();
+        AstVisitor visitor = new AstVisitor(sourceClasses);
+        CompilationUnit cu = parse(source);
+        visitor.visit(cu, builder);
+        DependencyGraph graph = builder.build();
+        assertTrue(graph.containsNode("com.example.Foo"));
+        assertTrue(graph.containsNode("com.example.Bar"));
+        assertEquals(1, graph.edgeCount());
     }
 }
