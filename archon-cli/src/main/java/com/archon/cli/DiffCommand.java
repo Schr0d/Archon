@@ -7,6 +7,7 @@ import com.archon.core.git.GitAdapter;
 import com.archon.core.git.GitException;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
+import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.RiskLevel;
 import com.archon.java.JavaParserPlugin;
 import picocli.CommandLine.Command;
@@ -201,17 +202,49 @@ public class DiffCommand implements Callable<Integer> {
             }
         }
 
-        // Source classes = head graph classes (for unchanged files) + FQCNs from base content
-        Set<String> sourceClasses = new HashSet<>(headGraph.getNodeIds());
-        // FQCNs from base content will be added by parseFromContent automatically
-
         if (baseContents.isEmpty()) {
             // No Java files changed — base graph is same as head
             return headGraph;
         }
 
+        // Identify FQCNs that belong to changed files
+        Set<String> changedFileClasses = new HashSet<>();
+        for (String file : changedFiles) {
+            if (file.endsWith(".java")) {
+                headGraph.getNodeIds().stream()
+                    .filter(id -> fileEndsWithClass(file, id))
+                    .forEach(changedFileClasses::add);
+            }
+        }
+
+        // Step 1: Copy unchanged nodes and edges from head graph
+        GraphBuilder baseBuilder = GraphBuilder.builder();
+        for (String nodeId : headGraph.getNodeIds()) {
+            if (!changedFileClasses.contains(nodeId)) {
+                baseBuilder.addNode(headGraph.getNode(nodeId).orElseThrow());
+            }
+        }
+        for (Edge edge : headGraph.getAllEdges()) {
+            // Only copy edges where both endpoints are unchanged
+            if (!changedFileClasses.contains(edge.getSource())
+                && !changedFileClasses.contains(edge.getTarget())) {
+                baseBuilder.addEdge(edge);
+            }
+        }
+
+        // Step 2: Parse base versions of changed files and merge
+        Set<String> sourceClasses = new HashSet<>(headGraph.getNodeIds());
         JavaParserPlugin.ParseResult baseResult = plugin.parseFromContent(baseContents, sourceClasses);
-        return baseResult.getGraph();
+        DependencyGraph changedGraph = baseResult.getGraph();
+
+        for (String nodeId : changedGraph.getNodeIds()) {
+            baseBuilder.addNode(changedGraph.getNode(nodeId).orElseThrow());
+        }
+        for (Edge edge : changedGraph.getAllEdges()) {
+            baseBuilder.addEdge(edge);
+        }
+
+        return baseBuilder.build();
     }
 
     private boolean fileEndsWithClass(String filePath, String fqcn) {
