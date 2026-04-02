@@ -10,10 +10,11 @@ import picocli.CommandLine.Command;
         AnalyzeCommand.class,
         ImpactCommand.class,
         EcpCommand.class,
-        CheckCommand.class
+        CheckCommand.class,
+        DiffCommand.class
     },
     mixinStandardHelpOptions = true,
-    version = "0.1.0"
+    version = "0.2.0"
 )
 public class ArchonCli implements Runnable {
     @Override
