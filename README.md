@@ -48,6 +48,7 @@ Archon uses a plugin architecture for language extensibility:
 |----------|--------|--------|
 | Java | JavaParser-based | Built-in |
 | JavaScript/TypeScript | Closure Compiler | Built-in |
+| Python | Regex-based import parser | Built-in |
 | Vue | SFC script extraction | Built-in |
 
 ### Analysis Capabilities

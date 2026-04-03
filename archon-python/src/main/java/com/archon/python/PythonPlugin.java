@@ -135,7 +135,8 @@ public class PythonPlugin implements LanguagePlugin {
                 }
 
                 // Add namespace prefix to target
-                String targetId = NAMESPACE + ":" + targetModuleName;
+                // Convert dot notation (from imports) to slash notation (to match node IDs from file paths)
+                String targetId = NAMESPACE + ":" + targetModuleName.replace(".", "/");
 
                 Edge edge = Edge.builder()
                     .source(prefixedId)
@@ -150,9 +151,10 @@ public class PythonPlugin implements LanguagePlugin {
             parseErrors.add(filePath + ":0 - Failed to parse: " + e.getMessage());
         }
 
-        // Return result with empty graph (ParseOrchestrator combines all results)
+        // Return result with the graph built from this file
+        // ParseOrchestrator combines all results from different files
         return new ParseResult(
-            GraphBuilder.builder().build(),
+            builder.build(),
             sourceModules,
             blindSpots,
             parseErrors

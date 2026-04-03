@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Gradle wrapper execute permission in CI workflows
 
+## [0.4.0.2] - 2026-04-04
+
+### Fixed
+- Gradle multi-module project detection now correctly identifies root-level projects with settings.gradle
+- JavaParser configured to Java 17 language level for better syntax support (records, switch expressions)
+- Edge-adding bug in JavaPlugin fixed — now checks node existence before creating edges
+- Shadow JAR version reading improved — VERSION file now read dynamically instead of hardcoding
+
+### Technical
+- JavaParser updated to 3.28+ for improved Java syntax parsing
+- ModuleDetector enhanced with 80+ lines of multi-module Gradle project detection logic
+
 ## [0.4.0.0] - 2026-04-03
 
 ### Added
