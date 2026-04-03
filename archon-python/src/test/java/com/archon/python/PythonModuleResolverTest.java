@@ -14,7 +14,7 @@ import java.util.Optional;
 class PythonModuleResolverTest {
 
     @Test
-    @DisplayName("resolveModule resolves single-dot relative import")
+    @DisplayName("resolve resolves single-dot relative import")
     void testResolveSingleDotRelative() {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -23,10 +23,10 @@ class PythonModuleResolverTest {
         // Import: from . import sibling
         // Expected: src.service.sibling
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             ".sibling",
             "src.service",
-            Path.of("/project/src")
+            "/project/src"
         );
 
         assertEquals(Optional.of("src.service.sibling"), resolved,
@@ -34,7 +34,7 @@ class PythonModuleResolverTest {
     }
 
     @Test
-    @DisplayName("resolveModule resolves double-dot relative import")
+    @DisplayName("resolve resolves double-dot relative import")
     void testResolveDoubleDotRelative() {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -43,10 +43,10 @@ class PythonModuleResolverTest {
         // Import: from .. import utils
         // Expected: src.utils
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             "..utils",
             "src.service",
-            Path.of("/project/src")
+            "/project/src"
         );
 
         assertEquals(Optional.of("src.utils"), resolved,
@@ -54,7 +54,7 @@ class PythonModuleResolverTest {
     }
 
     @Test
-    @DisplayName("resolveModule resolves triple-dot relative import")
+    @DisplayName("resolve resolves triple-dot relative import")
     void testResolveTripleDotRelative() {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -63,10 +63,10 @@ class PythonModuleResolverTest {
         // Import: from ... import config
         // Expected: config
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             "...config",
             "src.service",
-            Path.of("/project/src")
+            "/project/src"
         );
 
         assertEquals(Optional.of("config"), resolved,
@@ -74,7 +74,7 @@ class PythonModuleResolverTest {
     }
 
     @Test
-    @DisplayName("resolveModule returns empty when relative import goes above root")
+    @DisplayName("resolve returns empty when relative import goes above root")
     void testResolveAboveRoot() {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -83,10 +83,10 @@ class PythonModuleResolverTest {
         // Import: from .. import foo
         // Expected: empty (can't go above root)
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             "..foo",
             "",
-            Path.of("/project")
+            "/project"
         );
 
         assertEquals(Optional.empty(), resolved,
@@ -94,7 +94,7 @@ class PythonModuleResolverTest {
     }
 
     @Test
-    @DisplayName("resolveModule handles subpackage relative import")
+    @DisplayName("resolve handles subpackage relative import")
     void testResolveSubpackageRelative() {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -103,10 +103,10 @@ class PythonModuleResolverTest {
         // Import: from .sub import func
         // Expected: src.service.sub
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             ".sub",
             "src.service",
-            Path.of("/project/src")
+            "/project/src"
         );
 
         assertEquals(Optional.of("src.service.sub"), resolved,
@@ -114,7 +114,7 @@ class PythonModuleResolverTest {
     }
 
     @Test
-    @DisplayName("resolveModule performs filesystem check for sibling module")
+    @DisplayName("resolve performs filesystem check for sibling module")
     void testFilesystemCheckForSiblingModule(@TempDir Path tempDir) throws IOException {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -125,17 +125,15 @@ class PythonModuleResolverTest {
         Path siblingFile = serviceDir.resolve("sibling.py");
         Files.writeString(siblingFile, "# sibling module");
 
-        // Set source root
-        resolver.setSourceRoot(tempDir.resolve("project/src"));
-
         // Current file: service/handler.py
         // Package: service
         // Import: from . import sibling
+        // Source root: /project/src
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             ".sibling",
             "service",
-            serviceDir.resolve("handler.py")  // Path to current file
+            tempDir.resolve("project/src").toString()
         );
 
         // Filesystem check should succeed
@@ -147,7 +145,7 @@ class PythonModuleResolverTest {
     }
 
     @Test
-    @DisplayName("resolveModule returns empty when sibling file not found")
+    @DisplayName("resolve returns empty when sibling file not found")
     void testFilesystemCheckReturnsEmptyWhenNotFound(@TempDir Path tempDir) throws IOException {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -155,17 +153,15 @@ class PythonModuleResolverTest {
         Path serviceDir = tempDir.resolve("project/src/service");
         Files.createDirectories(serviceDir);
 
-        resolver.setSourceRoot(tempDir.resolve("project/src"));
-
         // Current file: service/handler.py
         // Package: service
         // Import: from . import sibling
         // But sibling.py doesn't exist
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             ".sibling",
             "service",
-            serviceDir.resolve("handler.py")  // Path to current file
+            tempDir.resolve("project/src").toString()
         );
 
         // Filesystem check should fail
@@ -174,7 +170,7 @@ class PythonModuleResolverTest {
     }
 
     @Test
-    @DisplayName("resolveModule performs ancestral search for tests directory")
+    @DisplayName("resolve performs ancestral search for tests directory")
     void testAncestralSearchForTestsDirectory(@TempDir Path tempDir) throws IOException {
         PythonModuleResolver resolver = new PythonModuleResolver();
 
@@ -187,17 +183,16 @@ class PythonModuleResolverTest {
         Files.createDirectories(testsDir);
         Files.writeString(testsDir.resolve("test_utils.py"), "# test utils");
 
-        resolver.setSourceRoot(tempDir.resolve("project/src"));
-
         // Current file: /project/src/service/handler.py
         // Package: service
         // Import: from ...tests import test_utils
         // Ancestral search: service/ (not found) → ../tests (found!)
+        // Source root: /project/src
 
-        Optional<String> resolved = resolver.resolveModule(
+        Optional<String> resolved = resolver.resolve(
             "...tests.test_utils",
             "service",
-            serviceDir.resolve("handler.py")  // Path to current file
+            tempDir.resolve("project/src").toString()
         );
 
         // Should find tests/ at parent level
@@ -207,5 +202,38 @@ class PythonModuleResolverTest {
         // Clean up
         Files.deleteIfExists(testsDir.resolve("test_utils.py"));
         Files.deleteIfExists(testsDir);
+    }
+
+    @Test
+    @DisplayName("resolve validates module with __init__.py")
+    void testFilesystemCheckForModuleInit(@TempDir Path tempDir) throws IOException {
+        PythonModuleResolver resolver = new PythonModuleResolver();
+
+        // Create test directory structure with __init__.py
+        Path serviceDir = tempDir.resolve("project/src/service");
+        Files.createDirectories(serviceDir);
+
+        Path utilsDir = tempDir.resolve("project/src/utils");
+        Files.createDirectories(utilsDir);
+        Files.writeString(utilsDir.resolve("__init__.py"), "# utils package");
+
+        // Current file: service/handler.py
+        // Package: service
+        // Import: from .. import utils
+        // Source root: /project/src
+
+        Optional<String> resolved = resolver.resolve(
+            "..utils",
+            "service",
+            tempDir.resolve("project/src").toString()
+        );
+
+        // Filesystem check should succeed with __init__.py
+        assertEquals(Optional.of("utils"), resolved,
+            "Should resolve to utils when __init__.py exists");
+
+        // Clean up
+        Files.deleteIfExists(utilsDir.resolve("__init__.py"));
+        Files.deleteIfExists(utilsDir);
     }
 }

@@ -21,17 +21,6 @@ import java.util.Optional;
  */
 public class PythonModuleResolver {
 
-    private Path sourceRoot;
-
-    /**
-     * Sets the source root for filesystem resolution.
-     *
-     * @param sourceRoot the root directory of the Python project
-     */
-    public void setSourceRoot(Path sourceRoot) {
-        this.sourceRoot = sourceRoot;
-    }
-
     /**
      * Resolves a relative import to a fully qualified module name.
      *
@@ -43,17 +32,17 @@ public class PythonModuleResolver {
      *   <li>Return empty if resolution fails (above root or file not found)</li>
      * </ol>
      *
-     * @param relativeModule the relative module path (e.g., "..utils", ".sibling")
+     * @param relativeImport the relative module path (e.g., "..utils", ".sibling")
      * @param currentPackage the current package (e.g., "src.service", "myapp")
-     * @param filePath the full path to the current file (used for filesystem checks)
+     * @param sourceRoot the source root directory for filesystem checks
      * @return the resolved module name, or empty if resolution fails
      */
-    public Optional<String> resolveModule(
-        String relativeModule,
+    public Optional<String> resolve(
+        String relativeImport,
         String currentPackage,
-        Path filePath
+        String sourceRoot
     ) {
-        if (relativeModule == null || relativeModule.isEmpty()) {
+        if (relativeImport == null || relativeImport.isEmpty()) {
             return Optional.empty();
         }
 
@@ -62,7 +51,7 @@ public class PythonModuleResolver {
         // So the number of levels to go up is (dots - 1)
         int levelsUp = 0;
         int i = 0;
-        while (i < relativeModule.length() && relativeModule.charAt(i) == '.') {
+        while (i < relativeImport.length() && relativeImport.charAt(i) == '.') {
             i++;
         }
         levelsUp = i - 1;  // dots - 1 = levels to go up
@@ -74,8 +63,8 @@ public class PythonModuleResolver {
 
         // Extract the subpackage after the dots (if any)
         String subpackage = "";
-        if (i < relativeModule.length()) {
-            String remaining = relativeModule.substring(i);
+        if (i < relativeImport.length()) {
+            String remaining = relativeImport.substring(i);
             if (remaining.startsWith(".")) {
                 subpackage = remaining.substring(1); // Remove the extra dot
             } else {
@@ -90,7 +79,7 @@ public class PythonModuleResolver {
                 return Optional.empty();
             }
             // At root, just use subpackage
-            return validateWithAncestralSearch(subpackage, filePath);
+            return validateWithAncestralSearch(subpackage, sourceRoot);
         }
 
         // Navigate up the package hierarchy
@@ -119,7 +108,7 @@ public class PythonModuleResolver {
         }
 
         // Perform filesystem check with ancestral search
-        return validateWithAncestralSearch(targetPackage, filePath);
+        return validateWithAncestralSearch(targetPackage, sourceRoot);
     }
 
     /**
@@ -127,32 +116,38 @@ public class PythonModuleResolver {
      * Uses ancestral search to find the module at parent levels.
      *
      * @param targetPackage the target package (e.g., "src.service", "tests")
-     * @param currentFilePath the full path to the current file
+     * @param sourceRootStr the source root directory string
      * @return the validated module name, or empty if not found
      */
-    private Optional<String> validateWithAncestralSearch(String targetPackage, Path currentFilePath) {
-        if (sourceRoot == null) {
+    private Optional<String> validateWithAncestralSearch(String targetPackage, String sourceRootStr) {
+        if (sourceRootStr == null || sourceRootStr.isEmpty()) {
             // No filesystem check configured, return the name as-is
             return Optional.of(targetPackage);
         }
 
-        // Extract module name from package (last segment)
-        String[] parts = targetPackage.split("\\.");
-        String moduleName = parts[parts.length - 1];
+        Path sourceRootPath = Path.of(sourceRootStr);
 
-        // Try current directory first
-        Path currentDir = currentFilePath.getParent();
-        if (currentDir != null) {
-            Path moduleFile = currentDir.resolve(moduleName + ".py");
-            Path moduleInit = currentDir.resolve("__init__.py");
+        // Check if source root directory exists
+        if (!Files.exists(sourceRootPath)) {
+            // Source root doesn't exist, skip filesystem validation
+            return Optional.of(targetPackage);
+        }
 
-            if (Files.exists(moduleFile)) {
-                return Optional.of(targetPackage);
-            }
+        // Convert package to filesystem path
+        String packagePath = targetPackage.replace(".", "/");
+
+        // Check if module exists as a .py file
+        Path moduleFile = sourceRootPath.resolve(packagePath + ".py");
+
+        // Check if module exists as a package with __init__.py
+        Path moduleInit = sourceRootPath.resolve(packagePath).resolve("__init__.py");
+
+        if (Files.exists(moduleFile) || Files.exists(moduleInit)) {
+            return Optional.of(targetPackage);
         }
 
         // Ancestral search: check parent directories for tests/
-        Path dir = currentDir;
+        Path dir = sourceRootPath;
         for (int level = 0; level < 3; level++) {
             if (dir == null || !Files.exists(dir)) {
                 break;
@@ -161,16 +156,18 @@ public class PythonModuleResolver {
             // Check for tests/ directory
             Path testsDir = dir.resolve("tests");
             if (Files.exists(testsDir)) {
-                Path moduleFile = testsDir.resolve(moduleName + ".py");
+                // Check if module exists in tests/
+                Path testsModuleFile = testsDir.resolve(packagePath + ".py");
+                Path testsModuleInit = testsDir.resolve(packagePath).resolve("__init__.py");
 
-                if (Files.exists(moduleFile)) {
+                if (Files.exists(testsModuleFile) || Files.exists(testsModuleInit)) {
                     // Found it! Construct the package path
-                    String testsPackage = buildPackagePath(dir.resolve("tests"), sourceRoot);
+                    String testsPackage = buildPackagePath(testsDir, sourceRootPath);
                     // Add the module name to the package path
                     if (!testsPackage.isEmpty()) {
-                        testsPackage = testsPackage + "." + moduleName;
+                        testsPackage = testsPackage + "." + targetPackage;
                     } else {
-                        testsPackage = moduleName;
+                        testsPackage = targetPackage;
                     }
                     return Optional.of(testsPackage);
                 }
@@ -179,7 +176,7 @@ public class PythonModuleResolver {
             dir = dir.getParent();
         }
 
-        // Not found
+        // Not found but source root exists, so return empty
         return Optional.empty();
     }
 
@@ -204,6 +201,6 @@ public class PythonModuleResolver {
      * Resets the resolver state between parse runs.
      */
     public void reset() {
-        this.sourceRoot = null;
+        // No state to reset
     }
 }
