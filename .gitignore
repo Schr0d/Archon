@@ -22,3 +22,8 @@ Thumbs.db
 # Distribution
 *.tar.gz
 *.zip
+
+# Claude Code & GStack (user-specific)
+/.claude/
+.gstack/
+docs/superpowers/
