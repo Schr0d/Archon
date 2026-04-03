@@ -28,24 +28,17 @@ import java.util.regex.Pattern;
  */
 public class PythonImportExtractor {
 
-    // Pattern: import foo
+    // Pattern: import foo [as bar], baz [, ...]
+    // Matches any import statement starting with "import"
+    // Note: Java regex doesn't support repeated capture groups, so we extract modules via string parsing
     private static final Pattern IMPORT_PATTERN = Pattern.compile(
-        "^import\\s+(\\w+)(?:\\s+as\\s+(\\w+))?"
+        "^import\\s+([\\w.]+(?:\\s*,\\s*[\\w.]+)*(?:\\s+as\\s+\\w+)?)"
     );
 
-    // Pattern: import foo, bar, baz
-    private static final Pattern IMPORT_MULTI_PATTERN = Pattern.compile(
-        "^import\\s+(\\w+)(?:\\s*,\\s*(\\w+))*"
-    );
-
-    // Pattern: from foo import bar
+    // Pattern: from foo import bar [, baz, ...]
+    // Matches any from-import statement
     private static final Pattern FROM_IMPORT_PATTERN = Pattern.compile(
-        "^from\\s+(\\S+)\\s+import\\s+(\\S+)"
-    );
-
-    // Pattern: from foo import bar, baz
-    private static final Pattern FROM_IMPORT_MULTI_PATTERN = Pattern.compile(
-        "^from\\s+(\\S+)\\s+import\\s+(\\S+)(?:\\s*,\\s*(\\S+))*"
+        "^from\\s+([\\w.]+)\\s+import\\s+(\\S+(?:\\s*,\\s*\\S+)*)"
     );
 
     /**
@@ -71,45 +64,29 @@ public class PythonImportExtractor {
                 continue;
             }
 
-            // Try simple import pattern: import foo
+            // Try import pattern: import foo [, bar, ...]
             Matcher matcher = IMPORT_PATTERN.matcher(line);
             if (matcher.matches()) {
-                String module = matcher.group(1);
-                imports.add(module);
-                continue;
-            }
-
-            // Try multi-import pattern: import foo, bar
-            matcher = IMPORT_MULTI_PATTERN.matcher(line);
-            if (matcher.matches()) {
-                // The pattern matches the first module, we need to extract all
-                // Split by comma and process each
+                // Extract the modules part after "import" and parse each module
                 String modulesPart = line.substring(line.indexOf("import") + 6).trim();
-                String[] moduleNames = modulesPart.split(",");
-                for (String moduleName : moduleNames) {
-                    moduleName = moduleName.trim();
+                String[] moduleList = modulesPart.split(",");
+                for (String module : moduleList) {
+                    module = module.trim();
                     // Extract just the module name before any "as" alias
-                    if (moduleName.contains(" as ")) {
-                        moduleName = moduleName.substring(0, moduleName.indexOf(" as ")).trim();
+                    if (module.contains(" as ")) {
+                        module = module.substring(0, module.indexOf(" as ")).trim();
                     }
-                    if (!moduleName.isEmpty()) {
-                        imports.add(moduleName);
+                    if (!module.isEmpty()) {
+                        imports.add(module);
                     }
                 }
                 continue;
             }
 
-            // Try from import pattern: from foo import bar
+            // Try from import pattern: from foo import bar [, baz, ...]
             matcher = FROM_IMPORT_PATTERN.matcher(line);
             if (matcher.matches()) {
-                String module = matcher.group(1);
-                imports.add(module);
-                continue;
-            }
-
-            // Try from import multi-item: from foo import bar, baz
-            matcher = FROM_IMPORT_MULTI_PATTERN.matcher(line);
-            if (matcher.matches()) {
+                // Group 1 is the source module (e.g., "foo" in "from foo import bar")
                 String module = matcher.group(1);
                 imports.add(module);
                 continue;

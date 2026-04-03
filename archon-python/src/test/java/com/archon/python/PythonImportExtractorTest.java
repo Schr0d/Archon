@@ -89,5 +89,17 @@ class PythonImportExtractorTest {
         assertTrue(imports.contains("os"), "Module name should be 'os'");
     }
 
+    @Test
+    @DisplayName("extractImports handles dotted module names")
+    void testDottedModuleNames() {
+        String code = "import os.path.sys\nimport collections.abc\nfrom os.path import join";
+        Set<String> imports = PythonImportExtractor.extractImports(code);
+
+        assertEquals(3, imports.size(), "Should extract three imports");
+        assertTrue(imports.contains("os.path.sys"));
+        assertTrue(imports.contains("collections.abc"));
+        assertTrue(imports.contains("os.path"));
+    }
+
     // Relative import tests will be added in Task 4 after PythonModuleResolver exists
 }
