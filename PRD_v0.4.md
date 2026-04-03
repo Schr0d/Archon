@@ -1,6 +1,6 @@
 # Domain Analyzer & Dependency Guard PRD（v0.4 - Systems Engineering Edition）
 
-> **Implementation status (2026-04-02):** v0.1 complete. CLI + Java parser + analysis engines (cycles, coupling, domains, impact, rules, blind spots) working. Tested on 1043-class RuoYi monolith. v0.1.1 in progress: external class filtering, adaptive thresholds, smarter domain detection. Sections 3-7 of this PRD remain the reference architecture; implementation status tracked in CLAUDE.md roadmap.
+> **Implementation status (2026-04-03):** v0.4.0.0 complete. Multi-language SPI + Java + JavaScript/TypeScript plugins + Vue support. Security hardening (namespace collision detection, file size validation, prefix validation). Diff-based change impact analysis. Tested on RuoYi monolith (1043 classes) + geditor-ui projects (375 + 489 JS/TS files). Sections 3-7 of this PRD remain the reference architecture; implementation status tracked in CLAUDE.md roadmap.
 
 ---
 
