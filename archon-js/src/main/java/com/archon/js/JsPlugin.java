@@ -139,8 +139,7 @@ public class JsPlugin implements LanguagePlugin {
             for (JsAstVisitor.ImportInfo importInfo : visitResult.imports()) {
                 String targetId = importInfo.resolvedPath();
 
-                // Add target node if it doesn't exist (will be prefixed by ParseOrchestrator)
-                // Use IMPORTS edge type for all imports (we don't have separate TYPE_IMPORT edge type)
+                // Edge to external dependency - builder will skip if target node doesn't exist
                 Edge edge = Edge.builder()
                     .source(prefixedId)
                     .target(targetId)
