@@ -137,6 +137,10 @@ public class PythonStdlib {
         "zipapp", "zipfile", "zipimport", "zlib", "zoneinfo"
     );
 
+    // Prevent instantiation
+    private PythonStdlib() {
+    }
+
     /**
      * Checks if a module name belongs to Python's standard library.
      *
