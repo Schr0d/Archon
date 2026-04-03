@@ -114,6 +114,7 @@ public class JavaPlugin implements LanguagePlugin {
             DependencyGraph tempGraph = tempBuilder.build();
 
             // Add nodes with namespace prefix to the shared builder
+            Set<String> addedPrefixedIds = new HashSet<>();
             for (String fqcn : fileFqcns) {
                 String prefixedId = NAMESPACE + ":" + fqcn;
                 sourceModules.add(prefixedId);
@@ -122,20 +123,25 @@ public class JavaPlugin implements LanguagePlugin {
                         .id(prefixedId)
                         .type(node.getType())
                         .build());
+                    addedPrefixedIds.add(prefixedId);
                 });
             }
 
             // Add edges with namespace prefix to the shared builder
+            // Only add edges where both source and target nodes were added to the builder
             for (com.archon.core.graph.Edge edge : tempGraph.getAllEdges()) {
                 String prefixedSource = NAMESPACE + ":" + edge.getSource();
                 String prefixedTarget = NAMESPACE + ":" + edge.getTarget();
-                builder.addEdge(com.archon.core.graph.Edge.builder()
-                    .source(prefixedSource)
-                    .target(prefixedTarget)
-                    .type(edge.getType())
-                    .confidence(edge.getConfidence())
-                    .evidence(edge.getEvidence())
-                    .build());
+                // Only add edges where source node exists in the builder
+                if (addedPrefixedIds.contains(prefixedSource)) {
+                    builder.addEdge(com.archon.core.graph.Edge.builder()
+                        .source(prefixedSource)
+                        .target(prefixedTarget)
+                        .type(edge.getType())
+                        .confidence(edge.getConfidence())
+                        .evidence(edge.getEvidence())
+                        .build());
+                }
             }
 
         } catch (Exception e) {

@@ -5,6 +5,7 @@ import com.archon.core.graph.BlindSpot;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.GraphBuilder;
 import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 
 import java.io.IOException;
@@ -39,7 +40,9 @@ public class JavaParserPlugin {
         }
 
         // Step 2: First pass — collect all source FQCNs
-        JavaParser javaParser = new JavaParser();
+        ParserConfiguration parserConfig = new ParserConfiguration()
+            .setLanguageLevel(com.github.javaparser.ParserConfiguration.LanguageLevel.JAVA_17);
+        JavaParser javaParser = new JavaParser(parserConfig);
         Set<String> sourceClasses = new HashSet<>();
         for (ModuleDetector.SourceRoot sourceRoot : sourceRoots) {
             collectSourceFqcns(sourceRoot.getPath(), javaParser, sourceClasses, errors);
@@ -79,7 +82,9 @@ public class JavaParserPlugin {
 
         // Collect FQCNs from the provided content
         Set<String> sourceClasses = new HashSet<>(knownSourceClasses);
-        JavaParser javaParser = new JavaParser();
+        ParserConfiguration parserConfig = new ParserConfiguration()
+            .setLanguageLevel(com.github.javaparser.ParserConfiguration.LanguageLevel.JAVA_17);
+        JavaParser javaParser = new JavaParser(parserConfig);
         for (Map.Entry<Path, String> entry : fileContents.entrySet()) {
             collectFqcnsFromContent(entry.getKey().toString(), entry.getValue(), javaParser, sourceClasses, errors);
         }

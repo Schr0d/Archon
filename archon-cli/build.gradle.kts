@@ -2,6 +2,9 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.+"
 }
 
+// Read version from VERSION file
+val archonVersion = file("../VERSION").takeIf { it.exists() }?.readText()?.trim() ?: "0.2.0"
+
 dependencies {
     implementation(project(":archon-core"))
     implementation(project(":archon-java"))
@@ -20,7 +23,7 @@ tasks.jar {
 
 tasks.shadowJar {
     archiveBaseName.set("archon")
-    archiveVersion.set("0.2.0")
+    archiveVersion.set(archonVersion)
     archiveClassifier.set("")
     mergeServiceFiles()
 }
