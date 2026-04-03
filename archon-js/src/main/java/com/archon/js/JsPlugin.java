@@ -37,14 +37,16 @@ import java.util.Set;
 public class JsPlugin implements LanguagePlugin {
 
     private static final String NAMESPACE = "js";
-    private static final Set<String> EXTENSIONS = Set.of("js", "jsx", "ts", "tsx");
+    private static final Set<String> EXTENSIONS = Set.of("js", "jsx", "ts", "tsx", "vue");
 
     private final JsDomainStrategy domainStrategy;
     private final JsAstVisitor astVisitor;
+    private final VueFileExtractor vueExtractor;
 
     public JsPlugin() {
         this.domainStrategy = new JsDomainStrategy();
         this.astVisitor = new JsAstVisitor();
+        this.vueExtractor = new VueFileExtractor();
     }
 
     @Override
@@ -82,9 +84,38 @@ public class JsPlugin implements LanguagePlugin {
                 .build();
             builder.addNode(node);
 
+            // Handle Vue files specially - extract script section first
+            String contentToParse = content;
+            if (filePath.endsWith(".vue")) {
+                VueFileExtractor.ExtractionResult extraction = vueExtractor.extractScript(content);
+                if (extraction == null) {
+                    // No script block in Vue file - report as blind spot
+                    blindSpots.add(new BlindSpot(
+                        "VueNoScript",
+                        moduleName,
+                        "Vue file has no <script> block - cannot extract dependencies"
+                    ));
+                    return new ParseResult(
+                        GraphBuilder.builder().build(),
+                        sourceModules,
+                        blindSpots,
+                        parseErrors
+                    );
+                }
+                contentToParse = extraction.scriptContent();
+                // Add blind spot for Vue SFC format
+                if (extraction.isSetup()) {
+                    blindSpots.add(new BlindSpot(
+                        "VueSetup",
+                        moduleName,
+                        "Vue <script setup> - partial parsing, template dependencies not analyzed"
+                    ));
+                }
+            }
+
             // Use JsAstVisitor to extract dependencies
             JsAstVisitor.VisitResult visitResult = astVisitor.extractDependencies(
-                content,
+                contentToParse,
                 filePath,
                 context.getSourceRoot()
             );
@@ -134,12 +165,13 @@ public class JsPlugin implements LanguagePlugin {
                 .replace(".jsx", "")
                 .replace(".ts", "")
                 .replace(".tsx", "")
+                .replace(".vue", "")
                 .replace("\\", "/");
             return moduleName;
         } catch (Exception e) {
             // Fallback to filename only
             String fileName = Path.of(filePath).getFileName().toString();
-            return fileName.replaceAll("\\.(js|jsx|ts|tsx)$", "");
+            return fileName.replaceAll("\\.(js|jsx|ts|tsx|vue)$", "");
         }
     }
 

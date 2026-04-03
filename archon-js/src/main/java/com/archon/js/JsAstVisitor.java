@@ -189,6 +189,9 @@ public class JsAstVisitor {
         if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) {
             return "typescript";
         }
+        if (filePath.endsWith(".vue")) {
+            return "vue";
+        }
         return "javascript";
     }
 }

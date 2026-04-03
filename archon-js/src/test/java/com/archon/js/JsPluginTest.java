@@ -27,7 +27,7 @@ class JsPluginTest {
     }
 
     @Test
-    @DisplayName("JsPlugin supports js, jsx, ts, tsx file extensions")
+    @DisplayName("JsPlugin supports js, jsx, ts, tsx, vue file extensions")
     void testFileExtensionsIncludesJsAndTs() {
         JsPlugin plugin = new JsPlugin();
         Set<String> extensions = plugin.fileExtensions();
@@ -36,7 +36,8 @@ class JsPluginTest {
         assertTrue(extensions.contains("ts"), "Should support .ts files");
         assertTrue(extensions.contains("jsx"), "Should support .jsx files");
         assertTrue(extensions.contains("tsx"), "Should support .tsx files");
-        assertEquals(4, extensions.size(), "Should have exactly 4 extensions");
+        assertTrue(extensions.contains("vue"), "Should support .vue files");
+        assertEquals(5, extensions.size(), "Should have exactly 5 extensions");
     }
 
     @Test
