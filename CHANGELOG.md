@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Multi-language support via ServiceLoader-based LanguagePlugin SPI
 - JavaScript/TypeScript parser plugin using Google Closure Compiler
+- Vue Single File Component (.vue) support with <script> extraction
 - ParseOrchestrator for two-phase multi-plugin graph construction
 - Namespace prefixing (java:, js:) for multi-language node isolation
 - JsDomainStrategy for package.json workspace detection
 - ModulePathResolver for ES module import resolution
+- VueFileExtractor for Vue SFC script section extraction
 - SpiComplianceTest for SPI contract validation
 - PluginDiscoverer for automatic LanguagePlugin discovery
 
