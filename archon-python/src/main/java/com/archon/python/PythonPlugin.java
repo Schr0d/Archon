@@ -176,11 +176,24 @@ public class PythonPlugin implements LanguagePlugin {
                 .replace(".pyi", "")
                 .replace(".pyw", "")
                 .replace("\\", "/");
+
+            // Ensure we don't return an empty module name
+            if (moduleName == null || moduleName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Module name is empty after relativization");
+            }
+
             return moduleName;
         } catch (Exception e) {
             // Fallback to filename only
             String fileName = Path.of(filePath).getFileName().toString();
-            return fileName.replaceAll("\\.(py|pyi|pyw)$", "");
+            String moduleName = fileName.replaceAll("\\.(py|pyi|pyw)$", "");
+
+            // Final fallback: use a default name if still empty
+            if (moduleName == null || moduleName.trim().isEmpty()) {
+                moduleName = "unknown_module";
+            }
+
+            return moduleName;
         }
     }
 

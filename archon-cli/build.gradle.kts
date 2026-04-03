@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":archon-core"))
     implementation(project(":archon-java"))
     implementation(project(":archon-js"))
+    implementation(project(":archon-python"))
     implementation("info.picocli:picocli:4.7.+")
     implementation("ch.qos.logback:logback-classic:1.5.+")
     annotationProcessor("info.picocli:picocli-codegen:4.7.+")
