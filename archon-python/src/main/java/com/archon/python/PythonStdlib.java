@@ -19,64 +19,77 @@ public class PythonStdlib {
      */
     private static final Set<String> STDLIB_MODULES = Set.of(
         // Core built-in modules
-        "__future__", "__main__", "_ast", "_thread", "abc", "argparse", "array",
-        "ast", "asynchat", "asyncio", "asyncio.streams", "asyncore", "atexit",
-        "auditevents", "audioop", "aifc", "antigravity",
+        "__future__", "__main__", "_ast", "_thread", "_warnings", "_weakref",
+        "abc", "aifc", "argparse", "array", "ast", "asynchat", "asyncio",
+        "asyncio.streams", "asyncore", "atexit", "audioop",
 
         "base64", "bdb", "binascii", "binhex", "bisect", "builtins", "bz2",
 
         "calendar", "cgi", "cgitb", "chunk", "cmath", "cmd", "code", "codecs",
-        "codeop", "collections", "collections.abc", "colorsys", "compileall",
-        "concurrent", "concurrent.futures", "configparser", "contextlib",
-        "contextvars", "copy", "copyreg", "cProfile", "crypt", "cryptolib",
-        "csv", "ctypes", "ctypes.util", "ctypes.wintypes", "curses",
-        "curses.ascii", "curses.panel", "curses.textpad",
+        "codeop", "collections", "colorsys", "compileall", "concurrent",
+        "concurrent.futures", "configparser", "contextlib", "contextvars", "copy",
+        "copyreg", "cProfile", "crypt", "csv", "ctypes", "ctypes.util",
+        "ctypes.wintypes", "curses", "curses.ascii", "curses.panel",
+        "curses.textpad", "curses.wrapper",
 
         "dataclasses", "datetime", "dbm", "dbm.dumb", "dbm.gnu", "dbm.ndbm",
         "decimal", "difflib", "dis", "distutils", "distutils.command",
-        "distutils.core", "distutils.extension", "doctest",
+        "distutils.core", "distutils.debug", "distutils.extension",
+        "distutils.fancy_getopt", "distutils.filelist", "distutils.log",
+        "doctest",
 
-        "email", "email.generator", "email.header", "email.message", "email.mime",
-        "email.mime.multipart", "email.mime.text", "email.parser", "email.policy",
+        "email", "email.charset", "email.encoders", "email.errors",
+        "email.generator", "email.header", "email.headerregistry",
+        "email.iterators", "email.message",
+        "email.mime", "email.mime.application", "email.mime.audio",
+        "email.mime.base", "email.mime.image", "email.mime.message",
+        "email.mime.multipart", "email.mime.nonmultipart", "email.mime.text",
+        "email.parser", "email.policy", "email.utils",
         "encodings", "encodings.aliases", "encodings.ascii",
         "encodings.base64_codec", "encodings.bz2_codec", "encodings.hex_codec",
-        "encodings.idna", "encodings.punycode", "encodings.quopri_codec",
+        "encodings.idna", "encodings.latin_1", "encodings.palmos",
+        "encodings.punycode", "encodings.quopri_codec",
         "encodings.raw_unicode_escape", "encodings.rot_13",
         "encodings.string_escape", "encodings.unicode_escape",
-        "encodings.unicode_internal", "encodings.utf_8_sig", "enum", "errno",
-        "exit",
+        "encodings.unicode_internal", "encodings.utf_8", "encodings.utf_8_sig",
+        "encodings.uu_codec", "encodings.zlib_codec", "enum", "errno", "error",
 
         "faulthandler", "fcntl", "filecmp", "fileinput", "fnmatch", "formatter",
         "fractions", "ftplib", "functools",
 
-        "gc", "getopt", "getpass", "gettext", "glob", "graphlib", "grp", "gzip",
+        "gc", "genericpath", "getopt", "getpass", "gettext", "glob", "graphlib",
+        "grp", "gzip",
 
         "hashlib", "heapq", "hmac", "html", "html.entities", "html.parser",
         "http", "http.client", "http.cookies", "http.cookiejar", "http.server",
 
-        "imghdr", "imaplib", "imp", "importlib", "importlib.abc",
-        "importlib.machinery", "importlib.metadata", "importlib.resources",
-        "importlib.util", "inspect", "io", "ipaddress", "itertools",
+        "imaplib", "imp", "importlib", "importlib.abc", "importlib.machinery",
+        "importlib.metadata", "importlib.resources", "importlib.util", "imghdr",
+        "inspect", "io", "ipaddress", "itertools",
 
         "json",
 
         "keyword",
 
-        "lib2to3", "linecache", "locale", "logging", "logging.config",
-        "logging.handlers", "lzma",
+        "lib2to3", "lib2to3.fixer_base", "lib2to3.pgen2",
+        "lib2to3.pygram", "lib2to3.pytree", "linecache", "locale",
+        "logging", "logging.config", "logging.handlers",
+        "lzma",
 
         "mailbox", "mailcap", "marshal", "math", "mimetypes", "mmap",
         "modulefinder", "msilib", "msvcrt", "multiprocessing",
-        "multiprocessing.managers", "multiprocessing.pool",
-        "multiprocessing.shared_memory",
+        "multiprocessing.connection", "multiprocessing.managers",
+        "multiprocessing.pool", "multiprocessing.shared_memory",
+        "multiprocessing.synchronize",
 
-        "netrc", "nis", "nntplib", "numbers",
+        "netrc", "nis", "nntplib", "numbers", "ntpath", "nturl2path",
 
         "objgraph", "operator", "optparse", "os", "os.path", "ossaudiodev",
 
         "pathlib", "pdb", "pickle", "pickletools", "pipes", "pkgutil", "platform",
         "plistlib", "poplib", "posix", "posixpath", "pprint", "profile", "pstats",
-        "pty", "pwd", "py_compile", "pyclbr", "pydoc",
+        "pty", "pwd", "py_compile", "pyclbr", "pydoc", "pydoc_data",
+        "pydoc_data.topics",
 
         "queue", "quopri",
 
@@ -85,20 +98,24 @@ public class PythonStdlib {
 
         "sched", "secrets", "select", "selectors", "shelve", "shlex", "shutil",
         "signal", "site", "smtpd", "smtplib", "sndhdr", "socket", "socketserver",
-        "spwd", "sqlite3", "ssl", "stat", "statistics", "string", "stringprep",
-        "struct", "subprocess", "sunau", "symbol", "symtable", "sys", "sysconfig",
+        "spwd", "sqlite3", "sqlite3.dbapi2", "ssl", "stat", "statistics",
+        "string", "stringprep", "struct", "subprocess", "sunau", "symbol",
+        "symtable", "sys", "sysconfig",
 
         "tabnanny", "tarfile", "telnetlib", "tempfile", "termios", "test",
-        "test.support", "test.support.script_helper", "textwrap", "thread",
-        "threading", "time", "timeit", "tkinter", "tkinter.colorchooser",
-        "tkinter.constants", "tkinter.dialog", "tkinter.dnd", "tkinter.filedialog",
-        "tkinter.font", "tkinter.messagebox", "tkinter.scrolledtext",
-        "tkinter.simpledialog", "tkinter.tix", "tkinter.ttk", "token", "tokenize",
-        "tomllib", "trace", "traceback", "tracemalloc", "tty", "turtle",
-        "turtledemo", "types", "typing", "typing_extensions",
+        "test.support", "test.support.script_helper", "test.test_support",
+        "textwrap", "thread", "threading", "time", "timeit", "tkinter",
+        "tkinter.colorchooser", "tkinter.commondialog",
+        "tkinter.constants", "tkinter.dialog", "tkinter.dnd",
+        "tkinter.filedialog", "tkinter.font", "tkinter.messagebox",
+        "tkinter.scrolledtext", "tkinter.simpledialog", "tkinter.tix",
+        "tkinter.ttk", "token", "tokenize", "tomllib", "trace", "traceback",
+        "tracemalloc", "tty", "turtle", "turtledemo", "types", "typing",
 
-        "uu", "unicodedata", "unittest", "unittest.mock", "urllib",
-        "urllib.error", "urllib.parse", "urllib.request", "urllib.response",
+        "uu", "unicodedata", "unittest", "unittest.mock",
+        "unittest.result", "unittest.runner", "unittest.signals",
+        "unittest.suite", "unittest.util", "urllib", "urllib.error",
+        "urllib.parse", "urllib.request", "urllib.response",
         "urllib.robotparser",
 
         "uuid",
@@ -106,11 +123,16 @@ public class PythonStdlib {
         "venv",
 
         "warnings", "wave", "weakref", "webbrowser", "winreg", "winsound",
-        "wsgiref",
+        "wsgiref", "wsgiref.handlers", "wsgiref.headers",
+        "wsgiref.simple_server", "wsgiref.util",
 
         "xdrlib", "xml", "xml.dom", "xml.dom.minidom", "xml.dom.pulldom",
-        "xml.etree", "xml.etree.ElementTree", "xml.parsers", "xml.parsers.expat",
-        "xml.sax", "xmlrpc", "xmlrpc.client", "xmlrpc.server",
+        "xml.dom.xmlbuilder", "xml.etree", "xml.etree.ElementTree",
+        "xml.etree.ElementInclude", "xml.etree.ElementPath", "xml.parsers",
+        "xml.parsers.expat", "xml.parsers.expat.errors",
+        "xml.parsers.expat.model", "xml.sax", "xml.sax.handler",
+        "xml.sax.saxutils", "xml.sax.xmlreader", "xmlrpc", "xmlrpc.client",
+        "xmlrpc.server",
 
         "zipapp", "zipfile", "zipimport", "zlib", "zoneinfo"
     );
@@ -128,7 +150,11 @@ public class PythonStdlib {
 
         // Extract base module (before first dot)
         // "sys.path" -> "sys", "os.path" -> "os"
-        String baseModule = moduleName.split("\\.")[0].toLowerCase();
+        String[] parts = moduleName.split("\\.", 2);
+        if (parts.length == 0) {
+            return false;
+        }
+        String baseModule = parts[0].toLowerCase();
 
         return STDLIB_MODULES.contains(baseModule);
     }

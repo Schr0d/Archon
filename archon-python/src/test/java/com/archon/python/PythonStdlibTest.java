@@ -38,4 +38,29 @@ class PythonStdlibTest {
         assertTrue(PythonStdlib.isStdlib("SYS"), "SYS should match sys (case-insensitive)");
         assertTrue(PythonStdlib.isStdlib("Json"), "Json should match json (case-insensitive)");
     }
+
+    @Test
+    @DisplayName("isStdlib extracts base module from dotted names")
+    void testIsStdlibExtractsBaseModuleFromDottedNames() {
+        // Dotted module names should still match their base module
+        assertTrue(PythonStdlib.isStdlib("os.path"), "os.path should match os");
+        assertTrue(PythonStdlib.isStdlib("os.path.sys"), "os.path.sys should match os");
+        assertTrue(PythonStdlib.isStdlib("sys.path"), "sys.path should match sys");
+        assertTrue(PythonStdlib.isStdlib("json.decoder"), "json.decoder should match json");
+        assertTrue(PythonStdlib.isStdlib("pathlib.Path"), "pathlib.Path should match pathlib");
+
+        // Third-party dotted modules should not match
+        assertFalse(PythonStdlib.isStdlib("numpy.core"), "numpy.core should not match");
+        assertFalse(PythonStdlib.isStdlib("pandas.core.frame"), "pandas.core.frame should not match");
+    }
+
+    @Test
+    @DisplayName("isStdlib handles whitespace and edge cases")
+    void testIsStdlibHandlesWhitespaceAndEdgeCases() {
+        assertFalse(PythonStdlib.isStdlib("   "), "whitespace-only should not be stdlib");
+        assertFalse(PythonStdlib.isStdlib(""), "empty string should not be stdlib");
+        assertFalse(PythonStdlib.isStdlib(null), "null should not be stdlib");
+        assertFalse(PythonStdlib.isStdlib("."), "single dot should not be stdlib");
+        assertFalse(PythonStdlib.isStdlib(".."), "double dot should not be stdlib");
+    }
 }
