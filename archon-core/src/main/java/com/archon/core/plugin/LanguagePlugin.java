@@ -70,4 +70,17 @@ public interface LanguagePlugin {
         ParseContext context,
         DependencyGraph.MutableBuilder builder
     );
+
+    /**
+     * Reset any internal state between parse runs.
+     * <p>
+     * This method is called before parsing a new project to ensure
+     * plugins don't carry polluted state from previous runs.
+     * <p>
+     * Default implementation does nothing. Plugins that maintain
+     * internal state should override this method.
+     */
+    default void reset() {
+        // No-op by default; plugins with state should override
+    }
 }

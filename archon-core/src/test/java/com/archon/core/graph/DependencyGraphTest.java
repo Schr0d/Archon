@@ -40,18 +40,38 @@ public class DependencyGraphTest {
     }
 
     @Test
-    void stripNamespacePrefixesAndBuild_withCollision_keepsFirst() {
+    void stripNamespacePrefixesAndBuild_withCollision_throwsException() {
         DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
         // Create actual collision: both map to same unprefixed ID after normalization
         builder.addNode(Node.builder().id("java:src/main/Main").type(NodeType.CLASS).build());
         builder.addNode(Node.builder().id("js:src/main/Main").type(NodeType.CLASS).build());
 
         // Collision: both map to "src/main/Main"
-        // First node wins, second is silently dropped
-        DependencyGraph result = DependencyGraph.stripNamespacePrefixesAndBuild(builder);
+        // Fix #1: Now throws exception instead of silently dropping
+        assertThrows(IllegalStateException.class, () ->
+            DependencyGraph.stripNamespacePrefixesAndBuild(builder)
+        );
+    }
 
-        // Only first node is kept
-        assertEquals(1, result.nodeCount());
-        assertTrue(result.containsNode("src/main/Main"));
+    @Test
+    void stripNamespacePrefix_emptyPrefix_throwsException() {
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        builder.addNode(Node.builder().id(":invalid").type(NodeType.CLASS).build());
+
+        // Fix #4: Empty prefix throws exception
+        assertThrows(IllegalArgumentException.class, () ->
+            DependencyGraph.stripNamespacePrefixesAndBuild(builder)
+        );
+    }
+
+    @Test
+    void stripNamespacePrefix_trailingColon_throwsException() {
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        builder.addNode(Node.builder().id("test:").type(NodeType.CLASS).build());
+
+        // Fix #4: Trailing colon throws exception
+        assertThrows(IllegalArgumentException.class, () ->
+            DependencyGraph.stripNamespacePrefixesAndBuild(builder)
+        );
     }
 }

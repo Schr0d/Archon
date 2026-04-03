@@ -119,13 +119,13 @@ public class DependencyGraph {
         for (String nodeId : prefixedGraph.getNodeIds()) {
             String unprefixedId = stripNamespacePrefix(nodeId);
 
-            // Detect namespace collisions
+            // Detect namespace collisions (Fix #1: throw exception instead of silent data loss)
             String existingPrefixed = unprefixedToPrefixed.get(unprefixedId);
             if (existingPrefixed != null) {
-                System.err.println("Warning: Namespace collision detected - both '" +
-                    existingPrefixed + "' and '" + nodeId + "' map to '" +
-                    unprefixedId + "'. Keeping first, discarding second.");
-                continue; // Skip the colliding node (first wins)
+                throw new IllegalStateException(
+                    "Namespace collision: both '" + existingPrefixed + "' and '" + nodeId +
+                    "' map to '" + unprefixedId + "'. Use disambiguation strategy or rename nodes."
+                );
             }
 
             idMapping.put(nodeId, unprefixedId);
@@ -190,7 +190,16 @@ public class DependencyGraph {
      */
     private static String stripNamespacePrefix(String nodeId) {
         int colonIndex = nodeId.indexOf(':');
-        if (colonIndex > 0 && colonIndex < nodeId.length() - 1) {
+
+        // Reject malformed prefixes (Fix #4: empty prefix handling)
+        if (colonIndex == 0) {
+            throw new IllegalArgumentException("Invalid node ID: empty prefix in '" + nodeId + "'");
+        }
+        if (colonIndex == nodeId.length() - 1) {
+            throw new IllegalArgumentException("Invalid node ID: trailing colon in '" + nodeId + "'");
+        }
+
+        if (colonIndex > 0) {
             return nodeId.substring(colonIndex + 1);
         }
         return nodeId;
