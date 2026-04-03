@@ -4,6 +4,7 @@ import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
+import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import com.archon.core.plugin.BlindSpot;
@@ -23,7 +24,7 @@ import java.util.Set;
 /**
  * LanguagePlugin implementation for JavaScript/TypeScript.
  *
- * <p>Uses Google Closure Compiler for parsing. Supports:
+ * <p>Uses regex-based parsing for ES modules. Supports:
  * <ul>
  *   <li>ES Modules (import/export)</li>
  *   <li>TypeScript (.ts, .tsx)</li>
@@ -32,8 +33,6 @@ import java.util.Set;
  * </ul>
  *
  * <p>Node IDs use "js:" namespace prefix.
- *
- * <p>TODO: Integrate Closure Compiler parsing via JsAstVisitor (Task 3.3)
  */
 public class JsPlugin implements LanguagePlugin {
 
@@ -41,9 +40,11 @@ public class JsPlugin implements LanguagePlugin {
     private static final Set<String> EXTENSIONS = Set.of("js", "jsx", "ts", "tsx");
 
     private final JsDomainStrategy domainStrategy;
+    private final JsAstVisitor astVisitor;
 
     public JsPlugin() {
         this.domainStrategy = new JsDomainStrategy();
+        this.astVisitor = new JsAstVisitor();
     }
 
     @Override
@@ -68,9 +69,6 @@ public class JsPlugin implements LanguagePlugin {
         Set<String> sourceModules = new HashSet<>();
 
         try {
-            // TODO: Integrate Closure Compiler parsing via JsAstVisitor (Task 3.3)
-            // For now, create a minimal stub to satisfy the SPI contract
-
             // Extract module name from file path
             String moduleName = extractModuleName(filePath, context.getSourceRoot());
             String prefixedId = NAMESPACE + ":" + moduleName;
@@ -84,24 +82,39 @@ public class JsPlugin implements LanguagePlugin {
                 .build();
             builder.addNode(node);
 
-            // TODO: Extract actual imports via JsAstVisitor
-            // For now, just report that we need full implementation
-            if (!content.trim().isEmpty()) {
-                // Add a blind spot about stub implementation
-                blindSpots.add(new BlindSpot(
-                    "StubImplementation",
-                    moduleName,
-                    "JsPlugin parsing not yet implemented - see Task 3.3 (JsAstVisitor)"
-                ));
+            // Use JsAstVisitor to extract dependencies
+            JsAstVisitor.VisitResult visitResult = astVisitor.extractDependencies(
+                content,
+                filePath,
+                context.getSourceRoot()
+            );
+
+            // Add edges for each import
+            for (JsAstVisitor.ImportInfo importInfo : visitResult.imports()) {
+                String targetId = importInfo.resolvedPath();
+
+                // Add target node if it doesn't exist (will be prefixed by ParseOrchestrator)
+                // Use IMPORTS edge type for all imports (we don't have separate TYPE_IMPORT edge type)
+                Edge edge = Edge.builder()
+                    .source(prefixedId)
+                    .target(targetId)
+                    .type(EdgeType.IMPORTS)
+                    .build();
+
+                builder.addEdge(edge);
             }
+
+            // Collect blind spots from visitor
+            blindSpots.addAll(visitResult.blindSpots());
 
         } catch (Exception e) {
             parseErrors.add(filePath + ":0 - Failed to parse: " + e.getMessage());
+            // Don't print stack trace in production
         }
 
-        // Return empty graph for now (ParseOrchestrator will combine results)
+        // Return result with empty graph (ParseOrchestrator combines all results)
         return new ParseResult(
-            com.archon.core.graph.GraphBuilder.builder().build(),
+            GraphBuilder.builder().build(),
             sourceModules,
             blindSpots,
             parseErrors
