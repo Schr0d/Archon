@@ -105,7 +105,7 @@ public class ParseOrchestrator {
         }
 
         // Strip namespace prefixes and rebuild graph
-        DependencyGraph finalGraph = stripNamespacePrefixesAndBuild(prefixedBuilder);
+        DependencyGraph finalGraph = DependencyGraph.stripNamespacePrefixesAndBuild(prefixedBuilder);
 
         return new ParseResult(finalGraph, allSourceModules, allBlindSpots, allErrors);
     }
@@ -137,88 +137,6 @@ public class ParseOrchestrator {
                 LinkedHashMap::new,
                 Collectors.toList()
             ));
-    }
-
-    /**
-     * Strip language namespace prefixes from all node IDs and edge references.
-     * Converts "java:com.example.Foo" -> "com.example.Foo".
-     *
-     * <p>This is necessary because plugins add prefixed node IDs to avoid collisions
-     * during two-phase construction. After all plugins have added their nodes and edges,
-     * we strip the prefixes to create a unified graph.
-     *
-     * <p>Since MutableBuilder doesn't support renaming, we extract all nodes/edges,
-     * strip the prefixes, and rebuild the graph.
-     */
-    private DependencyGraph stripNamespacePrefixesAndBuild(DependencyGraph.MutableBuilder prefixedBuilder) {
-        // First, build the prefixed graph to extract its contents
-        DependencyGraph prefixedGraph = prefixedBuilder.build();
-
-        // Create mapping from prefixed IDs to unprefixed IDs
-        Map<String, String> idMapping = new HashMap<>();
-        for (String nodeId : prefixedGraph.getNodeIds()) {
-            String unprefixedId = stripNamespacePrefix(nodeId);
-            idMapping.put(nodeId, unprefixedId);
-        }
-
-        // Build new graph with stripped IDs
-        DependencyGraph.MutableBuilder finalBuilder = new DependencyGraph.MutableBuilder();
-
-        // Add nodes with stripped IDs
-        for (String prefixedId : prefixedGraph.getNodeIds()) {
-            Node prefixedNode = prefixedGraph.getNode(prefixedId).orElseThrow();
-            String unprefixedId = idMapping.get(prefixedId);
-
-            // Create new node with stripped ID
-            Node.Builder nodeBuilder = Node.builder()
-                .id(unprefixedId)
-                .type(prefixedNode.getType())
-                .sourcePath(prefixedNode.getSourcePath().orElse(null))
-                .confidence(prefixedNode.getConfidence());
-
-            prefixedNode.getDomain().ifPresent(nodeBuilder::domain);
-            prefixedNode.getTags().forEach(nodeBuilder::addTag);
-
-            finalBuilder.addNode(nodeBuilder.build());
-        }
-
-        // Add edges with stripped source/target IDs
-        for (Edge prefixedEdge : prefixedGraph.getAllEdges()) {
-            String unprefixedSource = idMapping.get(prefixedEdge.getSource());
-            String unprefixedTarget = idMapping.get(prefixedEdge.getTarget());
-
-            if (unprefixedSource != null && unprefixedTarget != null) {
-                Edge edge = Edge.builder()
-                    .source(unprefixedSource)
-                    .target(unprefixedTarget)
-                    .type(prefixedEdge.getType())
-                    .confidence(prefixedEdge.getConfidence())
-                    .dynamic(prefixedEdge.isDynamic())
-                    .evidence(prefixedEdge.getEvidence())
-                    .build();
-
-                finalBuilder.addEdge(edge);
-            }
-        }
-
-        return finalBuilder.build();
-    }
-
-    /**
-     * Strips the language namespace prefix from a node ID.
-     * Examples:
-     * <ul>
-     *   <li>"java:com.example.Foo" -> "com.example.Foo"</li>
-     *   <li>"js:src/components/Header" -> "src/components/Header"</li>
-     *   <li>"com.example.Bar" -> "com.example.Bar" (no prefix, unchanged)</li>
-     * </ul>
-     */
-    private String stripNamespacePrefix(String nodeId) {
-        int colonIndex = nodeId.indexOf(':');
-        if (colonIndex > 0 && colonIndex < nodeId.length() - 1) {
-            return nodeId.substring(colonIndex + 1);
-        }
-        return nodeId;
     }
 
     /**

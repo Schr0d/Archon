@@ -101,6 +101,85 @@ public class DependencyGraph {
     }
 
     /**
+     * Strips language namespace prefixes from all node IDs and edge references.
+     * <p>
+     * Converts "java:com.example.Foo" -&gt; "com.example.Foo".
+     * This is used by ParseOrchestrator and DiffCommand to unify multi-plugin graphs
+     * where each plugin adds nodes with language-prefixed IDs (e.g., "java:", "js:").
+     *
+     * @param prefixedBuilder a builder containing nodes with prefixed IDs
+     * @return a new graph with unprefixed node IDs
+     */
+    public static DependencyGraph stripNamespacePrefixesAndBuild(MutableBuilder prefixedBuilder) {
+        DependencyGraph prefixedGraph = prefixedBuilder.build();
+
+        Map<String, String> idMapping = new LinkedHashMap<>();
+        for (String nodeId : prefixedGraph.getNodeIds()) {
+            String unprefixedId = stripNamespacePrefix(nodeId);
+            idMapping.put(nodeId, unprefixedId);
+        }
+
+        MutableBuilder finalBuilder = new MutableBuilder();
+
+        for (String prefixedId : prefixedGraph.getNodeIds()) {
+            Node prefixedNode = prefixedGraph.getNode(prefixedId).orElseThrow();
+            String unprefixedId = idMapping.get(prefixedId);
+
+            Node.Builder nodeBuilder = Node.builder()
+                .id(unprefixedId)
+                .type(prefixedNode.getType())
+                .sourcePath(prefixedNode.getSourcePath().orElse(null))
+                .confidence(prefixedNode.getConfidence());
+
+            prefixedNode.getDomain().ifPresent(nodeBuilder::domain);
+            prefixedNode.getTags().forEach(nodeBuilder::addTag);
+
+            finalBuilder.addNode(nodeBuilder.build());
+        }
+
+        for (Edge prefixedEdge : prefixedGraph.getAllEdges()) {
+            String unprefixedSource = idMapping.get(prefixedEdge.getSource());
+            String unprefixedTarget = idMapping.get(prefixedEdge.getTarget());
+
+            if (unprefixedSource != null && unprefixedTarget != null) {
+                Edge edge = Edge.builder()
+                    .source(unprefixedSource)
+                    .target(unprefixedTarget)
+                    .type(prefixedEdge.getType())
+                    .confidence(prefixedEdge.getConfidence())
+                    .dynamic(prefixedEdge.isDynamic())
+                    .evidence(prefixedEdge.getEvidence())
+                    .build();
+
+                finalBuilder.addEdge(edge);
+            }
+        }
+
+        return finalBuilder.build();
+    }
+
+    /**
+     * Strips the language namespace prefix from a node ID.
+     * <p>
+     * Examples:
+     * <ul>
+     *   <li>"java:com.example.Foo" -&gt; "com.example.Foo"</li>
+     *   <li>"js:src/components/Header" -&gt; "src/components/Header"</li>
+     *   <li>"com.example.Bar" -&gt; "com.example.Bar" (no prefix, unchanged)</li>
+     * </ul>
+     *
+     * @param nodeId the node ID, possibly with a language prefix
+     * @return the node ID without the language prefix
+     */
+    private static String stripNamespacePrefix(String nodeId) {
+        int colonIndex = nodeId.indexOf(':');
+        if (colonIndex > 0 && colonIndex < nodeId.length() - 1) {
+            return nodeId.substring(colonIndex + 1);
+        }
+        return nodeId;
+    }
+
+    /**
      * Mutable builder for constructing DependencyGraph instances.
      * Graph is frozen (immutable) after build().
      */

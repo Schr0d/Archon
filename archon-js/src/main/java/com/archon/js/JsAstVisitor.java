@@ -1,15 +1,9 @@
 package com.archon.js;
 
 import com.archon.core.plugin.BlindSpot;
-import com.google.javascript.jscomp.Compiler;
-import com.google.javascript.jscomp.SourceFile;
-import com.google.javascript.rhino.Node;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;

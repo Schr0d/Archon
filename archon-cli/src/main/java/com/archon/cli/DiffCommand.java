@@ -316,7 +316,7 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Build temp graph and strip namespace prefixes
-        DependencyGraph changedGraph = stripNamespacePrefixesAndBuild(tempBuilder);
+        DependencyGraph changedGraph = DependencyGraph.stripNamespacePrefixesAndBuild(tempBuilder);
 
         // Merge changed graph into base builder
         for (String nodeId : changedGraph.getNodeIds()) {
@@ -327,66 +327,6 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         return baseBuilder.build();
-    }
-
-    /**
-     * Strip language namespace prefixes from a builder's graph.
-     * Similar to ParseOrchestrator.stripNamespacePrefixesAndBuild but standalone.
-     */
-    private DependencyGraph stripNamespacePrefixesAndBuild(DependencyGraph.MutableBuilder prefixedBuilder) {
-        DependencyGraph prefixedGraph = prefixedBuilder.build();
-
-        Map<String, String> idMapping = new HashMap<>();
-        for (String nodeId : prefixedGraph.getNodeIds()) {
-            String unprefixedId = stripNamespacePrefix(nodeId);
-            idMapping.put(nodeId, unprefixedId);
-        }
-
-        DependencyGraph.MutableBuilder finalBuilder = new DependencyGraph.MutableBuilder();
-
-        for (String prefixedId : prefixedGraph.getNodeIds()) {
-            Node prefixedNode = prefixedGraph.getNode(prefixedId).orElseThrow();
-            String unprefixedId = idMapping.get(prefixedId);
-
-            Node.Builder nodeBuilder = Node.builder()
-                .id(unprefixedId)
-                .type(prefixedNode.getType())
-                .sourcePath(prefixedNode.getSourcePath().orElse(null))
-                .confidence(prefixedNode.getConfidence());
-
-            prefixedNode.getDomain().ifPresent(nodeBuilder::domain);
-            prefixedNode.getTags().forEach(nodeBuilder::addTag);
-
-            finalBuilder.addNode(nodeBuilder.build());
-        }
-
-        for (Edge prefixedEdge : prefixedGraph.getAllEdges()) {
-            String unprefixedSource = idMapping.get(prefixedEdge.getSource());
-            String unprefixedTarget = idMapping.get(prefixedEdge.getTarget());
-
-            if (unprefixedSource != null && unprefixedTarget != null) {
-                Edge edge = Edge.builder()
-                    .source(unprefixedSource)
-                    .target(unprefixedTarget)
-                    .type(prefixedEdge.getType())
-                    .confidence(prefixedEdge.getConfidence())
-                    .dynamic(prefixedEdge.isDynamic())
-                    .evidence(prefixedEdge.getEvidence())
-                    .build();
-
-                finalBuilder.addEdge(edge);
-            }
-        }
-
-        return finalBuilder.build();
-    }
-
-    private String stripNamespacePrefix(String nodeId) {
-        int colonIndex = nodeId.indexOf(':');
-        if (colonIndex > 0 && colonIndex < nodeId.length() - 1) {
-            return nodeId.substring(colonIndex + 1);
-        }
-        return nodeId;
     }
 
     private boolean fileMatchesNode(String filePath, String nodeId, String ext) {
