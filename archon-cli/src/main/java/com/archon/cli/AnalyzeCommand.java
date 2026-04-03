@@ -7,18 +7,26 @@ import com.archon.core.analysis.DomainResult;
 import com.archon.core.analysis.ThresholdCalculator;
 import com.archon.core.analysis.Thresholds;
 import com.archon.core.config.ArchonConfig;
-import com.archon.core.graph.BlindSpot;
+import com.archon.core.coordination.ParseOrchestrator;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Node;
-import com.archon.java.JavaParserPlugin;
+import com.archon.core.plugin.BlindSpot;
+import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ParseContext;
+import com.archon.core.plugin.ParseResult;
+import com.archon.core.plugin.PluginDiscoverer;
+import com.archon.java.ModuleDetector;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
@@ -50,15 +58,45 @@ public class AnalyzeCommand implements Callable<Integer> {
 
         ArchonConfig config = ArchonConfig.loadOrDefault(root.resolve(".archon.yml"));
 
-        // Step 1: Parse
-        System.out.println("Parsing " + root + " ...");
-        JavaParserPlugin plugin = new JavaParserPlugin();
-        JavaParserPlugin.ParseResult result = plugin.parse(root, config);
+        // Step 1: Discover plugins and collect source files
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+        List<LanguagePlugin> plugins = discoverer.discoverWithConflictCheck();
 
-        if (!result.getErrors().isEmpty()) {
-            System.err.println(result.getErrors().size() + " file(s) failed to parse:");
-            for (JavaParserPlugin.ParseError err : result.getErrors()) {
-                System.err.println("  " + err.getFile() + ": " + err.getMessage());
+        if (plugins.isEmpty()) {
+            System.err.println("Error: No language plugins found. Please ensure plugin JARs are on the classpath.");
+            return 1;
+        }
+
+        // Collect all file extensions from plugins
+        Set<String> extensions = plugins.stream()
+            .flatMap(p -> p.fileExtensions().stream())
+            .collect(Collectors.toSet());
+
+        // Collect all source files using ModuleDetector
+        List<Path> sourceFiles = collectSourceFilesStatic(root, extensions);
+
+        if (sourceFiles.isEmpty()) {
+            System.out.println("No source files found. Check project path.");
+            return 0;
+        }
+
+        // Reset any plugin state before parsing
+        plugins.forEach(p -> {
+            if (p instanceof com.archon.java.JavaPlugin) {
+                ((com.archon.java.JavaPlugin) p).reset();
+            }
+        });
+
+        // Step 2: Parse with orchestrator
+        System.out.println("Parsing " + root + " (" + sourceFiles.size() + " files) ...");
+        ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
+        ParseContext context = new ParseContext(root, extensions);
+        ParseResult result = orchestrator.parse(sourceFiles, context);
+
+        if (!result.getParseErrors().isEmpty()) {
+            System.err.println(result.getParseErrors().size() + " file(s) failed to parse:");
+            for (String err : result.getParseErrors()) {
+                System.err.println("  " + err);
             }
         }
 
@@ -113,23 +151,13 @@ public class AnalyzeCommand implements Callable<Integer> {
 
         // Step 5: Blind spots
         List<BlindSpot> blindSpots = result.getBlindSpots();
-        Map<String, List<BlindSpot>> byFile = blindSpots.stream()
-            .collect(Collectors.groupingBy(BlindSpot::getFile, LinkedHashMap::new, Collectors.toList()));
         if (blindSpots.isEmpty()) {
             System.out.println("\nBlind spots: none");
         } else {
-            System.out.println("\n\u001B[36mBlind spots (" + byFile.size() + " files, "
-                + blindSpots.size() + " occurrences):\u001B[0m");
-            for (var entry : byFile.entrySet()) {
-                List<BlindSpot> spots = entry.getValue();
-                String file = entry.getKey();
-                String fileName = file.contains(java.io.File.separator)
-                    ? file.substring(file.lastIndexOf(java.io.File.separatorChar) + 1)
-                    : file;
-                String patterns = spots.stream().map(BlindSpot::getPattern).distinct().collect(Collectors.joining(", "));
-                System.out.println("  [" + spots.get(0).getType() + "] " + fileName + " \u2014 "
-                    + spots.size() + " occurrence" + (spots.size() > 1 ? "s" : "")
-                    + " (" + patterns + ")");
+            System.out.println("\n\u001B[36mBlind spots (" + blindSpots.size() + " occurrences):\u001B[0m");
+            for (BlindSpot spot : blindSpots) {
+                System.out.println("  [" + spot.getType() + "] " + spot.getLocation()
+                    + " \u2014 " + spot.getDescription());
             }
         }
 
@@ -146,8 +174,8 @@ public class AnalyzeCommand implements Callable<Integer> {
         System.out.println("Domains:     " + distinctDomains);
         System.out.println("Cycles:      " + cycles.size());
         System.out.println("Hotspots:    " + hotspots.size() + " (threshold: " + thresholds.getCouplingThreshold() + ")");
-        System.out.println("Blind spots: " + byFile.size() + " files (" + blindSpots.size() + " occurrences)");
-        System.out.println("Errors:      " + result.getErrors().size());
+        System.out.println("Blind spots: " + blindSpots.size() + " occurrences");
+        System.out.println("Errors:      " + result.getParseErrors().size());
 
         return (!cycles.isEmpty()) ? 1 : 0;
     }
@@ -182,5 +210,94 @@ public class AnalyzeCommand implements Callable<Integer> {
         int g = Math.abs((hash >> 8) % 128) + 100;
         int b = Math.abs((hash >> 16) % 128) + 100;
         return "#" + Integer.toHexString(r) + Integer.toHexString(g) + Integer.toHexString(b);
+    }
+
+    /**
+     * Collect all source files from the project root matching the given extensions.
+     * Uses ModuleDetector for Java projects and walks the tree for other files.
+     * Static version for reuse by other commands.
+     */
+    public static List<Path> collectSourceFilesStatic(Path root, Set<String> extensions) {
+        List<Path> sourceFiles = new ArrayList<>();
+
+        // Use ModuleDetector to find Java source roots
+        ModuleDetector moduleDetector = new ModuleDetector();
+        List<ModuleDetector.SourceRoot> javaSourceRoots = moduleDetector.detectModules(root);
+
+        if (!javaSourceRoots.isEmpty()) {
+            // Collect Java files from detected source roots
+            for (ModuleDetector.SourceRoot sourceRoot : javaSourceRoots) {
+                collectFilesFromDirectoryStatic(sourceRoot.getPath(), Set.of("java"), sourceFiles);
+            }
+        }
+
+        // For non-Java files, walk the entire project tree
+        Set<String> nonJavaExtensions = extensions.stream()
+            .filter(ext -> !ext.equals("java"))
+            .collect(Collectors.toSet());
+
+        if (!nonJavaExtensions.isEmpty()) {
+            walkProjectForFilesStatic(root, nonJavaExtensions, sourceFiles);
+        }
+
+        return sourceFiles;
+    }
+
+    private static void collectFilesFromDirectoryStatic(Path dir, Set<String> extensions, List<Path> sourceFiles) {
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+
+        try {
+            Files.walkFileTree(dir, new java.nio.file.SimpleFileVisitor<Path>() {
+                @Override
+                public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attrs) {
+                    String fileName = file.getFileName().toString();
+                    int dotIndex = fileName.lastIndexOf('.');
+                    if (dotIndex > 0) {
+                        String ext = fileName.substring(dotIndex + 1);
+                        if (extensions.contains(ext)) {
+                            sourceFiles.add(file);
+                        }
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            System.err.println("Warning: Failed to walk directory " + dir + ": " + e.getMessage());
+        }
+    }
+
+    private static void walkProjectForFilesStatic(Path root, Set<String> extensions, List<Path> sourceFiles) {
+        try {
+            Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<Path>() {
+                @Override
+                public java.nio.file.FileVisitResult preVisitDirectory(Path dir, java.nio.file.attribute.BasicFileAttributes attrs) {
+                    // Skip common non-source directories
+                    String dirName = dir.getFileName().toString();
+                    if (dirName.equals("node_modules") || dirName.equals(".git") ||
+                        dirName.equals("target") || dirName.equals("build") ||
+                        dirName.equals("dist") || dirName.equals(".gradle")) {
+                        return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attrs) {
+                    String fileName = file.getFileName().toString();
+                    int dotIndex = fileName.lastIndexOf('.');
+                    if (dotIndex > 0) {
+                        String ext = fileName.substring(dotIndex + 1);
+                        if (extensions.contains(ext)) {
+                            sourceFiles.add(file);
+                        }
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            System.err.println("Warning: Failed to walk project tree: " + e.getMessage());
+        }
     }
 }

@@ -2,18 +2,25 @@ package com.archon.cli;
 
 import com.archon.core.analysis.*;
 import com.archon.core.config.ArchonConfig;
+import com.archon.core.coordination.ParseOrchestrator;
 import com.archon.core.git.CliGitAdapter;
 import com.archon.core.git.GitAdapter;
 import com.archon.core.git.GitException;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.GraphBuilder;
+import com.archon.core.graph.Node;
 import com.archon.core.graph.RiskLevel;
-import com.archon.java.JavaParserPlugin;
+import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ParseContext;
+import com.archon.core.plugin.ParseResult;
+import com.archon.core.plugin.PluginDiscoverer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -91,16 +98,47 @@ public class DiffCommand implements Callable<Integer> {
 
         ArchonConfig config = ArchonConfig.loadOrDefault(root.resolve(".archon.yml"));
 
+        // Discover plugins
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+        List<LanguagePlugin> plugins = discoverer.discoverWithConflictCheck();
+
+        if (plugins.isEmpty()) {
+            System.err.println("Error: No language plugins found. Please ensure plugin JARs are on the classpath.");
+            return 1;
+        }
+
+        // Collect all file extensions from plugins
+        Set<String> extensions = plugins.stream()
+            .flatMap(p -> p.fileExtensions().stream())
+            .collect(Collectors.toSet());
+
+        // Collect all source files
+        List<Path> sourceFiles = AnalyzeCommand.collectSourceFilesStatic(root, extensions);
+
+        if (sourceFiles.isEmpty()) {
+            System.out.println("No source files found. Check project path.");
+            return 0;
+        }
+
+        // Reset any plugin state before parsing
+        plugins.forEach(p -> {
+            if (p instanceof com.archon.java.JavaPlugin) {
+                ((com.archon.java.JavaPlugin) p).reset();
+            }
+        });
+
         // Parse head graph (working tree)
-        printStep("Parsing head graph (" + changedFiles.size() + " files changed)...");
-        JavaParserPlugin plugin = new JavaParserPlugin();
-        JavaParserPlugin.ParseResult headResult = plugin.parse(root, config);
+        printStep("Parsing head graph (" + sourceFiles.size() + " source files, "
+            + changedFiles.size() + " changed)...");
+        ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
+        ParseContext context = new ParseContext(root, extensions);
+        ParseResult headResult = orchestrator.parse(sourceFiles, context);
         DependencyGraph headGraph = headResult.getGraph();
         printStep("Head graph: " + headGraph.getNodeIds().size() + " classes, " + headGraph.edgeCount() + " edges");
 
         // Parse base graph (from git show for changed files + reuse head for unchanged)
         printStep("Building base graph...");
-        DependencyGraph baseGraph = buildBaseGraph(git, repoRoot, root, changedFiles, headGraph, config, plugin);
+        DependencyGraph baseGraph = buildBaseGraph(git, repoRoot, root, changedFiles, headGraph, config, plugins, extensions);
         printStep("Base graph: " + baseGraph.getNodeIds().size() + " classes, " + baseGraph.edgeCount() + " edges");
 
         // Diff the graphs
@@ -117,11 +155,15 @@ public class DiffCommand implements Callable<Integer> {
         // Determine changed classes (union of git diff files + graph diff nodes)
         Set<String> changedClasses = new LinkedHashSet<>();
         for (String file : changedFiles) {
-            if (file.endsWith(".java")) {
-                // Extract FQCN from file path heuristically
-                headGraph.getNodeIds().stream()
-                    .filter(id -> fileEndsWithClass(file, id))
-                    .forEach(changedClasses::add);
+            int dotIndex = file.lastIndexOf('.');
+            if (dotIndex > 0) {
+                String ext = file.substring(dotIndex + 1);
+                if (extensions.contains(ext)) {
+                    // Extract node ID from file path heuristically
+                    headGraph.getNodeIds().stream()
+                        .filter(id -> fileMatchesNode(file, id, ext))
+                        .forEach(changedClasses::add);
+                }
             }
         }
         changedClasses.addAll(graphDiff.getAddedNodes());
@@ -186,57 +228,97 @@ public class DiffCommand implements Callable<Integer> {
 
     private DependencyGraph buildBaseGraph(GitAdapter git, Path repoRoot, Path projectRoot,
                                             List<String> changedFiles, DependencyGraph headGraph,
-                                            ArchonConfig config, JavaParserPlugin plugin) {
-        // Get base content for changed Java files only
+                                            ArchonConfig config, List<LanguagePlugin> plugins,
+                                            Set<String> extensions) {
+        // Get base content for changed files matching our extensions
         Map<Path, String> baseContents = new LinkedHashMap<>();
         for (String file : changedFiles) {
-            if (file.endsWith(".java")) {
-                try {
-                    String content = git.getFileContent(repoRoot, baseRef, file);
-                    if (content != null) {
-                        baseContents.put(Path.of(file), content);
+            int dotIndex = file.lastIndexOf('.');
+            if (dotIndex > 0) {
+                String ext = file.substring(dotIndex + 1);
+                if (extensions.contains(ext)) {
+                    try {
+                        String content = git.getFileContent(repoRoot, baseRef, file);
+                        if (content != null) {
+                            baseContents.put(Path.of(file), content);
+                        }
+                    } catch (GitException ignored) {
+                        // File didn't exist in base — it's a new file
                     }
-                } catch (GitException ignored) {
-                    // File didn't exist in base — it's a new file
                 }
             }
         }
 
         if (baseContents.isEmpty()) {
-            // No Java files changed — base graph is same as head
+            // No supported files changed — base graph is same as head
             return headGraph;
         }
 
-        // Identify FQCNs that belong to changed files
-        Set<String> changedFileClasses = new HashSet<>();
+        // Identify node IDs that belong to changed files
+        Set<String> changedFileNodes = new HashSet<>();
         for (String file : changedFiles) {
-            if (file.endsWith(".java")) {
-                headGraph.getNodeIds().stream()
-                    .filter(id -> fileEndsWithClass(file, id))
-                    .forEach(changedFileClasses::add);
+            int dotIndex = file.lastIndexOf('.');
+            if (dotIndex > 0) {
+                String ext = file.substring(dotIndex + 1);
+                if (extensions.contains(ext)) {
+                    // For Java: match FQCN to file path
+                    // For JS/TS: match module path to file path
+                    headGraph.getNodeIds().stream()
+                        .filter(id -> fileMatchesNode(file, id, ext))
+                        .forEach(changedFileNodes::add);
+                }
             }
         }
 
         // Step 1: Copy unchanged nodes and edges from head graph
         GraphBuilder baseBuilder = GraphBuilder.builder();
         for (String nodeId : headGraph.getNodeIds()) {
-            if (!changedFileClasses.contains(nodeId)) {
+            if (!changedFileNodes.contains(nodeId)) {
                 baseBuilder.addNode(headGraph.getNode(nodeId).orElseThrow());
             }
         }
         for (Edge edge : headGraph.getAllEdges()) {
             // Only copy edges where both endpoints are unchanged
-            if (!changedFileClasses.contains(edge.getSource())
-                && !changedFileClasses.contains(edge.getTarget())) {
+            if (!changedFileNodes.contains(edge.getSource())
+                && !changedFileNodes.contains(edge.getTarget())) {
                 baseBuilder.addEdge(edge);
             }
         }
 
-        // Step 2: Parse base versions of changed files and merge
-        Set<String> sourceClasses = new HashSet<>(headGraph.getNodeIds());
-        JavaParserPlugin.ParseResult baseResult = plugin.parseFromContent(baseContents, sourceClasses);
-        DependencyGraph changedGraph = baseResult.getGraph();
+        // Step 2: Parse base versions of changed files using orchestrator
+        // We need to use parseFromContent for each file with the appropriate plugin
+        ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
+        DependencyGraph.MutableBuilder tempBuilder = new DependencyGraph.MutableBuilder();
 
+        for (Map.Entry<Path, String> entry : baseContents.entrySet()) {
+            Path file = entry.getKey();
+            String content = entry.getValue();
+            String fileName = file.getFileName().toString();
+            int dotIndex = fileName.lastIndexOf('.');
+            String ext = dotIndex > 0 ? fileName.substring(dotIndex + 1) : "";
+
+            // Find the plugin that handles this extension
+            LanguagePlugin plugin = plugins.stream()
+                .filter(p -> p.fileExtensions().contains(ext))
+                .findFirst()
+                .orElse(null);
+
+            if (plugin != null) {
+                ParseContext context = new ParseContext(projectRoot, extensions);
+                ParseResult result = plugin.parseFromContent(
+                    file.toString(),
+                    content,
+                    context,
+                    tempBuilder
+                );
+                // Errors are ignored for base graph parsing
+            }
+        }
+
+        // Build temp graph and strip namespace prefixes
+        DependencyGraph changedGraph = stripNamespacePrefixesAndBuild(tempBuilder);
+
+        // Merge changed graph into base builder
         for (String nodeId : changedGraph.getNodeIds()) {
             baseBuilder.addNode(changedGraph.getNode(nodeId).orElseThrow());
         }
@@ -247,10 +329,78 @@ public class DiffCommand implements Callable<Integer> {
         return baseBuilder.build();
     }
 
-    private boolean fileEndsWithClass(String filePath, String fqcn) {
-        // Convert FQCN to file path: com.example.Foo -> com/example/Foo.java
-        String expected = fqcn.replace('.', '/') + ".java";
-        return filePath.equals(expected) || filePath.endsWith("/" + expected);
+    /**
+     * Strip language namespace prefixes from a builder's graph.
+     * Similar to ParseOrchestrator.stripNamespacePrefixesAndBuild but standalone.
+     */
+    private DependencyGraph stripNamespacePrefixesAndBuild(DependencyGraph.MutableBuilder prefixedBuilder) {
+        DependencyGraph prefixedGraph = prefixedBuilder.build();
+
+        Map<String, String> idMapping = new HashMap<>();
+        for (String nodeId : prefixedGraph.getNodeIds()) {
+            String unprefixedId = stripNamespacePrefix(nodeId);
+            idMapping.put(nodeId, unprefixedId);
+        }
+
+        DependencyGraph.MutableBuilder finalBuilder = new DependencyGraph.MutableBuilder();
+
+        for (String prefixedId : prefixedGraph.getNodeIds()) {
+            Node prefixedNode = prefixedGraph.getNode(prefixedId).orElseThrow();
+            String unprefixedId = idMapping.get(prefixedId);
+
+            Node.Builder nodeBuilder = Node.builder()
+                .id(unprefixedId)
+                .type(prefixedNode.getType())
+                .sourcePath(prefixedNode.getSourcePath().orElse(null))
+                .confidence(prefixedNode.getConfidence());
+
+            prefixedNode.getDomain().ifPresent(nodeBuilder::domain);
+            prefixedNode.getTags().forEach(nodeBuilder::addTag);
+
+            finalBuilder.addNode(nodeBuilder.build());
+        }
+
+        for (Edge prefixedEdge : prefixedGraph.getAllEdges()) {
+            String unprefixedSource = idMapping.get(prefixedEdge.getSource());
+            String unprefixedTarget = idMapping.get(prefixedEdge.getTarget());
+
+            if (unprefixedSource != null && unprefixedTarget != null) {
+                Edge edge = Edge.builder()
+                    .source(unprefixedSource)
+                    .target(unprefixedTarget)
+                    .type(prefixedEdge.getType())
+                    .confidence(prefixedEdge.getConfidence())
+                    .dynamic(prefixedEdge.isDynamic())
+                    .evidence(prefixedEdge.getEvidence())
+                    .build();
+
+                finalBuilder.addEdge(edge);
+            }
+        }
+
+        return finalBuilder.build();
+    }
+
+    private String stripNamespacePrefix(String nodeId) {
+        int colonIndex = nodeId.indexOf(':');
+        if (colonIndex > 0 && colonIndex < nodeId.length() - 1) {
+            return nodeId.substring(colonIndex + 1);
+        }
+        return nodeId;
+    }
+
+    private boolean fileMatchesNode(String filePath, String nodeId, String ext) {
+        if ("java".equals(ext)) {
+            // Convert FQCN to file path: com.example.Foo -> com/example/Foo.java
+            String expected = nodeId.replace('.', '/') + ".java";
+            return filePath.equals(expected) || filePath.endsWith("/" + expected);
+        } else {
+            // For JS/TS, node ID is the module path
+            // Normalize both for comparison
+            String normalizedPath = filePath.replace('\\', '/');
+            String normalizedId = nodeId.replace('\\', '/');
+            return normalizedPath.equals(normalizedId) || normalizedPath.endsWith("/" + normalizedId);
+        }
     }
 
     private void printReport(ChangeImpactReport report, GitAdapter git,

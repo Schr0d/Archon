@@ -8,8 +8,12 @@ import com.archon.core.analysis.Thresholds;
 import com.archon.core.config.ArchonConfig;
 import com.archon.core.config.RuleValidator;
 import com.archon.core.config.RuleViolation;
+import com.archon.core.coordination.ParseOrchestrator;
 import com.archon.core.graph.DependencyGraph;
-import com.archon.java.JavaParserPlugin;
+import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ParseContext;
+import com.archon.core.plugin.ParseResult;
+import com.archon.core.plugin.PluginDiscoverer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
@@ -17,7 +21,9 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 @Command(
     name = "check",
@@ -41,9 +47,39 @@ public class CheckCommand implements Callable<Integer> {
 
         ArchonConfig config = ArchonConfig.loadOrDefault(root.resolve(".archon.yml"));
 
-        // Parse
-        JavaParserPlugin plugin = new JavaParserPlugin();
-        JavaParserPlugin.ParseResult result = plugin.parse(root, config);
+        // Discover plugins and collect source files
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+        List<LanguagePlugin> plugins = discoverer.discoverWithConflictCheck();
+
+        if (plugins.isEmpty()) {
+            System.err.println("Error: No language plugins found. Please ensure plugin JARs are on the classpath.");
+            return 1;
+        }
+
+        // Collect all file extensions from plugins
+        Set<String> extensions = plugins.stream()
+            .flatMap(p -> p.fileExtensions().stream())
+            .collect(Collectors.toSet());
+
+        // Collect all source files
+        List<Path> sourceFiles = AnalyzeCommand.collectSourceFilesStatic(root, extensions);
+
+        if (sourceFiles.isEmpty()) {
+            System.out.println("No source files found. Check project path.");
+            return 0;
+        }
+
+        // Reset any plugin state before parsing
+        plugins.forEach(p -> {
+            if (p instanceof com.archon.java.JavaPlugin) {
+                ((com.archon.java.JavaPlugin) p).reset();
+            }
+        });
+
+        // Parse with orchestrator
+        ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
+        ParseContext context = new ParseContext(root, extensions);
+        ParseResult result = orchestrator.parse(sourceFiles, context);
         DependencyGraph graph = result.getGraph();
 
         if (graph.nodeCount() == 0) {
