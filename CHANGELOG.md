@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edge loss in multi-plugin graphs via two-phase construction
 - Namespace collision risk via language prefixing
 - External class pollution handled via namespace filtering
+- ES module import extraction now functional via regex-based parsing (JsAstVisitor)
+- archon-js module now included in CLI shadow JAR for runtime discovery
 
 ### Technical
 - Added archon-js Gradle module with Closure Compiler dependency
