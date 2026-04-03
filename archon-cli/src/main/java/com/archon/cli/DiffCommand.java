@@ -121,11 +121,7 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Reset any plugin state before parsing
-        plugins.forEach(p -> {
-            if (p instanceof com.archon.java.JavaPlugin) {
-                ((com.archon.java.JavaPlugin) p).reset();
-            }
-        });
+        plugins.forEach(LanguagePlugin::reset);
 
         // Parse head graph (working tree)
         printStep("Parsing head graph (" + sourceFiles.size() + " source files, "

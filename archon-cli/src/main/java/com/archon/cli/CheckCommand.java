@@ -70,11 +70,7 @@ public class CheckCommand implements Callable<Integer> {
         }
 
         // Reset any plugin state before parsing
-        plugins.forEach(p -> {
-            if (p instanceof com.archon.java.JavaPlugin) {
-                ((com.archon.java.JavaPlugin) p).reset();
-            }
-        });
+        plugins.forEach(LanguagePlugin::reset);
 
         // Parse with orchestrator
         ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);

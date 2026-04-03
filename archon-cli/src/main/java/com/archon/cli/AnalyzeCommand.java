@@ -81,11 +81,8 @@ public class AnalyzeCommand implements Callable<Integer> {
         }
 
         // Reset any plugin state before parsing
-        plugins.forEach(p -> {
-            if (p instanceof com.archon.java.JavaPlugin) {
-                ((com.archon.java.JavaPlugin) p).reset();
-            }
-        });
+        // Reset any plugin state before parsing
+        plugins.forEach(LanguagePlugin::reset);
 
         // Step 2: Parse with orchestrator
         System.out.println("Parsing " + root + " (" + sourceFiles.size() + " files) ...");
