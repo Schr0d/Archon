@@ -59,6 +59,9 @@ public class JsPlugin implements LanguagePlugin {
         return Optional.of(domainStrategy);
     }
 
+    // Maximum file size to parse (1MB) - prevents OOM on malformed files
+    private static final int MAX_FILE_SIZE = 1024 * 1024;
+
     @Override
     public ParseResult parseFromContent(
         String filePath,
@@ -69,6 +72,18 @@ public class JsPlugin implements LanguagePlugin {
         List<String> parseErrors = new ArrayList<>();
         List<BlindSpot> blindSpots = new ArrayList<>();
         Set<String> sourceModules = new HashSet<>();
+
+        // Check file size to prevent OOM on malformed inputs
+        if (content.length() > MAX_FILE_SIZE) {
+            parseErrors.add(filePath + ":0 - File too large to parse (" +
+                (content.length() / 1024) + " KB, max " + (MAX_FILE_SIZE / 1024) + " KB)");
+            return new ParseResult(
+                GraphBuilder.builder().build(),
+                sourceModules,
+                blindSpots,
+                parseErrors
+            );
+        }
 
         try {
             // Extract module name from file path

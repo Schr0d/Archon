@@ -114,16 +114,33 @@ public class DependencyGraph {
         DependencyGraph prefixedGraph = prefixedBuilder.build();
 
         Map<String, String> idMapping = new LinkedHashMap<>();
+        Map<String, String> unprefixedToPrefixed = new LinkedHashMap<>(); // Track collisions
+
         for (String nodeId : prefixedGraph.getNodeIds()) {
             String unprefixedId = stripNamespacePrefix(nodeId);
+
+            // Detect namespace collisions
+            String existingPrefixed = unprefixedToPrefixed.get(unprefixedId);
+            if (existingPrefixed != null) {
+                System.err.println("Warning: Namespace collision detected - both '" +
+                    existingPrefixed + "' and '" + nodeId + "' map to '" +
+                    unprefixedId + "'. Keeping first, discarding second.");
+                continue; // Skip the colliding node (first wins)
+            }
+
             idMapping.put(nodeId, unprefixedId);
+            unprefixedToPrefixed.put(unprefixedId, nodeId);
         }
 
         MutableBuilder finalBuilder = new MutableBuilder();
 
         for (String prefixedId : prefixedGraph.getNodeIds()) {
-            Node prefixedNode = prefixedGraph.getNode(prefixedId).orElseThrow();
             String unprefixedId = idMapping.get(prefixedId);
+            if (unprefixedId == null) {
+                continue; // Skip nodes that were involved in collisions
+            }
+
+            Node prefixedNode = prefixedGraph.getNode(prefixedId).orElseThrow();
 
             Node.Builder nodeBuilder = Node.builder()
                 .id(unprefixedId)
