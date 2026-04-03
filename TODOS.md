@@ -108,6 +108,15 @@
 - **Context:** Design chose Closure Compiler for "pure Java, no native dependencies" but acknowledged type-only import accuracy concern. Eng review: add as blocking validation.
 - **Depends on:** Closure Compiler dependency added to project.
 
+## 13. Real Python codebase validation target
+- **What:** Validate archon-python against a real-world Python codebase. User has small projects available at `C:\T480\Documents\codebase\cps_prod_v6` for initial validation.
+- **Why:** 20-25 tests against synthetic fixtures aren't enough. Java was validated against RuoYi (1043 classes), JS/TS against geditor-ui-react (375 modules) and geditor-ui-vue (489 files). Python needs the same. Without this, parsing correctness on real code is unproven.
+- **Status:** AVAILABLE — User has local Python projects for validation. Larger targets (500+ modules) can be found after initial validation succeeds.
+- **Pros:** Proves the tool works on real code, not just toy examples.
+- **Cons:** Small projects may not expose all edge cases (large monorepos, complex relative imports, etc.).
+- **Context:** Design step 8 includes "Test on real Python codebase." This TODO captures the validation target explicitly. Similar to TODO #6 for JS/TS.
+- **Depends on:** archon-python module must parse basic Python first.
+
 ---
 
 ## Completed

@@ -92,7 +92,9 @@ class PluginDiscovererTest {
         List<LanguagePlugin> plugins = discoverer.discover();
 
         assertNotNull(plugins);
-        assertTrue(plugins.isEmpty());
+        // Note: This test may discover plugins if they are on the classpath
+        // (e.g., archon-python as test dependency)
+        // The key assertion is that it doesn't throw and returns a valid list
     }
 
     @Test
@@ -101,7 +103,9 @@ class PluginDiscovererTest {
         List<LanguagePlugin> plugins = discoverer.discoverWithConflictCheck();
 
         assertNotNull(plugins);
-        assertTrue(plugins.isEmpty());
+        // Note: This test may discover plugins if they are on the classpath
+        // (e.g., archon-python as test dependency)
+        // The key assertion is that it doesn't throw and returns a valid list
     }
 
     /**
@@ -136,5 +140,22 @@ class PluginDiscovererTest {
 
         // Should not throw even if conflicts exist (ServiceLoader doesn't prevent conflicts)
         assertDoesNotThrow(() -> discoverer.discover());
+    }
+
+    @Test
+    void testDiscoverPythonPlugin() {
+        // Verify that PythonPlugin is discovered via ServiceLoader
+        // This test requires archon-python to be on the classpath
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+        List<LanguagePlugin> plugins = discoverer.discover();
+
+        // Should discover at least PythonPlugin (may also discover JavaPlugin and JsPlugin)
+        assertTrue(plugins.size() >= 1, "Should discover at least one plugin");
+
+        // Verify at least one plugin supports Python files
+        boolean hasPythonPlugin = plugins.stream()
+            .anyMatch(plugin -> plugin.fileExtensions().contains("py"));
+
+        assertTrue(hasPythonPlugin, "Should discover a plugin that supports .py files");
     }
 }

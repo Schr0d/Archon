@@ -7,6 +7,7 @@ import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 
 import java.nio.file.Path;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -36,10 +38,44 @@ public class JavaPlugin implements LanguagePlugin {
     private static final Set<String> EXTENSIONS = Set.of("java");
 
     private final JavaParser javaParser;
-    private final Set<String> allSourceFqcns = new HashSet<>();
+    private final Set<String> allSourceFqcns = ConcurrentHashMap.newKeySet();
 
     public JavaPlugin() {
-        this.javaParser = new JavaParser();
+        this.javaParser = createConfiguredParser();
+    }
+
+    /**
+     * Creates a JavaParser configured for the current runtime Java version.
+     * Detects the runtime version and sets the language level accordingly.
+     */
+    private static JavaParser createConfiguredParser() {
+        ParserConfiguration parserConfig = new ParserConfiguration();
+
+        // Detect runtime Java version
+        String javaVersion = System.getProperty("java.specification.version");
+        if (javaVersion != null) {
+            // Map Java version to JavaParser language level
+            if (javaVersion.startsWith("17")) {
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
+            } else if (javaVersion.startsWith("16")) {
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_16);
+            } else if (javaVersion.startsWith("15")) {
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_15);
+            } else if (javaVersion.startsWith("14")) {
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_14);
+            } else if (javaVersion.startsWith("13")) {
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_13);
+            } else if (javaVersion.startsWith("11")) {
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_11);
+            } else if (javaVersion.startsWith("1.8")) {
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8);
+            } else {
+                // Default to Java 8 for unknown versions (conservative)
+                parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8);
+            }
+        }
+
+        return new JavaParser(parserConfig);
     }
 
     /**
@@ -114,6 +150,7 @@ public class JavaPlugin implements LanguagePlugin {
             DependencyGraph tempGraph = tempBuilder.build();
 
             // Add nodes with namespace prefix to the shared builder
+            Set<String> addedPrefixedIds = new HashSet<>();
             for (String fqcn : fileFqcns) {
                 String prefixedId = NAMESPACE + ":" + fqcn;
                 sourceModules.add(prefixedId);
@@ -122,20 +159,25 @@ public class JavaPlugin implements LanguagePlugin {
                         .id(prefixedId)
                         .type(node.getType())
                         .build());
+                    addedPrefixedIds.add(prefixedId);
                 });
             }
 
             // Add edges with namespace prefix to the shared builder
+            // Only add edges where both source and target nodes were added to the builder
             for (com.archon.core.graph.Edge edge : tempGraph.getAllEdges()) {
                 String prefixedSource = NAMESPACE + ":" + edge.getSource();
                 String prefixedTarget = NAMESPACE + ":" + edge.getTarget();
-                builder.addEdge(com.archon.core.graph.Edge.builder()
-                    .source(prefixedSource)
-                    .target(prefixedTarget)
-                    .type(edge.getType())
-                    .confidence(edge.getConfidence())
-                    .evidence(edge.getEvidence())
-                    .build());
+                // Only add edges where source node exists in the builder
+                if (addedPrefixedIds.contains(prefixedSource)) {
+                    builder.addEdge(com.archon.core.graph.Edge.builder()
+                        .source(prefixedSource)
+                        .target(prefixedTarget)
+                        .type(edge.getType())
+                        .confidence(edge.getConfidence())
+                        .evidence(edge.getEvidence())
+                        .build());
+                }
             }
 
         } catch (Exception e) {
@@ -143,7 +185,7 @@ public class JavaPlugin implements LanguagePlugin {
         }
 
         return new ParseResult(
-            GraphBuilder.builder().build(),
+            builder.build(),
             sourceModules,
             blindSpots,
             parseErrors

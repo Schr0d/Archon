@@ -42,9 +42,9 @@ public class SymbolSolverAdapter {
 
         try {
             JavaSymbolSolver symbolSolver = new JavaSymbolSolver(typeSolver);
-            JavaParser parser = new JavaParser(
-                new ParserConfiguration().setSymbolResolver(symbolSolver)
-            );
+            ParserConfiguration parserConfig = new ParserConfiguration()
+                .setSymbolResolver(symbolSolver);
+            JavaParser parser = new JavaParser(parserConfig);
             var result = parser.parse(javaFile);
             if (!result.isSuccessful() || result.getResult().isEmpty()) {
                 return false;
