@@ -41,7 +41,7 @@ jobs:
           name: Release ${{ steps.version.outputs.VERSION }}
           draft: false
           prerelease: false
-          files: archon-cli/build/libs/archon.jar
+          files: archon-cli/build/libs/archon-*.jar
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -49,5 +49,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: archon
-          path: archon-cli/build/libs/archon.jar
+          path: archon-cli/build/libs/archon-*.jar
           retention-days: 30
