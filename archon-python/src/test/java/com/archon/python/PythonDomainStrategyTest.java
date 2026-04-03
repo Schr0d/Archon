@@ -117,4 +117,43 @@ class PythonDomainStrategyTest {
         assertEquals("myapp", domainMap.get("py:src.myapp.service"));
         assertEquals("tests", domainMap.get("py:tests.test_foo"));
     }
+
+    @Test
+    @DisplayName("assignDomains handles empty input gracefully")
+    void testEmptyInput() {
+        PythonDomainStrategy strategy = new PythonDomainStrategy();
+
+        // Empty set
+        Optional<Map<String, String>> domains1 = strategy.assignDomains(null, Set.of());
+        assertTrue(domains1.isPresent(), "Should return empty domains for empty input");
+        assertTrue(domains1.get().isEmpty(), "Domain map should be empty");
+
+        // Null set
+        Optional<Map<String, String>> domains2 = strategy.assignDomains(null, null);
+        assertTrue(domains2.isPresent(), "Should return empty domains for null input");
+        assertTrue(domains2.get().isEmpty(), "Domain map should be empty");
+    }
+
+    @Test
+    @DisplayName("assignDomains handles non-prefixed modules gracefully")
+    void testNonPrefixedModules() {
+        PythonDomainStrategy strategy = new PythonDomainStrategy();
+
+        // Modules without "py:" prefix (defensive coding - SPI should always prefix)
+        Set<String> sourceModules = Set.of(
+            "src.myapp.service",
+            "tests.test_foo",
+            "mypkg.utils"
+        );
+
+        Optional<Map<String, String>> domains = strategy.assignDomains(null, sourceModules);
+
+        assertTrue(domains.isPresent(), "Should return domains");
+        Map<String, String> domainMap = domains.get();
+
+        // Should handle modules without prefix gracefully
+        assertEquals("myapp", domainMap.get("src.myapp.service"));
+        assertEquals("tests", domainMap.get("tests.test_foo"));
+        assertEquals("mypkg", domainMap.get("mypkg.utils"));
+    }
 }

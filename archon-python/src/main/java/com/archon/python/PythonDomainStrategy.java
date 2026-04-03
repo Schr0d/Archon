@@ -28,6 +28,10 @@ public class PythonDomainStrategy implements DomainStrategy {
         DependencyGraph graph,
         Set<String> sourceModules
     ) {
+        if (sourceModules == null || sourceModules.isEmpty()) {
+            return Optional.of(new HashMap<>());
+        }
+
         Map<String, String> domains = new HashMap<>();
 
         for (String module : sourceModules) {
@@ -83,19 +87,14 @@ public class PythonDomainStrategy implements DomainStrategy {
             return segments[1];
         }
 
-        // Heuristic 3: __init__.py package detection
-        // This is tricky because we only have the module name, not the full path
-        // For now, fall back to first segment
+        // Heuristic 3: Package fallback
+        // Use the first segment as domain (directory or package)
+        // This handles cases like "mypkg.utils" → "mypkg"
         if (segments.length > 1) {
-            // Use the first segment as domain (directory or package)
-            // For "src.mypkg.utils", this gives "src" which isn't great
-            // But we've already handled src/ layout above
-            if (!"src".equals(segments[0])) {
-                return segments[0];
-            }
+            return segments[0];
         }
 
-        // Fallback: default (for root-level files with no directory)
+        // Fallback: default (for root-level files with no directory structure)
         return "default";
     }
 }
