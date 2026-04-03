@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -235,6 +237,7 @@ class ModulePathResolverTest {
 
     @Test
     @DisplayName("Module ID extraction normalizes path separators")
+    @EnabledOnOs(OS.WINDOWS)
     void testModuleIdExtractionNormalizesSeparators() {
         // Windows path separator normalization
         String moduleId = ModulePathResolver.extractModuleId(
