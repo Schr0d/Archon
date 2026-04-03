@@ -150,14 +150,14 @@ class JsPluginTest {
             builder
         );
 
-        // Should report a blind spot about stub implementation
-        assertFalse(result.getBlindSpots().isEmpty(),
-            "Should report blind spot for stub implementation");
+        // Should NOT report blind spots for simple exports (actual implementation)
+        assertTrue(result.getBlindSpots().isEmpty(),
+            "Should not report blind spots for simple exports");
 
-        com.archon.core.plugin.BlindSpot blindSpot = result.getBlindSpots().get(0);
-        assertEquals("StubImplementation", blindSpot.getType(),
-            "Should be StubImplementation type");
-        assertTrue(blindSpot.getDescription().contains("JsPlugin"),
-            "Should mention JsPlugin in description");
+        // Should have parsed the source module
+        assertFalse(result.getSourceModules().isEmpty(),
+            "Should have source modules");
+        assertTrue(result.getSourceModules().iterator().next().contains("test"),
+            "Source module should contain 'test'");
     }
 }
