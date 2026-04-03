@@ -133,7 +133,7 @@ See [TODOS.md](TODOS.md) for deferred work and contribution opportunities.
 
 ## License
 
-[Specify your license here]
+MIT
 
 ## Links
 
