@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0.0] - 2026-04-03
+
+### Added
+- Namespace collision detection - throws exception on conflicting unprefixed IDs
+- File size validation before parsing (1MB limit enforced at file system level)
+- Default reset() method in LanguagePlugin interface for state cleanup between runs
+- Validation for malformed namespace prefixes (empty prefix, trailing colon)
+
+### Fixed
+- Namespace collision now throws exception instead of silently dropping nodes (prevents data loss)
+- File size check moved before content reading (prevents OOM on large files)
+- Plugin reset now called on all plugins via interface method (not just JavaPlugin)
+- Malformed namespace prefixes now rejected with clear error messages
+
 ## [0.3.0.0] - 2026-04-03
 
 ### Added

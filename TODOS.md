@@ -107,3 +107,26 @@
 - **Cons:** Delays Milestone 3 by ~1 day for validation prototype. If Closure Compiler fails, need alternative parser (TypeScript Compiler API via GraalJS).
 - **Context:** Design chose Closure Compiler for "pure Java, no native dependencies" but acknowledged type-only import accuracy concern. Eng review: add as blocking validation.
 - **Depends on:** Closure Compiler dependency added to project.
+
+---
+
+## Completed
+
+### v0.4.0.0 (2026-04-03)
+
+**Security & Robustness Fixes:**
+- Namespace collision detection (throws exception instead of silent data loss)
+- File size validation before parsing (prevents OOM)
+- Plugin reset interface for state cleanup
+- Malformed namespace prefix validation
+
+### v0.3.0.0 (2026-04-03)
+
+**Milestone 1: Multi-Language SPI + JS Plugin**
+- **Item 5:** ParseOrchestrator merge ordering — two-phase construction (nodes before edges) ✓
+- **Item 8:** Node ID namespace prefixing (java:, js:) ✓
+- **Item 9:** Optional DomainStrategy via Optional<> ✓
+- **Item 10:** Graph included in ParseResult, sourceModules naming ✓
+- **Item 11:** Warn on unclaimed file extensions in ParseOrchestrator ✓
+- **Item 12:** Closure Compiler validation milestone (ClosureCompilerValidationTest) ✓
+- **Item 6:** Real JS/TS monorepo validation (geditor-ui-react: 375 modules, geditor-ui-vue: 489 files) ✓
