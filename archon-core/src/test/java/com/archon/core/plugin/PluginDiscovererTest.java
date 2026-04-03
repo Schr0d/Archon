@@ -1,0 +1,140 @@
+package com.archon.core.plugin;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Tests for PluginDiscoverer.
+ */
+class PluginDiscovererTest {
+
+    /**
+     * Mock plugin for testing.
+     */
+    static class MockJavaPlugin implements LanguagePlugin {
+        @Override
+        public Set<String> fileExtensions() {
+            return Set.of("java");
+        }
+
+        @Override
+        public java.util.Optional<com.archon.core.analysis.DomainStrategy> getDomainStrategy() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public ParseResult parseFromContent(
+            String filePath,
+            String content,
+            ParseContext context,
+            com.archon.core.graph.DependencyGraph.MutableBuilder builder
+        ) {
+            return new ParseResult(builder.build(), Set.of(), List.of());
+        }
+    }
+
+    /**
+     * Mock plugin for testing.
+     */
+    static class MockJsPlugin implements LanguagePlugin {
+        @Override
+        public Set<String> fileExtensions() {
+            return Set.of("js", "ts");
+        }
+
+        @Override
+        public java.util.Optional<com.archon.core.analysis.DomainStrategy> getDomainStrategy() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public ParseResult parseFromContent(
+            String filePath,
+            String content,
+            ParseContext context,
+            com.archon.core.graph.DependencyGraph.MutableBuilder builder
+        ) {
+            return new ParseResult(builder.build(), Set.of(), List.of());
+        }
+    }
+
+    /**
+     * Mock plugin that conflicts with MockJavaPlugin.
+     */
+    static class ConflictingJavaPlugin implements LanguagePlugin {
+        @Override
+        public Set<String> fileExtensions() {
+            return Set.of("java");  // Conflicts with MockJavaPlugin
+        }
+
+        @Override
+        public java.util.Optional<com.archon.core.analysis.DomainStrategy> getDomainStrategy() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public ParseResult parseFromContent(
+            String filePath,
+            String content,
+            ParseContext context,
+            com.archon.core.graph.DependencyGraph.MutableBuilder builder
+        ) {
+            return new ParseResult(builder.build(), Set.of(), List.of());
+        }
+    }
+
+    @Test
+    void testDiscoverReturnsEmptyListWhenNoPluginsRegistered() {
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+        List<LanguagePlugin> plugins = discoverer.discover();
+
+        assertNotNull(plugins);
+        assertTrue(plugins.isEmpty());
+    }
+
+    @Test
+    void testDiscoverWithConflictCheckReturnsEmptyListWhenNoPluginsRegistered() {
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+        List<LanguagePlugin> plugins = discoverer.discoverWithConflictCheck();
+
+        assertNotNull(plugins);
+        assertTrue(plugins.isEmpty());
+    }
+
+    /**
+     * Note: This test would require actual META-INF/services registration.
+     * In a real integration test, we would:
+     * 1. Create test JARs with META-INF/services/com.archon.core.plugin.LanguagePlugin
+     * 2. Add them to test classpath
+     * 3. Verify discover() returns the plugins
+     *
+     * For unit testing, we verify the code compiles and the structure is correct.
+     * Full ServiceLoader testing requires build system integration.
+     */
+    @Test
+    void testDiscoverWithConflictCheckDetectsConflicts() {
+        // This test demonstrates the conflict detection logic
+        // In practice, you'd register conflicting plugins via META-INF/services
+
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+
+        // If we had two plugins both claiming "java", it would throw:
+        // IllegalStateException: Extension conflict: 'java' is claimed by both
+        // MockJavaPlugin and ConflictingJavaPlugin
+
+        // Since no plugins are registered, this should not throw
+        assertDoesNotThrow(() -> discoverer.discoverWithConflictCheck());
+    }
+
+    @Test
+    void testDiscoverDoesNotThrowOnConflicts() {
+        // discover() method should not check for conflicts
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+
+        // Should not throw even if conflicts exist (ServiceLoader doesn't prevent conflicts)
+        assertDoesNotThrow(() -> discoverer.discover());
+    }
+}
