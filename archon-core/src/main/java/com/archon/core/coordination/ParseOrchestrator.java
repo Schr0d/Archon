@@ -88,6 +88,15 @@ public class ParseOrchestrator {
 
             for (Path file : entry.getValue()) {
                 try {
+                    // Fix #2: Check file size BEFORE reading to prevent OOM
+                    long fileSize = Files.size(file);
+                    long maxFileSize = 1024 * 1024; // 1MB limit
+                    if (fileSize > maxFileSize) {
+                        allErrors.add("Skipped " + file + ": file too large (" +
+                            (fileSize / 1024) + " KB, max " + (maxFileSize / 1024) + " KB)");
+                        continue;
+                    }
+
                     String content = Files.readString(file);
                     ParseResult result = plugin.parseFromContent(
                         file.toString(),
