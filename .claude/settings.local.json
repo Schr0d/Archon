@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(./gradlew :archon-core:test --tests BlindSpotTest)"
-    ]
-  }
-}
