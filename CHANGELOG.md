@@ -5,16 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0.1] - 2026-04-03
-
-### Added
-- GitHub Actions CI/CD workflows (build.yml, release.yml)
-- Automated testing on push and pull requests
-- Automated GitHub releases on version tags
-
-### Fixed
-- Gradle wrapper execute permission in CI workflows
-
 ## [0.4.0.3] - 2026-04-04
 
 ### Fixed
@@ -34,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical
 - JavaParser updated to 3.28+ for improved Java syntax parsing
 - ModuleDetector enhanced with 80+ lines of multi-module Gradle project detection logic
+
+## [0.4.0.1] - 2026-04-03
+
+### Added
+- GitHub Actions CI/CD workflows (build.yml, release.yml)
+- Automated testing on push and pull requests
+- Automated GitHub releases on version tags
+
+### Fixed
+- Gradle wrapper execute permission in CI workflows
 
 ## [0.4.0.0] - 2026-04-03
 
