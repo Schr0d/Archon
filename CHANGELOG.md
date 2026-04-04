@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Gradle wrapper execute permission in CI workflows
 
+## [0.4.0.3] - 2026-04-04
+
+### Fixed
+- `archon impact` command now works for TypeScript/Python modules, not just Java classes
+- Module resolution supports path-based matching (slashes) alongside Java FQCN matching (dots)
+- Namespace prefixes (js:, py:, java:) correctly stripped before suffix matching
+- Error message changed from "class not found" to "module not found" for multi-language clarity
+
 ## [0.4.0.2] - 2026-04-04
 
 ### Fixed

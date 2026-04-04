@@ -26,9 +26,9 @@ Download the latest shadow JAR from [releases](https://github.com/yourname/archo
 
 ```bash
 # Analyze a Java project
-java -jar archon-cli/build/libs/archon-0.4.0.0.jar analyze /path/to/project
+java -jar archon-cli/build/libs/archon-0.4.0.3.jar analyze /path/to/project
 
-# Check impact of changing a specific class
+# Check impact of changing a specific module (Java class, TS module, or Python file)
 java -jar archon.jar impact com.example.Service /path/to/project
 
 # Validate against architectural rules
@@ -63,7 +63,7 @@ Archon uses a plugin architecture for language extensibility:
 
 ```
 archon analyze <path> [--json] [--dot <file>] [--verbose]
-archon impact <class> <path> [--depth N]
+archon impact <module> <path> [--depth N]
 archon check <path> [--ci]
 archon diff <base> <head> <path> [--ci] [--depth N]
 ```
@@ -96,7 +96,7 @@ archon-test/     — Shared test fixtures
 # Build shadow JAR
 ./gradlew shadowJar
 
-# Output: archon-cli/build/libs/archon-0.4.0.0.jar
+# Output: archon-cli/build/libs/archon-0.4.0.3.jar
 ```
 
 ## Configuration
