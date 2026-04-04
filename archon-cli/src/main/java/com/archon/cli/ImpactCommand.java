@@ -1,29 +1,35 @@
 package com.archon.cli;
 
+import com.archon.core.analysis.ArchLayer;
 import com.archon.core.analysis.DomainDetector;
 import com.archon.core.analysis.DomainResult;
 import com.archon.core.analysis.ImpactPropagator;
 import com.archon.core.analysis.ImpactResult;
 import com.archon.core.config.ArchonConfig;
+import com.archon.core.coordination.ParseOrchestrator;
 import com.archon.core.graph.DependencyGraph;
-import com.archon.java.JavaParserPlugin;
+import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ParseContext;
+import com.archon.core.plugin.ParseResult;
+import com.archon.core.plugin.PluginDiscoverer;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
-import com.archon.core.analysis.ArchLayer;
 
 @Command(
     name = "impact",
-    description = "Impact analysis for a specific target class",
+    description = "Impact analysis for a specific target module",
     mixinStandardHelpOptions = true
 )
 public class ImpactCommand implements Callable<Integer> {
-    @Parameters(index = "0", description = "Target class (FQCN or short name)")
+    @Parameters(index = "0", description = "Target module (FQCN, path, or short name)")
     private String target;
 
     @Parameters(index = "1", description = "Path to the project root")
@@ -42,16 +48,42 @@ public class ImpactCommand implements Callable<Integer> {
 
         ArchonConfig config = ArchonConfig.loadOrDefault(root.resolve(".archon.yml"));
 
-        // Parse
-        JavaParserPlugin plugin = new JavaParserPlugin();
-        JavaParserPlugin.ParseResult result = plugin.parse(root, config);
+        // Discover plugins
+        PluginDiscoverer discoverer = new PluginDiscoverer();
+        List<LanguagePlugin> plugins = discoverer.discoverWithConflictCheck();
+
+        if (plugins.isEmpty()) {
+            System.err.println("Error: No language plugins found. Please ensure plugin JARs are on the classpath.");
+            return 1;
+        }
+
+        // Collect all file extensions from plugins
+        Set<String> extensions = plugins.stream()
+            .flatMap(p -> p.fileExtensions().stream())
+            .collect(Collectors.toSet());
+
+        // Collect source files
+        List<Path> sourceFiles = AnalyzeCommand.collectSourceFilesStatic(root, extensions);
+
+        if (sourceFiles.isEmpty()) {
+            System.out.println("No source files found. Check project path.");
+            return 0;
+        }
+
+        // Reset any plugin state before parsing
+        plugins.forEach(LanguagePlugin::reset);
+
+        // Parse with orchestrator
+        ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
+        ParseContext context = new ParseContext(root, extensions);
+        ParseResult result = orchestrator.parse(sourceFiles, context);
         DependencyGraph graph = result.getGraph();
 
         // Resolve short name to FQCN
         String fqcn = resolveTarget(graph, target);
         if (fqcn == null) {
-            System.err.println("Error: class not found: " + target);
-            System.err.println("Available classes:");
+            System.err.println("Error: module not found: " + target);
+            System.err.println("Available modules:");
             graph.getNodeIds().stream().sorted().forEach(id -> System.err.println("  " + id));
             return 1;
         }
@@ -112,17 +144,37 @@ public class ImpactCommand implements Callable<Integer> {
         return 0;
     }
 
-    private String resolveTarget(DependencyGraph graph, String target) {
+    // Package-private for testing
+    String resolveTarget(DependencyGraph graph, String target) {
+        // 1. Exact match (handles full node IDs with namespace prefix)
         if (graph.containsNode(target)) {
             return target;
         }
-        // Try suffix match (short class name)
+
+        // 2. Try matching with common separators
         for (String nodeId : graph.getNodeIds()) {
-            if (nodeId.endsWith("." + target)) {
+            // Strip namespace prefix for matching (js:stores/foo -> stores/foo)
+            String unprefixed = stripNamespacePrefix(nodeId);
+
+            // Java-style: com.example.RouterStore matches "RouterStore"
+            if (unprefixed.endsWith("." + target)) {
+                return nodeId;
+            }
+            // Path-style: stores/routerStore matches "routerStore"
+            if (unprefixed.endsWith("/" + target)) {
                 return nodeId;
             }
         }
         return null;
+    }
+
+    // Package-private for testing
+    String stripNamespacePrefix(String nodeId) {
+        int colonIndex = nodeId.indexOf(':');
+        if (colonIndex > 0) {
+            return nodeId.substring(colonIndex + 1);
+        }
+        return nodeId;
     }
 
     private String colorRisk(com.archon.core.graph.RiskLevel risk) {
