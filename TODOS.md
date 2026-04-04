@@ -66,7 +66,7 @@
 ## 8. Node ID namespace prefixing
 - **What:** Add language identifier prefixes to node IDs in the SPI (e.g., `java:com.foo.Bar`, `js:src/components/Header`). ParseOrchestrator strips prefixes before adding to graph.
 - **Why:** Prevents namespace collision across language plugins. Java uses FQCNs (dot-separated), JS uses POSIX paths (slash-separated). Future plugins might use overlapping conventions.
-- **Status:** Must implement in Milestone 1 (LanguagePlugin SPI)
+- **Status:** RESOLVED — Implemented in v0.3.0.0 (java:, js:, py: prefixes)
 - **Pros:** Namespace isolation enforced at SPI boundary. Future-proof against new language plugins.
 - **Cons:** Prefix stripping adds complexity to ParseOrchestrator. Prefixes must be documented for plugin authors.
 - **Context:** Eng review identified this as a correctness issue: "If a future Python plugin uses dot-separated module paths, we could get collisions with Java FQCNs." Decision: add prefixing now rather than defer.
@@ -75,16 +75,16 @@
 ## 9. Optional DomainStrategy
 - **What:** LanguagePlugin.getDomainStrategy() returns `Optional<DomainStrategy>`. Empty means use fallback pivot detection. Plugins without domain concepts aren't forced to implement.
 - **Why:** Not all languages have domain semantics. A hypothetical plugin for a language with flat module structure shouldn't be required to implement domain detection.
-- **Status:** Must implement in Milestone 1 (LanguagePlugin SPI)
+- **Status:** RESOLVED — Implemented in v0.3.0.0 (Optional<DomainStrategy> return type)
 - **Pros:** Flexibility for future plugins. Fallback behavior (pivot detection) already exists.
 - **Cons:** Plugins can skip domain detection, potentially losing useful analysis. Optional adds API surface area.
 - **Context:** Eng review questioned whether DomainStrategy should be required or optional. Decision: optional via `Optional<>` for maximum flexibility.
 - **Depends on:** DomainStrategy interface exists (Milestone 1).
 
 ## 10. Graph in ParseResult
-- **What:** ParseResult includes the built `DependencyGraph`, not just metadata. Rename `sourceClasses` field to `sourceModules` for language-agnostic naming.
+- **What:** ParseResult includes the built `DependencyGraph`, not just metadata. Renamed `sourceClasses` field to `sourceModules` for language-agnostic naming.
 - **Why:** Current design has awkward hand-off: plugin modifies MutableBuilder, caller extracts graph. Including graph in ParseResult creates cleaner API. `sourceClasses` is Java-specific naming.
-- **Status:** Must implement in Milestone 1 (SPI interface)
+- **Status:** RESOLVED — Implemented in v0.3.0.0 (sourceModules field, getGraph() method)
 - **Pros:** Cleaner API — plugins return complete result, not partial metadata. Generic naming scales to all languages.
 - **Cons:** ParseResult becomes heavier (includes graph reference). Plugins must call `builder.build()` before returning.
 - **Context:** Eng review identified API inconsistency: "sourceClasses in ParseResult but sourceTreeModules in ParseContext." Decision: clean up the API, include graph in result.
@@ -93,7 +93,7 @@
 ## 11. Warn on unclaimed file extensions
 - **What:** When source files have no matching plugin (e.g., .py files with no Python plugin), log a warning: "No plugin found for .py files; skipping N files."
 - **Why:** Users should know when source files are being silently skipped. Silent skipping hides data and creates false confidence.
-- **Status:** Must implement in CLI integration (Milestone 4)
+- **Status:** RESOLVED — Implemented in ParseOrchestrator (warns on unclaimed extensions)
 - **Pros:** User knows what's being analyzed and what's being skipped. Clearer diagnostics.
 - **Cons:** Warning spam for projects with many ignored file types. Verbose mode alternative considered but rejected in favor of always-warn.
 - **Context:** Eng review asked: "If a project has .py files but no Python plugin, should we warn or skip silently?" Decision: warn on unclaimed files.
@@ -102,7 +102,7 @@
 ## 12. Closure Compiler validation milestone (Milestone 2.5)
 - **What:** Before implementing archon-js (Milestone 3), prototype parsing a TypeScript file with `import type { X } from './foo'` and `import { type Y } from './bar'` using Closure Compiler. Verify the AST represents type-only imports correctly.
 - **Why:** If Closure Compiler loses type-only import information, the JS plugin will produce incorrect graphs. Must validate before building on top of it.
-- **Status:** BLOCKING for Milestone 3 (archon-js implementation)
+- **Status:** RESOLVED — ClosureCompilerValidationTest confirms type-only imports are preserved. Workaround documented for `import { type X }` syntax (requires transpilation first).
 - **Pros:** Prevents building on incorrect assumptions. Early failure mode if Closure Compiler is wrong choice.
 - **Cons:** Delays Milestone 3 by ~1 day for validation prototype. If Closure Compiler fails, need alternative parser (TypeScript Compiler API via GraalJS).
 - **Context:** Design chose Closure Compiler for "pure Java, no native dependencies" but acknowledged type-only import accuracy concern. Eng review: add as blocking validation.
@@ -120,6 +120,30 @@
 ---
 
 ## Completed
+
+### v0.4.0.3 (2026-04-04)
+
+**Multi-Language Impact Command:**
+- ImpactCommand now uses PluginDiscoverer and ParseOrchestrator for multi-language support
+- Path-based module matching (slashes) added for JS/TS/Python alongside Java FQCN matching (dots)
+- Namespace prefix stripping (js:, py:, java:) before suffix matching
+- Error message changed from "class not found" to "module not found"
+- 16 tests added for resolveTarget() and stripNamespacePrefix()
+
+### v0.4.0.2 (2026-04-04)
+
+**Fixes:**
+- Gradle multi-module project detection (settings.gradle support)
+- JavaParser configured to Java 17 language level
+- Edge-adding bug fixed in JavaPlugin
+- Shadow JAR VERSION file reading improved
+
+### v0.4.0.1 (2026-04-03)
+
+**CI/CD:**
+- GitHub Actions workflows (build.yml, release.yml)
+- Automated testing on push and pull requests
+- Automated GitHub releases on version tags
 
 ### v0.4.0.0 (2026-04-03)
 
