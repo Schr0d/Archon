@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0.0] - 2026-04-06
 
+### Added [EXPERIMENTAL]
+- **Web Visualization** — `archon view` command with web-based dependency graph viewer (experimental)
+  - Static HTML export works offline with inlined dagre.js
+  - JSON/JSON output format for programmatic access
+  - Mermaid and DOT export formats for external tools
+  - **Note:** Interactive viewer has rendering issues — use JSON/Mermaid/DOT for production
+
 ### Added
-- **Interactive Web Visualization** — New `archon view` command with web-based dependency graph viewer
 - **Web Diff Viewer** — `archon diff --view` opens browser with red/green/yellow diff visualization
-- **Static HTML Export** — `archon view --export diagram.html` generates standalone HTML files
 - **Mermaid Export** — `archon analyze --mermaid diagram.mmd` exports to Mermaid flowchart format
 - **Terminal Visualization** — Structured text output with domain grouping and formatting
 - **Idle Timeout** — Web server auto-stops after 30 minutes of inactivity (configurable via `--idle-timeout`)

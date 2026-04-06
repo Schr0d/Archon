@@ -51,16 +51,27 @@ java -jar archon.jar analyze /path/to/project --mermaid diagram.mmd
 
 ## Features
 
-### Interactive Web Visualization
+### Interactive Web Visualization [EXPERIMENTAL]
 
-New in v0.5 — Archon now includes an interactive web viewer:
+New in v0.5 — Archon includes an interactive web viewer (experimental):
 
-- **Pan & Zoom** — Figma-style mouse wheel navigation, space+drag to pan
-- **Domain Grouping** — Automatically clusters nodes by architectural domain
-- **Diff Visualization** — Git-aware diff with color-coded changes (red/green/yellow)
-- **Theme Toggle** — Light and dark mode support
-- **Search & Filter** — Text search with real-time highlighting
-- **Offline Ready** — All dependencies bundled, no network required
+**Working features:**
+- Static HTML export with offline support (no internet required)
+- JSON output format for programmatic access
+- Mermaid and DOT export formats
+
+**Known limitations:**
+- Hierarchical domain/class visualization has rendering issues
+- Domain bounding boxes may overlap in complex graphs
+- Expand/collapse interaction needs refinement
+- Layout algorithm (dagre.js) produces inconsistent results
+
+**Recommended usage:**
+- Use `--format json` for programmatic data access
+- Use `--mermaid` or `--dot` for external visualization tools
+- Use `--export` for static HTML (works offline)
+
+For production use, prefer JSON output and integrate with your preferred visualization tool.
 
 ### Multi-Language Support
 

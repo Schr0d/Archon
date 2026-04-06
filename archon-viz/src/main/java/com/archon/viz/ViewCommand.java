@@ -12,7 +12,7 @@ import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 
 @Command(name = "view", mixinStandardHelpOptions = true, version = "Archon 0.5.0.0",
-       description = "Visualize dependency graph in terminal and web viewer")
+       description = "Visualize dependency graph (terminal output, JSON, Mermaid, DOT). Web viewer is experimental.")
 public class ViewCommand implements Callable<Integer> {
 
     @Option(names = {"--port"}, description = "Port for web server (default: 8420-8430)")
@@ -72,6 +72,7 @@ public class ViewCommand implements Callable<Integer> {
         }
 
         System.out.println("archon: viewer running at http://127.0.0.1:" + server.getPort() + "/");
+        System.out.println("NOTE: Web viewer is experimental. For production, use --format json, --mermaid, or --dot.");
         System.out.println("Press Ctrl+C to stop");
 
         // Keep server running until interrupt
