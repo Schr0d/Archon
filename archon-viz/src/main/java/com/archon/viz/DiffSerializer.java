@@ -91,6 +91,15 @@ public class DiffSerializer {
             removedNodes.add(nodeId);
         }
 
+        // Mark changed nodes (union of added and removed)
+        ArrayNode changedNodes = root.putArray("changedNodes");
+        for (String nodeId : diff.getAddedNodes()) {
+            changedNodes.add(nodeId);
+        }
+        for (String nodeId : diff.getRemovedNodes()) {
+            changedNodes.add(nodeId);
+        }
+
         // Mark added edges
         ArrayNode addedEdges = root.putArray("addedEdges");
         for (Edge edge : diff.getAddedEdges()) {
@@ -113,6 +122,35 @@ public class DiffSerializer {
         riskObj.put("crossDomainEdgeChanges", riskSummary.getCrossDomainEdgeChanges());
         riskObj.put("criticalPathHits", riskSummary.getCriticalPathHits());
         riskObj.put("perClassRiskCount", riskSummary.getPerClassRisk().size());
+
+        // Add domain-level risk breakdown
+        ObjectNode domainRisks = riskObj.putObject("domainRisks");
+        java.util.Map<String, com.archon.core.graph.RiskLevel> domainRiskSummary = calculateDomainRiskSummary();
+        for (java.util.Map.Entry<String, com.archon.core.graph.RiskLevel> entry : domainRiskSummary.entrySet()) {
+            domainRisks.put(entry.getKey(), entry.getValue().toString());
+        }
+    }
+
+    /**
+     * Calculates domain-level risk summary from per-class risk data.
+     * Aggregates the highest risk level per domain.
+     */
+    private java.util.Map<String, com.archon.core.graph.RiskLevel> calculateDomainRiskSummary() {
+        java.util.Map<String, com.archon.core.graph.RiskLevel> domainRisks = new java.util.HashMap<>();
+        java.util.Map<String, String> changedClassDomains = impactReport.getChangedClassDomains();
+        java.util.Map<String, com.archon.core.graph.RiskLevel> perClassRisk = impactReport.getRiskSummary().getPerClassRisk();
+
+        for (java.util.Map.Entry<String, com.archon.core.graph.RiskLevel> entry : perClassRisk.entrySet()) {
+            String classId = entry.getKey();
+            com.archon.core.graph.RiskLevel risk = entry.getValue();
+            String domain = changedClassDomains.getOrDefault(classId, "unknown");
+
+            // Keep the highest risk level per domain
+            domainRisks.merge(domain, risk, (existing, newRisk) ->
+                existing.ordinal() > newRisk.ordinal() ? existing : newRisk);
+        }
+
+        return domainRisks;
     }
 
     private void addImpactedNodes(ObjectNode root) {

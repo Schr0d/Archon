@@ -374,4 +374,89 @@ class DiffSerializerTest {
         assertEquals(2, secondImpact.get("depth").asInt());
         assertEquals("MEDIUM", secondImpact.get("risk").asText());
     }
+
+    @Test
+    void testDiffSerializationIncludesChangedNodes() throws Exception {
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        builder.addNode(Node.builder()
+            .id("java:com.example.A")
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+        builder.addNode(Node.builder()
+            .id("java:com.example.B")
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+        builder.addEdge(Edge.builder()
+            .source("java:com.example.A")
+            .target("java:com.example.B")
+            .type(EdgeType.IMPORTS)
+            .confidence(Confidence.HIGH)
+            .build());
+        DependencyGraph graph = builder.build();
+
+        GraphDiff diff = new GraphDiff(
+            Set.of("java:com.example.NewClass"), // added
+            Set.of("java:com.example.OldClass"), // removed
+            Set.of(), // addedEdges
+            Set.of(), // removedEdges
+            List.of(), // newCycles
+            List.of()  // fixedCycles
+        );
+
+        RiskSummary riskSummary = new RiskSummary(RiskLevel.LOW, 0, 0, 0, Map.of());
+        ChangeImpactReport report = new ChangeImpactReport("base", "head",
+            Set.of(), diff, Map.of(), List.of(), riskSummary);
+
+        DiffSerializer serializer = new DiffSerializer(report, graph, Map.of());
+        String json = serializer.toJson();
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(json);
+
+        assertTrue(root.has("changedNodes"));
+        assertEquals(2, root.get("changedNodes").size());
+        assertTrue(root.get("changedNodes").get(0).asText().contains("NewClass") ||
+                   root.get("changedNodes").get(1).asText().contains("NewClass"));
+        assertTrue(root.get("changedNodes").get(0).asText().contains("OldClass") ||
+                   root.get("changedNodes").get(1).asText().contains("OldClass"));
+    }
+
+    @Test
+    void testDiffSerializationIncludesDomainRisks() throws Exception {
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        builder.addNode(Node.builder()
+            .id("java:com.example.A")
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+        DependencyGraph graph = builder.build();
+
+        GraphDiff diff = new GraphDiff(Set.of(), Set.of(), Set.of(), Set.of(), List.of(), List.of());
+
+        Map<String, RiskLevel> perClassRisk = Map.of(
+            "java:com.example.A", RiskLevel.HIGH,
+            "java:com.example.B", RiskLevel.LOW
+        );
+        Map<String, String> changedClassDomains = Map.of(
+            "java:com.example.A", "service",
+            "java:com.example.B", "persistence"
+        );
+        RiskSummary riskSummary = new RiskSummary(RiskLevel.HIGH, 0, 0, 0, perClassRisk);
+
+        ChangeImpactReport report = new ChangeImpactReport("base", "head",
+            Set.of(), diff, changedClassDomains, List.of(), riskSummary);
+
+        DiffSerializer serializer = new DiffSerializer(report, graph, Map.of());
+        String json = serializer.toJson();
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(json);
+
+        assertTrue(root.has("riskSummary"));
+        assertTrue(root.get("riskSummary").has("domainRisks"));
+        assertEquals("HIGH", root.get("riskSummary").get("domainRisks").get("service").asText());
+        assertEquals("LOW", root.get("riskSummary").get("domainRisks").get("persistence").asText());
+    }
 }
