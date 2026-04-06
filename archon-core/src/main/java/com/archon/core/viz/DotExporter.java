@@ -133,6 +133,7 @@ public class DotExporter {
         int r = 180 + Math.abs(hash % 60);
         int g = 180 + Math.abs((hash >> 8) % 60);
         int b = 180 + Math.abs((hash >> 16) % 60);
-        return "#" + Integer.toHexString(r) + Integer.toHexString(g) + Integer.toHexString(b);
+        // Use String.format to ensure 2-digit hex values with leading zeros
+        return String.format("#%02x%02x%02x", r, g, b);
     }
 }
