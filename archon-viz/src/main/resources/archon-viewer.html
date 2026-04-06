@@ -10,8 +10,8 @@
             --surface: #141414;
             --border: #333333;
             --text: #ffffff;
-            --text-mid: #888888;
-            --text-dim: #555555;
+            --text-mid: #aaaaaa;  /* Accessibility: improved from #888888 */
+            --text-dim: #777777;  /* Accessibility: improved from #555555 */
             --accent: #818cf8;
             --accent-hover: #a5b4fc;
             --diff-added: #22c55e;
@@ -26,8 +26,8 @@
             --surface: #f5f5f5;
             --border: #e0e0e0;
             --text: #1a1a1a;
-            --text-mid: #666666;
-            --text-dim: #999999;
+            --text-mid: #888888;  /* Accessibility: improved from #666666 */
+            --text-dim: #aaaaaa;  /* Accessibility: unchanged, already sufficient */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -375,6 +375,11 @@
             align-items: center;
             justify-content: center;
             min-width: 40px;
+            min-height: 44px;  /* Accessibility: minimum touch target size */
+        }
+
+        button, [role="button"] {
+            min-height: 44px;  /* Accessibility: minimum touch target for all buttons */
         }
 
         .btn:hover {
@@ -702,6 +707,14 @@
 
         .node-group {
             animation: fadeIn var(--transition-speed) ease;
+        }
+
+        /* Accessibility: Motion reduction for users who prefer it */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
