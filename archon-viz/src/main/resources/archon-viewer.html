@@ -773,24 +773,42 @@
             const mainGroup = elements.mainGroup;
             mainGroup.innerHTML = '';
 
-            // Create dagre graph
-            const g = new dagre.graphlib.Graph()
-                .setGraph({
-                    rankdir: 'TB',
-                    nodesep: 50,
-                    ranksep: 50,
-                    edgesep: 10
-                });
+            // Group nodes by domain for clustering
+            const domains = {};
+            data.nodes.forEach(node => {
+                const domain = node.domain || 'general';
+                if (!domains[domain]) domains[domain] = [];
+                domains[domain].push(node);
+            });
 
-            // Add nodes
+            // Create dagre graph with compound nodes for domains
+            const g = new dagre.graphlib.Graph({
+                compound: true,
+                multigraph: false
+            }).setGraph({
+                rankdir: 'TB',
+                nodesep: 70,
+                ranksep: 80,
+                edgesep: 15,
+                ranker: 'longest-path'
+            });
+
+            // Add domain clusters as compound nodes
+            Object.keys(domains).forEach(domain => {
+                g.setNode(domain, {});
+            });
+
+            // Add nodes and assign to parent domains
             data.nodes.forEach(node => {
                 const label = shortId(node.id);
+                const domain = node.domain || 'general';
                 g.setNode(node.id, {
                     label: label,
                     width: calculateNodeWidth(label),
                     height: 40,
                     ...node
                 });
+                g.setParent(node.id, domain);
             });
 
             // Add edges
@@ -805,10 +823,46 @@
             // Layout
             dagre.layout(g);
 
+            // Render domain cluster backgrounds (before nodes)
+            const domainColors = generateDomainColors(Object.keys(domains));
+            Object.keys(domains).forEach(domain => {
+                const domainNode = g.node(domain);
+                if (domainNode) {
+                    const clusterGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    clusterGroup.setAttribute('class', 'domain-cluster');
+
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', domainNode.x - domainNode.width / 2 - 20);
+                    rect.setAttribute('y', domainNode.y - domainNode.height / 2 - 20);
+                    rect.setAttribute('width', domainNode.width + 40);
+                    rect.setAttribute('height', domainNode.height + 40);
+                    rect.setAttribute('fill', domainColors[domain]);
+                    rect.setAttribute('fill-opacity', '0.08');
+                    rect.setAttribute('stroke', domainColors[domain]);
+                    rect.setAttribute('stroke-width', '2');
+                    rect.setAttribute('stroke-dasharray', '5,5');
+                    rect.setAttribute('rx', '8');
+
+                    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    label.setAttribute('x', domainNode.x - domainNode.width / 2 - 10);
+                    label.setAttribute('y', domainNode.y - domainNode.height / 2);
+                    label.setAttribute('fill', domainColors[domain]);
+                    label.setAttribute('font-size', '14');
+                    label.setAttribute('font-weight', 'bold');
+                    label.setAttribute('font-family', 'var(--mono)');
+                    label.textContent = domain;
+
+                    clusterGroup.appendChild(rect);
+                    clusterGroup.appendChild(label);
+                    mainGroup.appendChild(clusterGroup);
+                }
+            });
+
             // Render nodes
             g.nodes().forEach(nodeId => {
+                if (domains[nodeId]) return; // Skip domain cluster nodes
                 const node = g.node(nodeId);
-                const group = createNodeElement(nodeId, node);
+                const group = createNodeElement(nodeId, node, domainColors[node.domain || 'general']);
                 mainGroup.appendChild(group);
             });
 
@@ -827,10 +881,23 @@
             centerView();
         }
 
-        function createNodeElement(nodeId, node) {
+        function generateDomainColors(domains) {
+            const colors = [
+                '#818cf8', '#22c55e', '#ef4444', '#eab308', '#06b6d4',
+                '#ec4899', '#f97316', '#6366f1', '#14b8a6', '#a855f7'
+            ];
+            const result = {};
+            domains.forEach((d, i) => {
+                result[d] = colors[i % colors.length];
+            });
+            return result;
+        }
+
+        function createNodeElement(nodeId, node, domainColor) {
             const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             group.setAttribute('class', 'node-group');
             group.setAttribute('data-id', nodeId);
+            group.setAttribute('data-domain', node.domain || 'general');
             group.setAttribute('transform', `translate(${node.x},${node.y})`);
             group.setAttribute('tabindex', '0');
 
@@ -846,12 +913,27 @@
             rect.setAttribute('width', node.width);
             rect.setAttribute('height', node.height);
             rect.setAttribute('rx', 4);
+            // Add subtle domain color border
+            if (domainColor) {
+                rect.style.stroke = domainColor;
+                rect.style.strokeWidth = '1.5px';
+            }
 
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             text.setAttribute('class', 'node-text');
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('dy', 4);
             text.textContent = truncateText(node.label, node.width);
+
+            // Domain indicator dot
+            if (domainColor && node.domain) {
+                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                dot.setAttribute('cx', node.width / 2 - 8);
+                dot.setAttribute('cy', -node.height / 2 + 8);
+                dot.setAttribute('r', '4');
+                dot.setAttribute('fill', domainColor);
+                group.appendChild(dot);
+            }
 
             group.appendChild(rect);
             group.appendChild(text);
