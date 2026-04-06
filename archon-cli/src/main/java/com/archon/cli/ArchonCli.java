@@ -1,5 +1,6 @@
 package com.archon.cli;
 
+import com.archon.viz.ViewCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -11,7 +12,8 @@ import picocli.CommandLine.Command;
         ImpactCommand.class,
         EcpCommand.class,
         CheckCommand.class,
-        DiffCommand.class
+        DiffCommand.class,
+        ViewCommand.class
     },
     mixinStandardHelpOptions = true,
     version = "0.2.0"
