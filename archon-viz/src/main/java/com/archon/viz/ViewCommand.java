@@ -100,23 +100,21 @@ public class ViewCommand implements Callable<Integer> {
         // Load the viewer HTML template
         String html = loadResource("archon-viewer.html");
 
+        // Load dagre.min.js and inline it for offline compatibility
+        String dagreJs = loadResource("lib/dagre.min.js");
+        String inlineDagreScript = "<script>\n" + dagreJs + "\n</script>";
+
+        // Replace local lib/dagre.min.js with inlined version
+        html = html.replace("<script src=\"/lib/dagre.min.js\"></script>", inlineDagreScript);
+
         // Inject the graph data as inline JSON
         String dataScript = "<script>window.GRAPH_DATA = " + graphJson + ";</script>";
-
-        // Replace local lib/dagre.min.js with CDN version for static export
-        // Using cdnjs.cloudflare.com for dagre
-        String cdnScript = "<script src=\"https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js\"></script>";
-        html = html.replace("<script src=\"/lib/dagre.min.js\"></script>", cdnScript);
 
         // Inject data before closing head
         html = html.replace("</head>", dataScript + "</head>");
 
         // Replace API calls with inline data
         html = html.replace("fetch('/api/graph')", "Promise.resolve(window.GRAPH_DATA)");
-
-        // Add a note about CDN requirement
-        String warning = "<!-- Note: Static export requires internet connection for dagre.js CDN. Use --view mode for offline viewing. -->";
-        html = html.replace("<head>", warning + "\n<head>");
 
         // Write to file
         try {
