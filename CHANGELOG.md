@@ -132,3 +132,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI commands: analyze, impact, check
 - Cycle detection, hotspot analysis, domain detection
 - Blind spot detection for dynamic patterns
+## [Unreleased]
+
+### Added
+- Left sidebar navigation tree to web viewer with domain hierarchy
+- Hotspot indicators (⭐) for classes with high in-degree (≥10 dependencies)
+- Accessibility improvements: 44px minimum button height, improved text contrast, motion reduction support
+- Intro hint overlay for first-time users
+
+### Improved
+- Web viewer now shows domain-level overview by default with option to drill down
+- Better navigation for large dependency graphs
+

@@ -59,6 +59,10 @@ New in v0.5 — Archon includes an interactive web viewer (experimental):
 - Static HTML export with offline support (no internet required)
 - JSON output format for programmatic access
 - Mermaid and DOT export formats
+- **Left sidebar navigation tree** for domain hierarchy exploration
+- **Hotspot indicators** showing classes with high dependency counts (⭐ for 10+ dependencies)
+- **Accessibility improvements** — 44px minimum button height, WCAG AA text contrast, motion reduction support
+- **Intro hint overlay** for first-time users
 
 **Known limitations:**
 - Hierarchical domain/class visualization has rendering issues
