@@ -818,7 +818,9 @@
             isTransitioning: false,
             searchQuery: '',
             theme: 'dark',
-            expandedDomains: new Set()  // Track which domains are expanded
+            expandedDomains: new Set(),  // Track which domains are expanded
+            navSidebarOpen: true,         // Track sidebar open state
+            selectedNodeId: null          // Track currently selected node
         };
 
         // DOM elements
@@ -848,7 +850,11 @@
             zoomIndicator: document.getElementById('zoom-indicator'),
             statNodes: document.getElementById('stat-nodes'),
             statEdges: document.getElementById('stat-edges'),
-            statLanguages: document.getElementById('stat-languages')
+            statLanguages: document.getElementById('stat-languages'),
+            navSidebar: document.getElementById('nav-sidebar'),
+            navHeader: document.getElementById('nav-header'),
+            navStats: document.getElementById('nav-stats'),
+            navTree: document.getElementById('nav-tree')
         };
 
         // Load graph data
@@ -864,6 +870,7 @@
 
                 if (state.currentData.nodes && state.currentData.nodes.length > 0) {
                     renderGraph(state.currentData);
+                    renderDomainTree(state.currentData);
                     updateStats();
                 } else {
                     elements.empty.style.display = 'block';
@@ -1100,6 +1107,105 @@
             }
 
             centerView();
+        }
+
+        // Build domain tree from graph data
+        function buildDomainTree(data) {
+            if (!data || !data.nodes) return { domains: {}, totalCount: 0 };
+
+            // Group nodes by domain
+            const domains = {};
+            let totalCount = 0;
+
+            data.nodes.forEach(node => {
+                const domain = node.domain || 'general';
+                if (!domains[domain]) {
+                    domains[domain] = [];
+                }
+                domains[domain].push(node);
+                totalCount++;
+            });
+
+            return { domains, totalCount };
+        }
+
+        // Render the domain tree in the sidebar
+        function renderDomainTree(data) {
+            const { domains, totalCount } = buildDomainTree(data);
+            const navTree = elements.navTree;
+            navTree.innerHTML = '';
+
+            // Update stats
+            const domainCount = Object.keys(domains).length;
+            elements.navStats.textContent = `${totalCount} classes • ${domainCount} domains`;
+
+            // Calculate in-degrees for hotspot detection
+            const inDegrees = {};
+            if (data.edges) {
+                data.edges.forEach(edge => {
+                    inDegrees[edge.target] = (inDegrees[edge.target] || 0) + 1;
+                });
+            }
+
+            // Sort domains by name
+            const sortedDomains = Object.keys(domains).sort();
+
+            sortedDomains.forEach(domain => {
+                const nodes = domains[domain];
+
+                // Create domain item
+                const domainItem = document.createElement('div');
+                domainItem.className = 'tree-item';
+
+                // Domain header (always expanded in this version)
+                const domainLabel = document.createElement('div');
+                domainLabel.className = 'tree-domain';
+                domainLabel.textContent = `${domain} ${nodes.length}`;
+                domainItem.appendChild(domainLabel);
+
+                // Children container
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'tree-children';
+
+                // Sort nodes by name and create leaf items
+                nodes
+                    .sort((a, b) => a.id.localeCompare(b.id))
+                    .forEach(node => {
+                        const leafLabel = document.createElement('div');
+                        leafLabel.className = 'tree-label';
+                        leafLabel.setAttribute('data-id', node.id);
+
+                        const shortName = shortId(node.id);
+                        leafLabel.innerHTML = `<span>→ ${shortName}</span>`;
+
+                        // Add hotspot indicator if high in-degree
+                        const inDegree = inDegrees[node.id] || 0;
+                        if (inDegree >= 5) {
+                            const hint = document.createElement('span');
+                            hint.className = 'tree-count';
+                            hint.textContent = inDegree >= 10 ? '⭐' : inDegree;
+                            hint.title = `in-degree: ${inDegree}`;
+                            leafLabel.appendChild(hint);
+                        }
+
+                        // Click handler
+                        leafLabel.addEventListener('click', () => {
+                            // Clear previous selection
+                            navTree.querySelectorAll('.tree-label.active').forEach(el => {
+                                el.classList.remove('active');
+                            });
+                            leafLabel.classList.add('active');
+
+                            // Focus and highlight node
+                            focusNode(node.id);
+                        });
+
+                        childrenContainer.appendChild(leafLabel);
+                    });
+
+                domainItem.appendChild(childrenContainer);
+                navTree.appendChild(domainItem);
+            });
         }
 
         function generateDomainColors(domains) {
