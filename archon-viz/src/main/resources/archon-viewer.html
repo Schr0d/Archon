@@ -1,15 +1,1317 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Archon Viewer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archon Dependency Viewer</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #141414;
+            --border: #333333;
+            --text: #ffffff;
+            --text-mid: #888888;
+            --text-dim: #555555;
+            --accent: #818cf8;
+            --accent-hover: #a5b4fc;
+            --diff-added: #22c55e;
+            --diff-removed: #ef4444;
+            --diff-changed: #eab308;
+            --transition-speed: 200ms;
+            --mono: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+        }
+
+        [data-theme="light"] {
+            --bg: #ffffff;
+            --surface: #f5f5f5;
+            --border: #e0e0e0;
+            --text: #1a1a1a;
+            --text-mid: #666666;
+            --text-dim: #999999;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+        }
+
+        /* Canvas area */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Graph elements */
+        .node-group {
+            transition: opacity var(--transition-speed) ease;
+            cursor: pointer;
+        }
+
+        .node-group:hover .node-rect {
+            stroke: var(--accent);
+            stroke-width: 2.5px;
+        }
+
+        .node-group.fade-out {
+            opacity: 0.2;
+        }
+
+        .node-rect {
+            fill: var(--surface);
+            stroke: var(--border);
+            stroke-width: 2px;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .node-text {
+            fill: var(--text);
+            font-size: 12px;
+            font-family: var(--mono);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .node-label {
+            fill: var(--text-mid);
+            font-size: 10px;
+            font-family: var(--mono);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Diff states */
+        .node-group.added .node-rect {
+            stroke: var(--diff-added);
+            stroke-width: 2.5px;
+        }
+
+        .node-group.removed .node-rect {
+            stroke: var(--diff-removed);
+            stroke-width: 2.5px;
+            stroke-dasharray: 4;
+        }
+
+        .node-group.changed .node-rect {
+            stroke: var(--diff-changed);
+            stroke-width: 2.5px;
+        }
+
+        /* Edges */
+        .edge-path {
+            fill: none;
+            stroke: var(--text-dim);
+            stroke-width: 2px;
+            transition: stroke var(--transition-speed) ease;
+        }
+
+        .edge-group:hover .edge-path {
+            stroke: var(--accent);
+        }
+
+        .edge-group.HIGH .edge-path {
+            stroke-width: 2px;
+            stroke-opacity: 1;
+        }
+
+        .edge-group.MEDIUM .edge-path {
+            stroke-width: 1.5px;
+            stroke-dasharray: 4;
+            stroke-opacity: 0.7;
+        }
+
+        .edge-group.LOW .edge-path {
+            stroke-width: 1px;
+            stroke-dasharray: 2;
+            stroke-opacity: 0.5;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            position: fixed;
+            right: -400px;
+            top: 0;
+            width: 400px;
+            height: 100%;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            transition: right var(--transition-speed) ease;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="light"] #sidebar {
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #sidebar.open {
+            right: 0;
+        }
+
+        #sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        #sidebar-close {
+            background: none;
+            border: none;
+            color: var(--text-mid);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #sidebar-close:hover {
+            color: var(--text);
+        }
+
+        #sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+
+        .sidebar-section h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-mid);
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-section p {
+            font-size: 14px;
+            color: var(--text);
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .sidebar-section code {
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--mono);
+            font-size: 12px;
+        }
+
+        .dependency-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .dependency-list li {
+            padding: 8px 12px;
+            background: var(--bg);
+            margin-bottom: 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background var(--transition-speed) ease;
+        }
+
+        .dependency-list li:hover {
+            background: var(--border);
+        }
+
+        /* Float controls */
+        #float-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+            z-index: 50;
+        }
+
+        .btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: all var(--transition-speed) ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+        }
+
+        .btn:hover {
+            background: var(--border);
+            border-color: var(--text-mid);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Perspective switcher */
+        #perspective-select {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all var(--transition-speed) ease;
+        }
+
+        #perspective-select:hover {
+            background: var(--border);
+        }
+
+        #perspective-select:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* Search */
+        #search-container {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            z-index: 50;
+        }
+
+        #search {
+            width: 280px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all var(--transition-speed) ease;
+        }
+
+        #search::placeholder {
+            color: var(--text-dim);
+        }
+
+        #search:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
+        }
+
+        /* Loading state */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: var(--text-mid);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state */
+        #empty {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            max-width: 400px;
+        }
+
+        #empty h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        #empty p {
+            color: var(--text-mid);
+            line-height: 1.6;
+        }
+
+        /* Error state */
+        #error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            max-width: 400px;
+        }
+
+        #error h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: var(--diff-removed);
+        }
+
+        #error p {
+            color: var(--text-mid);
+            margin-bottom: 16px;
+        }
+
+        #error button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #error button:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Breadcrumb */
+        #breadcrumb {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: var(--text-mid);
+            font-size: 13px;
+            z-index: 50;
+            background: var(--surface);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        #breadcrumb span {
+            color: var(--text);
+        }
+
+        /* Diff legend */
+        #diff-legend {
+            display: none;
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 4px;
+            z-index: 50;
+        }
+
+        #diff-legend div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        #diff-legend div:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+
+        .legend-indicator.added {
+            border-color: var(--diff-added);
+            background: var(--diff-added);
+        }
+
+        .legend-indicator.changed {
+            border-color: var(--diff-changed);
+            background: var(--diff-changed);
+        }
+
+        .legend-indicator.removed {
+            border-color: var(--diff-removed);
+            background: transparent;
+        }
+
+        /* Stats bar */
+        #stats-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 4px;
+            z-index: 50;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Keyboard shortcuts */
+        #shortcuts {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 4px;
+            z-index: 50;
+            font-size: 12px;
+            color: var(--text-mid);
+            display: none;
+        }
+
+        #shortcuts.visible {
+            display: block;
+        }
+
+        /* Tooltip */
+        #tooltip {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity var(--transition-speed) ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        #tooltip.visible {
+            opacity: 1;
+        }
+
+        /* Zoom level indicator */
+        #zoom-indicator {
+            position: absolute;
+            bottom: 60px;
+            right: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text-mid);
+            z-index: 50;
+        }
+
+        /* Touch gestures */
+        @media (max-width: 768px) {
+            #sidebar {
+                width: 100%;
+                right: -100%;
+            }
+
+            #float-controls {
+                flex-wrap: wrap;
+            }
+
+            #search {
+                width: 200px;
+            }
+
+            .btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .node-group {
+            animation: fadeIn var(--transition-speed) ease;
+        }
+    </style>
 </head>
 <body>
-    <h1>Archon Dependency Viewer</h1>
-    <p>Loading graph data...</p>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading graph...</div>
+    </div>
+
+    <div id="empty">
+        <h2>No dependencies found</h2>
+        <p>Archon analyzed this path and found no dependency relationships to visualize.</p>
+    </div>
+
+    <div id="error">
+        <h2>Failed to load graph</h2>
+        <p id="error-message">An error occurred while loading the dependency graph.</p>
+        <button onclick="location.reload()">Retry</button>
+    </div>
+
+    <div id="canvas-container">
+        <svg id="graph">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                    <polygon points="0 0, 10 3, 0 6" fill="var(--text-dim)" />
+                </marker>
+            </defs>
+            <g id="main-group"></g>
+        </svg>
+
+        <div id="breadcrumb">domains</div>
+
+        <div id="diff-legend">
+            <div><span class="legend-indicator added"></span> Added</div>
+            <div><span class="legend-indicator changed"></span> Changed</div>
+            <div><span class="legend-indicator removed"></span> Removed</div>
+        </div>
+
+        <div id="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Nodes</span>
+                <span class="stat-value" id="stat-nodes">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Edges</span>
+                <span class="stat-value" id="stat-edges">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Languages</span>
+                <span class="stat-value" id="stat-languages">0</span>
+            </div>
+        </div>
+
+        <div id="zoom-indicator">100%</div>
+    </div>
+
+    <div id="float-controls">
+        <button id="zoom-in" class="btn" title="Zoom in (+)">+</button>
+        <button id="zoom-out" class="btn" title="Zoom out (-)">−</button>
+        <button id="fit" class="btn" title="Fit to view (F)">Fit</button>
+        <select id="perspective-select" title="Switch perspective">
+            <option value="domain-map">Domain Map</option>
+            <option value="language-map">Language Map</option>
+            <option value="dependency-map">Dependency Map</option>
+        </select>
+        <button id="theme-toggle" class="btn" title="Toggle theme (T)">☀</button>
+        <button id="shortcuts-toggle" class="btn" title="Keyboard shortcuts (?)">?</button>
+    </div>
+
+    <div id="search-container">
+        <input type="text" id="search" placeholder="Search nodes... (Ctrl+K)" />
+    </div>
+
+    <div id="shortcuts">
+        <div><strong>Ctrl+K</strong> - Focus search</div>
+        <div><strong>Esc</strong> - Close sidebar / Clear search</div>
+        <div><strong>+/-</strong> - Zoom in/out</div>
+        <div><strong>F</strong> - Fit to view</div>
+        <div><strong>T</strong> - Toggle theme</div>
+        <div><strong>Drag</strong> - Pan canvas</div>
+        <div><strong>Scroll</strong> - Zoom</div>
+    </div>
+
+    <div id="tooltip"></div>
+
+    <div id="sidebar">
+        <div id="sidebar-header">
+            <h2 id="sidebar-title">Node Details</h2>
+            <button id="sidebar-close">&times;</button>
+        </div>
+        <div id="sidebar-content"></div>
+    </div>
+
+    <script src="/lib/dagre.min.js"></script>
     <script>
-        fetch('/api/graph')
-            .then(r => r.json())
-            .then(data => console.log('Graph loaded:', data));
+        // State management
+        const state = {
+            currentData: null,
+            currentNode: null,
+            currentPerspective: 'domain-map',
+            zoomLevel: 1,
+            targetZoomLevel: 1,
+            panOffset: { x: 0, y: 0 },
+            targetPanOffset: { x: 0, y: 0 },
+            isDragging: false,
+            dragStart: { x: 0, y: 0 },
+            isTransitioning: false,
+            searchQuery: '',
+            theme: 'dark'
+        };
+
+        // DOM elements
+        const elements = {
+            loading: document.getElementById('loading'),
+            empty: document.getElementById('empty'),
+            error: document.getElementById('error'),
+            errorMessage: document.getElementById('error-message'),
+            canvas: document.getElementById('canvas-container'),
+            svg: document.getElementById('graph'),
+            mainGroup: document.getElementById('main-group'),
+            sidebar: document.getElementById('sidebar'),
+            sidebarTitle: document.getElementById('sidebar-title'),
+            sidebarContent: document.getElementById('sidebar-content'),
+            sidebarClose: document.getElementById('sidebar-close'),
+            search: document.getElementById('search'),
+            perspectiveSelect: document.getElementById('perspective-select'),
+            themeToggle: document.getElementById('theme-toggle'),
+            zoomIn: document.getElementById('zoom-in'),
+            zoomOut: document.getElementById('zoom-out'),
+            fit: document.getElementById('fit'),
+            shortcutsToggle: document.getElementById('shortcuts-toggle'),
+            shortcuts: document.getElementById('shortcuts'),
+            breadcrumb: document.getElementById('breadcrumb'),
+            diffLegend: document.getElementById('diff-legend'),
+            tooltip: document.getElementById('tooltip'),
+            zoomIndicator: document.getElementById('zoom-indicator'),
+            statNodes: document.getElementById('stat-nodes'),
+            statEdges: document.getElementById('stat-edges'),
+            statLanguages: document.getElementById('stat-languages')
+        };
+
+        // Load graph data
+        async function loadGraph() {
+            try {
+                const response = await fetch('/api/graph');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                state.currentData = await response.json();
+                elements.loading.style.display = 'none';
+
+                if (state.currentData.nodes && state.currentData.nodes.length > 0) {
+                    renderGraph(state.currentData);
+                    updateStats();
+                } else {
+                    elements.empty.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to load graph:', error);
+                elements.loading.style.display = 'none';
+                elements.errorMessage.textContent = error.message;
+                elements.error.style.display = 'block';
+            }
+        }
+
+        // Render graph using dagre
+        function renderGraph(data) {
+            const svg = elements.svg;
+            const mainGroup = elements.mainGroup;
+            mainGroup.innerHTML = '';
+
+            // Create dagre graph
+            const g = new dagre.graphlib.Graph()
+                .setGraph({
+                    rankdir: 'TB',
+                    nodesep: 50,
+                    ranksep: 50,
+                    edgesep: 10
+                });
+
+            // Add nodes
+            data.nodes.forEach(node => {
+                const label = shortId(node.id);
+                g.setNode(node.id, {
+                    label: label,
+                    width: calculateNodeWidth(label),
+                    height: 40,
+                    ...node
+                });
+            });
+
+            // Add edges
+            if (data.edges) {
+                data.edges.forEach(edge => {
+                    g.setEdge(edge.source, edge.target, {
+                        confidence: edge.confidence || 'HIGH'
+                    });
+                });
+            }
+
+            // Layout
+            dagre.layout(g);
+
+            // Render nodes
+            g.nodes().forEach(nodeId => {
+                const node = g.node(nodeId);
+                const group = createNodeElement(nodeId, node);
+                mainGroup.appendChild(group);
+            });
+
+            // Render edges
+            g.edges().forEach(edgeObj => {
+                const edge = g.edge(edgeObj);
+                const path = createEdgeElement(edgeObj, edge);
+                mainGroup.insertBefore(path, mainGroup.firstChild);
+            });
+
+            // Show diff legend if in diff mode
+            if (data.diffMode) {
+                elements.diffLegend.style.display = 'block';
+            }
+
+            centerView();
+        }
+
+        function createNodeElement(nodeId, node) {
+            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.setAttribute('class', 'node-group');
+            group.setAttribute('data-id', nodeId);
+            group.setAttribute('transform', `translate(${node.x},${node.y})`);
+            group.setAttribute('tabindex', '0');
+
+            // Add diff class if applicable
+            if (node.diffStatus) {
+                group.classList.add(node.diffStatus);
+            }
+
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('class', 'node-rect');
+            rect.setAttribute('x', -node.width / 2);
+            rect.setAttribute('y', -node.height / 2);
+            rect.setAttribute('width', node.width);
+            rect.setAttribute('height', node.height);
+            rect.setAttribute('rx', 4);
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('class', 'node-text');
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('dy', 4);
+            text.textContent = truncateText(node.label, node.width);
+
+            group.appendChild(rect);
+            group.appendChild(text);
+
+            // Event listeners
+            group.addEventListener('click', () => showSidebar(nodeId, node));
+            group.addEventListener('mouseenter', (e) => showTooltip(e, nodeId, node));
+            group.addEventListener('mouseleave', hideTooltip);
+            group.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    showSidebar(nodeId, node);
+                }
+            });
+
+            return group;
+        }
+
+        function createEdgeElement(edgeObj, edge) {
+            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.setAttribute('class', `edge-group ${edge.confidence || 'HIGH'}`);
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const points = edge.points;
+            const d = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
+            path.setAttribute('d', d);
+            path.setAttribute('class', 'edge-path');
+            path.setAttribute('marker-end', 'url(#arrowhead)');
+
+            group.appendChild(path);
+
+            group.addEventListener('mouseenter', (e) => {
+                showTooltip(e, `${edgeObj.v} → ${edgeObj.w}`, { type: 'edge' });
+            });
+            group.addEventListener('mouseleave', hideTooltip);
+
+            return group;
+        }
+
+        function calculateNodeWidth(label) {
+            // Approximate width calculation (Monospace font ~7px per character)
+            const minWidth = 80;
+            const charWidth = 7;
+            const padding = 20;
+            return Math.max(minWidth, label.length * charWidth + padding);
+        }
+
+        function truncateText(label, maxWidth) {
+            const maxChars = Math.floor((maxWidth - 20) / 7);
+            if (label.length <= maxChars) return label;
+            return label.substring(0, maxChars - 3) + '...';
+        }
+
+        function shortId(id) {
+            if (id.includes(':')) {
+                const parts = id.split(':');
+                return parts[parts.length - 1];
+            }
+            return id;
+        }
+
+        function showSidebar(nodeId, node) {
+            state.currentNode = { id: nodeId, ...node };
+            elements.sidebar.classList.add('open');
+
+            const title = shortId(nodeId);
+            elements.sidebarTitle.textContent = title;
+
+            const dependencies = findDependencies(nodeId);
+            const dependents = findDependents(nodeId);
+
+            elements.sidebarContent.innerHTML = `
+                <div class="sidebar-section">
+                    <h3>Node Information</h3>
+                    <p><strong>ID:</strong> <code>${nodeId}</code></p>
+                    <p><strong>Type:</strong> ${node.type || 'unknown'}</p>
+                    <p><strong>Domain:</strong> ${node.domain || 'general'}</p>
+                    <p><strong>Language:</strong> ${extractLanguage(nodeId)}</p>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Metrics</h3>
+                    <p><strong>Dependencies:</strong> ${dependencies.length}</p>
+                    <p><strong>Dependents:</strong> ${dependents.length}</p>
+                </div>
+
+                ${dependencies.length > 0 ? `
+                <div class="sidebar-section">
+                    <h3>Dependencies (${dependencies.length})</h3>
+                    <ul class="dependency-list">
+                        ${dependencies.map(dep => `
+                            <li data-node="${dep}">${shortId(dep)}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+
+                ${dependents.length > 0 ? `
+                <div class="sidebar-section">
+                    <h3>Dependents (${dependents.length})</h3>
+                    <ul class="dependency-list">
+                        ${dependents.map(dep => `
+                            <li data-node="${dep}">${shortId(dep)}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            `;
+
+            // Add click handlers to dependency items
+            elements.sidebarContent.querySelectorAll('.dependency-list li').forEach(item => {
+                item.addEventListener('click', () => {
+                    const nodeId = item.getAttribute('data-node');
+                    focusNode(nodeId);
+                });
+            });
+        }
+
+        function findDependencies(nodeId) {
+            if (!state.currentData || !state.currentData.edges) return [];
+            return state.currentData.edges
+                .filter(edge => edge.source === nodeId)
+                .map(edge => edge.target);
+        }
+
+        function findDependents(nodeId) {
+            if (!state.currentData || !state.currentData.edges) return [];
+            return state.currentData.edges
+                .filter(edge => edge.target === nodeId)
+                .map(edge => edge.source);
+        }
+
+        function extractLanguage(nodeId) {
+            if (nodeId.startsWith('java:')) return 'Java';
+            if (nodeId.startsWith('js:')) return 'JavaScript/TypeScript';
+            if (nodeId.startsWith('py:')) return 'Python';
+            return 'Unknown';
+        }
+
+        function focusNode(nodeId) {
+            const nodeElement = document.querySelector(`.node-group[data-id="${nodeId}"]`);
+            if (nodeElement) {
+                nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                nodeElement.focus();
+                showSidebar(nodeId, state.currentData.nodes.find(n => n.id === nodeId) || {});
+            }
+        }
+
+        function hideSidebar() {
+            elements.sidebar.classList.remove('open');
+            state.currentNode = null;
+        }
+
+        function centerView() {
+            const bbox = elements.mainGroup.getBBox();
+            const container = elements.canvas;
+            const padding = 40;
+
+            const scaleX = (container.clientWidth - padding * 2) / bbox.width;
+            const scaleY = (container.clientHeight - padding * 2) / bbox.height;
+            const scale = Math.min(scaleX, scaleY, 1.5);
+
+            state.targetZoomLevel = scale;
+            state.targetPanOffset = {
+                x: (container.clientWidth - bbox.width * scale) / 2 - bbox.x * scale,
+                y: (container.clientHeight - bbox.height * scale) / 2 - bbox.y * scale
+            };
+
+            startTransition();
+        }
+
+        function startTransition() {
+            if (state.isTransitioning) return;
+            state.isTransitioning = true;
+            requestAnimationFrame(animateTransition);
+        }
+
+        function animateTransition() {
+            const zoomDiff = state.targetZoomLevel - state.zoomLevel;
+            const panDiffX = state.targetPanOffset.x - state.panOffset.x;
+            const panDiffY = state.targetPanOffset.y - state.panOffset.y;
+
+            // Ease-out interpolation
+            const ease = 0.15;
+            state.zoomLevel += zoomDiff * ease;
+            state.panOffset.x += panDiffX * ease;
+            state.panOffset.y += panDiffY * ease;
+
+            updateTransform();
+            updateZoomIndicator();
+
+            // Check if transition is complete
+            const isClose = Math.abs(zoomDiff) < 0.001 &&
+                           Math.abs(panDiffX) < 0.1 &&
+                           Math.abs(panDiffY) < 0.1;
+
+            if (isClose) {
+                state.zoomLevel = state.targetZoomLevel;
+                state.panOffset = { ...state.targetPanOffset };
+                updateTransform();
+                updateZoomIndicator();
+                state.isTransitioning = false;
+            } else {
+                requestAnimationFrame(animateTransition);
+            }
+        }
+
+        function updateTransform() {
+            elements.mainGroup.setAttribute('transform',
+                `translate(${state.panOffset.x},${state.panOffset.y}) scale(${state.zoomLevel})`
+            );
+        }
+
+        function updateZoomIndicator() {
+            elements.zoomIndicator.textContent = `${Math.round(state.zoomLevel * 100)}%`;
+        }
+
+        function zoomBy(factor) {
+            state.targetZoomLevel = state.zoomLevel * factor;
+            state.targetZoomLevel = Math.max(0.1, Math.min(5, state.targetZoomLevel));
+            startTransition();
+        }
+
+        function toggleTheme() {
+            state.theme = state.theme === 'dark' ? 'light' : 'dark';
+            if (state.theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                elements.themeToggle.textContent = '☾';
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                elements.themeToggle.textContent = '☀';
+            }
+        }
+
+        function updateStats() {
+            if (!state.currentData) return;
+
+            const nodeCount = state.currentData.nodes?.length || 0;
+            const edgeCount = state.currentData.edges?.length || 0;
+            const languages = new Set();
+
+            state.currentData.nodes?.forEach(node => {
+                if (node.id.startsWith('java:')) languages.add('Java');
+                if (node.id.startsWith('js:')) languages.add('JS/TS');
+                if (node.id.startsWith('py:')) languages.add('Python');
+            });
+
+            elements.statNodes.textContent = nodeCount;
+            elements.statEdges.textContent = edgeCount;
+            elements.statLanguages.textContent = languages.size;
+        }
+
+        function filterNodes(query) {
+            state.searchQuery = query.toLowerCase();
+
+            document.querySelectorAll('.node-group').forEach(node => {
+                const nodeId = node.getAttribute('data-id').toLowerCase();
+                const matches = !state.searchQuery || nodeId.includes(state.searchQuery);
+
+                if (matches) {
+                    node.classList.remove('fade-out');
+                } else {
+                    node.classList.add('fade-out');
+                }
+            });
+        }
+
+        function showTooltip(event, text, data) {
+            elements.tooltip.textContent = text;
+            elements.tooltip.classList.add('visible');
+
+            const rect = elements.canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left + 15;
+            const y = event.clientY - rect.top + 15;
+
+            elements.tooltip.style.left = `${x}px`;
+            elements.tooltip.style.top = `${y}px`;
+        }
+
+        function hideTooltip() {
+            elements.tooltip.classList.remove('visible');
+        }
+
+        function switchPerspective(perspective) {
+            state.currentPerspective = perspective;
+            elements.breadcrumb.innerHTML = `<span>${perspective}</span>`;
+
+            // In a full implementation, this would trigger data re-aggregation
+            // For now, we just update the UI
+            console.log(`Switched to ${perspective} perspective`);
+        }
+
+        // Event listeners
+        elements.zoomIn.addEventListener('click', () => zoomBy(1.2));
+        elements.zoomOut.addEventListener('click', () => zoomBy(1 / 1.2));
+        elements.fit.addEventListener('click', centerView);
+        elements.themeToggle.addEventListener('click', toggleTheme);
+        elements.sidebarClose.addEventListener('click', hideSidebar);
+        elements.shortcutsToggle.addEventListener('click', () => {
+            elements.shortcuts.classList.toggle('visible');
+        });
+
+        elements.perspectiveSelect.addEventListener('change', (e) => {
+            switchPerspective(e.target.value);
+        });
+
+        elements.search.addEventListener('input', (e) => {
+            filterNodes(e.target.value);
+        });
+
+        // Mouse drag panning
+        elements.canvas.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.node-group')) return;
+            state.isDragging = true;
+            state.dragStart = {
+                x: e.clientX - state.panOffset.x,
+                y: e.clientY - state.panOffset.y
+            };
+        });
+
+        elements.canvas.addEventListener('mousemove', (e) => {
+            if (!state.isDragging) return;
+
+            state.panOffset.x = e.clientX - state.dragStart.x;
+            state.panOffset.y = e.clientY - state.dragStart.y;
+            state.targetPanOffset = { ...state.panOffset };
+
+            updateTransform();
+        });
+
+        elements.canvas.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        elements.canvas.addEventListener('mouseleave', () => {
+            state.isDragging = false;
+        });
+
+        // Mouse wheel zooming
+        elements.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            const rect = elements.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Calculate zoom about mouse position
+            const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+            const newZoom = state.zoomLevel * zoomFactor;
+
+            if (newZoom < 0.1 || newZoom > 5) return;
+
+            // Adjust pan to keep mouse position stable
+            state.targetPanOffset.x = mouseX - (mouseX - state.panOffset.x) * zoomFactor;
+            state.targetPanOffset.y = mouseY - (mouseY - state.panOffset.y) * zoomFactor;
+            state.targetZoomLevel = newZoom;
+
+            startTransition();
+        }, { passive: false });
+
+        // Touch gesture support
+        let touchStartDistance = 0;
+        let touchStartZoom = 1;
+
+        elements.canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                state.isDragging = true;
+                state.dragStart = {
+                    x: e.touches[0].clientX - state.panOffset.x,
+                    y: e.touches[0].clientY - state.panOffset.y
+                };
+            } else if (e.touches.length === 2) {
+                touchStartDistance = getTouchDistance(e.touches);
+                touchStartZoom = state.zoomLevel;
+            }
+        });
+
+        elements.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+
+            if (e.touches.length === 1 && state.isDragging) {
+                state.panOffset.x = e.touches[0].clientX - state.dragStart.x;
+                state.panOffset.y = e.touches[0].clientY - state.dragStart.y;
+                state.targetPanOffset = { ...state.panOffset };
+                updateTransform();
+            } else if (e.touches.length === 2) {
+                const currentDistance = getTouchDistance(e.touches);
+                const scaleFactor = currentDistance / touchStartDistance;
+                state.targetZoomLevel = Math.max(0.1, Math.min(5, touchStartZoom * scaleFactor));
+                startTransition();
+            }
+        }, { passive: false });
+
+        elements.canvas.addEventListener('touchend', () => {
+            state.isDragging = false;
+        });
+
+        function getTouchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+K to focus search
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                elements.search.focus();
+            }
+
+            // Escape to close sidebar or clear search
+            if (e.key === 'Escape') {
+                if (elements.sidebar.classList.contains('open')) {
+                    hideSidebar();
+                } else if (document.activeElement === elements.search) {
+                    elements.search.blur();
+                    filterNodes('');
+                }
+            }
+
+            // + or = to zoom in
+            if (e.key === '+' || e.key === '=') {
+                zoomBy(1.2);
+            }
+
+            // - to zoom out
+            if (e.key === '-') {
+                zoomBy(1 / 1.2);
+            }
+
+            // F to fit
+            if (e.key === 'f' || e.key === 'F') {
+                if (document.activeElement !== elements.search) {
+                    centerView();
+                }
+            }
+
+            // T to toggle theme
+            if (e.key === 't' || e.key === 'T') {
+                if (document.activeElement !== elements.search) {
+                    toggleTheme();
+                }
+            }
+
+            // ? to show shortcuts
+            if (e.key === '?') {
+                if (document.activeElement !== elements.search) {
+                    elements.shortcuts.classList.toggle('visible');
+                }
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            centerView();
+        });
+
+        // Initialize
+        loadGraph();
     </script>
 </body>
 </html>
