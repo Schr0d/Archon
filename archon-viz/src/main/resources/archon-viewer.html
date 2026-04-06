@@ -38,12 +38,19 @@
             color: var(--text);
             overflow: hidden;
             height: 100vh;
-            display: flex;
+        }
+
+        /* App container - CSS Grid layout */
+        #app-container {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
         }
 
         /* Canvas area */
         #canvas-container {
-            flex: 1;
             position: relative;
             overflow: hidden;
             cursor: grab;
@@ -605,7 +612,8 @@
     </style>
 </head>
 <body>
-    <div id="loading">
+    <div id="app-container">
+        <div id="loading">
         <div class="spinner"></div>
         <div>Loading graph...</div>
     </div>
@@ -1535,5 +1543,6 @@
         // Initialize
         loadGraph();
     </script>
+    </div>
 </body>
 </html>
