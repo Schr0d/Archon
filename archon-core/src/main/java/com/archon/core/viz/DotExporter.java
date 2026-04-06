@@ -80,8 +80,8 @@ public class DotExporter {
             sb.append("  subgraph \"cluster_").append(domain).append("\" {\n");
             sb.append("    label=\"").append(domain).append("\";\n");
             sb.append("    style=filled;\n");
-            sb.append("    color=").append(color).append(";\n");
-            sb.append("    fillcolor=").append(color).append(";\n");
+            sb.append("    color=\"").append(color).append("\";\n");
+            sb.append("    fillcolor=\"").append(color).append("\";\n");
             sb.append("    penwidth=2;\n");
 
             for (String nodeId : entry.getValue()) {
