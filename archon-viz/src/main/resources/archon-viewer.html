@@ -716,6 +716,34 @@
                 transition-duration: 0.01ms !important;
             }
         }
+
+        /* Intro hint overlay */
+        #intro-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 60;
+            color: #1a1a1a;
+            font-size: 14px;
+        }
+
+        [data-theme="dark"] #intro-hint {
+            background: rgba(20, 20, 20, 0.95);
+            color: #ffffff;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        #intro-hint.fade-out {
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
@@ -807,6 +835,8 @@
 
     <div id="tooltip"></div>
 
+    <div id="intro-hint">Hover over nodes to see connections. Click to inspect details.</div>
+
     <div id="sidebar">
         <div id="sidebar-header">
             <h2 id="sidebar-title">Node Details</h2>
@@ -867,7 +897,8 @@
             navSidebar: document.getElementById('nav-sidebar'),
             navHeader: document.getElementById('nav-header'),
             navStats: document.getElementById('nav-stats'),
-            navTree: document.getElementById('nav-tree')
+            navTree: document.getElementById('nav-tree'),
+            introHint: document.getElementById('intro-hint')
         };
 
         // Load graph data
@@ -885,6 +916,7 @@
                     renderGraph(state.currentData);
                     renderDomainTree(state.currentData);
                     updateStats();
+                    showIntroHint();
                 } else {
                     elements.empty.style.display = 'block';
                 }
@@ -1219,6 +1251,27 @@
                 domainItem.appendChild(childrenContainer);
                 navTree.appendChild(domainItem);
             });
+        }
+
+        // Show intro hint on load
+        function showIntroHint() {
+            elements.introHint.style.display = 'block';
+
+            // Dismiss on first interaction with canvas
+            const dismissHandler = () => {
+                elements.introHint.classList.add('fade-out');
+                setTimeout(() => {
+                    elements.introHint.style.display = 'none';
+                    elements.introHint.classList.remove('fade-out');
+                }, 300);
+
+                // Remove event listeners after first interaction
+                elements.canvas.removeEventListener('click', dismissHandler);
+                elements.canvas.removeEventListener('keydown', dismissHandler);
+            };
+
+            elements.canvas.addEventListener('click', dismissHandler);
+            elements.canvas.addEventListener('keydown', dismissHandler);
         }
 
         function generateDomainColors(domains) {
