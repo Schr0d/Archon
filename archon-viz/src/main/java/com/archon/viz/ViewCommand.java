@@ -113,8 +113,12 @@ public class ViewCommand implements Callable<Integer> {
         // Inject data before closing head
         html = html.replace("</head>", dataScript + "</head>");
 
-        // Replace API calls with inline data
-        html = html.replace("fetch('/api/graph')", "Promise.resolve(window.GRAPH_DATA)");
+        // Replace the entire fetch/response pattern with direct data assignment
+        // Original: const response = await fetch('/api/graph'); ... state.currentData = await response.json();
+        // Replacement: state.currentData = window.GRAPH_DATA;
+        String fetchBlock = "const response = await fetch('/api/graph');\n                if (!response.ok) {\n                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);\n                }\n\n                state.currentData = await response.json();";
+        String directAssign = "state.currentData = window.GRAPH_DATA;";
+        html = html.replace(fetchBlock, directAssign);
 
         // Write to file
         try {
