@@ -11,7 +11,7 @@ public record PerspectiveView(
     int depth,                // Current depth level (1=domains, 2=classes, 3=methods)
     List<NodeGroup> groups,   // Grouped nodes by domain or other grouping
     List<EdgeView> edges,     // Edges between visible nodes
-    List<String> children     // IDs of nodes/domains that can be drilled into
+    List<String> drillable    // IDs of nodes/domains that can be drilled into
 ) {
     public PerspectiveView {
         if (depth < 1) {
@@ -23,8 +23,8 @@ public record PerspectiveView(
         if (edges == null) {
             edges = List.of();
         }
-        if (children == null) {
-            children = List.of();
+        if (drillable == null) {
+            drillable = List.of();
         }
     }
 }

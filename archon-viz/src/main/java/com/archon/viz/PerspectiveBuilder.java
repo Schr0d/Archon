@@ -5,6 +5,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class PerspectiveBuilder {
+    private static final String UNGROUPED_DOMAIN = "ungrouped";
+    private static final String TYPE_CLASS = "CLASS";
+    private static final String TYPE_MODULE = "MODULE";
+    private static final String TYPE_PACKAGE = "PACKAGE";
+    private static final String CONFIDENCE_HIGH = "HIGH";
+
     private final DependencyGraph graph;
     private final Map<String, String> domains;
 
@@ -23,10 +29,26 @@ public class PerspectiveBuilder {
 
     // Level 2: Focus on specific domain or node (shows children)
     public PerspectiveView buildFocusPerspective(String focusId, int depth) {
-        List<NodeView> nodes = getNodesInFocus(focusId, depth);
+        // Check if focusId is a domain
+        if (domains.containsValue(focusId)) {
+            List<NodeView> nodes = getNodesForDomain(focusId);
+            List<EdgeView> edges = buildFocusEdges(nodes, focusId);
+            List<String> drillable = getDrillableNodesForFocus(nodes);
+            NodeGroup group = new NodeGroup(focusId, nodes);
+            return new PerspectiveView(focusId, depth, List.of(group), edges, drillable);
+        }
+
+        // Check if focusId is a node in the graph
+        if (!graph.getNodeIds().contains(focusId)) {
+            // Non-existent node, return empty view
+            return new PerspectiveView(focusId, depth, List.of(), List.of(), List.of());
+        }
+
+        // Focus is a specific node
+        List<NodeView> nodes = getNodesForNode(focusId);
         List<EdgeView> edges = buildFocusEdges(nodes, focusId);
         List<String> drillable = getDrillableNodesForFocus(nodes);
-        String groupLabel = domains.getOrDefault(focusId, "ungrouped");
+        String groupLabel = domains.getOrDefault(focusId, UNGROUPED_DOMAIN);
         NodeGroup group = new NodeGroup(groupLabel, nodes);
         return new PerspectiveView(focusId, depth, List.of(group), edges, drillable);
     }
@@ -34,16 +56,14 @@ public class PerspectiveBuilder {
     private List<NodeGroup> groupByDomain() {
         Map<String, List<String>> domainMap = new HashMap<>();
         for (String nodeId : graph.getNodeIds()) {
-            String domain = domains.getOrDefault(nodeId, "ungrouped");
+            String domain = domains.getOrDefault(nodeId, UNGROUPED_DOMAIN);
             domainMap.computeIfAbsent(domain, k -> new ArrayList<>()).add(nodeId);
         }
         List<NodeGroup> groups = new ArrayList<>();
         for (Map.Entry<String, List<String>> entry : domainMap.entrySet()) {
             List<NodeView> nodeViews = new ArrayList<>();
             for (String nodeId : entry.getValue()) {
-                nodeViews.add(new NodeView(nodeId, determineNodeType(nodeId),
-                    entry.getKey(), graph.getDependents(nodeId).size(),
-                    graph.getDependencies(nodeId).size()));
+                nodeViews.add(createNodeView(nodeId, entry.getKey()));
             }
             groups.add(new NodeGroup(entry.getKey(), nodeViews));
         }
@@ -51,9 +71,9 @@ public class PerspectiveBuilder {
     }
 
     private String determineNodeType(String nodeId) {
-        if (nodeId.contains(".")) return "CLASS";
-        if (nodeId.endsWith(".js") || nodeId.endsWith(".ts")) return "MODULE";
-        return "PACKAGE";
+        if (nodeId.contains(".")) return TYPE_CLASS;
+        if (nodeId.endsWith(".js") || nodeId.endsWith(".ts")) return TYPE_MODULE;
+        return TYPE_PACKAGE;
     }
 
     private List<EdgeView> buildDomainLevelEdges(List<NodeGroup> groups) {
@@ -69,7 +89,7 @@ public class PerspectiveBuilder {
                 String sourceDomain = nodeToDomain.get(source);
                 String targetDomain = nodeToDomain.get(target);
                 if (sourceDomain != null && targetDomain != null && !sourceDomain.equals(targetDomain)) {
-                    edgeSet.add(new EdgeView(sourceDomain, targetDomain, "HIGH", 1));
+                    edgeSet.add(new EdgeView(sourceDomain, targetDomain, CONFIDENCE_HIGH, 1));
                 }
             }
         }
@@ -77,43 +97,30 @@ public class PerspectiveBuilder {
     }
 
     private List<String> getDrillableNodes() {
-        List<String> drillable = new ArrayList<>();
-        for (String domain : new HashSet<>(domains.values())) {
-            drillable.add(domain);
-        }
-        return drillable;
+        return new ArrayList<>(new HashSet<>(domains.values()));
     }
 
-    private List<NodeView> getNodesInFocus(String focusId, int depth) {
-        List<String> nodeIds;
-        if (domains.containsValue(focusId)) {
-            // Focus is a domain - return all nodes in that domain
-            nodeIds = new ArrayList<>();
-            for (Map.Entry<String, String> entry : domains.entrySet()) {
-                if (entry.getValue().equals(focusId)) {
-                    nodeIds.add(entry.getKey());
-                }
-            }
-        } else {
-            // Focus is a specific node
-            nodeIds = new ArrayList<>();
-            nodeIds.add(focusId);
-            // Add direct dependencies
-            for (String dep : graph.getDependencies(focusId)) {
-                nodeIds.add(dep);
-            }
-            // Add direct dependents
-            for (String nodeId : graph.getNodeIds()) {
-                if (graph.getDependencies(nodeId).contains(focusId)) {
-                    nodeIds.add(nodeId);
-                }
+    private List<NodeView> getNodesForDomain(String domain) {
+        List<NodeView> nodes = new ArrayList<>();
+        for (Map.Entry<String, String> entry : domains.entrySet()) {
+            if (entry.getValue().equals(domain)) {
+                nodes.add(createNodeView(entry.getKey(), domain));
             }
         }
+        return nodes;
+    }
+
+    private List<NodeView> getNodesForNode(String nodeId) {
         List<NodeView> nodes = new ArrayList<>();
-        for (String nodeId : nodeIds) {
-            nodes.add(new NodeView(nodeId, determineNodeType(nodeId),
-                domains.getOrDefault(nodeId, "ungrouped"),
-                graph.getDependents(nodeId).size(), graph.getDependencies(nodeId).size()));
+        nodes.add(createNodeView(nodeId, domains.getOrDefault(nodeId, UNGROUPED_DOMAIN)));
+
+        for (String dep : graph.getDependencies(nodeId)) {
+            nodes.add(createNodeView(dep, domains.getOrDefault(dep, UNGROUPED_DOMAIN)));
+        }
+        for (String other : graph.getNodeIds()) {
+            if (graph.getDependencies(other).contains(nodeId)) {
+                nodes.add(createNodeView(other, domains.getOrDefault(other, UNGROUPED_DOMAIN)));
+            }
         }
         return nodes;
     }
@@ -124,7 +131,7 @@ public class PerspectiveBuilder {
         for (NodeView node : nodes) {
             for (String dep : graph.getDependencies(node.id())) {
                 if (nodeSet.contains(dep)) {
-                    edges.add(new EdgeView(node.id(), dep, "HIGH", 1));
+                    edges.add(new EdgeView(node.id(), dep, CONFIDENCE_HIGH, 1));
                 }
             }
         }
@@ -136,5 +143,10 @@ public class PerspectiveBuilder {
             .filter(n -> graph.getDependencies(n.id()).size() > 0 || graph.getDependents(n.id()).size() > 0)
             .map(NodeView::id)
             .collect(Collectors.toList());
+    }
+
+    private NodeView createNodeView(String nodeId, String domain) {
+        return new NodeView(nodeId, determineNodeType(nodeId), domain,
+            graph.getDependents(nodeId).size(), graph.getDependencies(nodeId).size());
     }
 }

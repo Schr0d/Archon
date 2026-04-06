@@ -80,4 +80,30 @@ class PerspectiveBuilderTest {
         assertTrue(view.groups().get(0).nodes().stream().anyMatch(n -> n.id().equals("java:com.example.B")));
         assertTrue(view.groups().get(0).nodes().stream().anyMatch(n -> n.id().equals("java:com.example.C")));
     }
+
+    @Test
+    void testEmptyDomainsMapReturnsDefaultGrouping() {
+        DependencyGraph graph = new DependencyGraph.MutableBuilder()
+            .addNode(Node.builder().id("java:com.example.A").type(NodeType.CLASS).build())
+            .addNode(Node.builder().id("java:com.example.B").type(NodeType.CLASS).build())
+            .build();
+
+        PerspectiveBuilder builder = new PerspectiveBuilder(graph, Map.of());
+        PerspectiveView view = builder.buildPerspective();
+
+        assertEquals(1, view.groups().size());
+        assertEquals("ungrouped", view.groups().get(0).label());
+    }
+
+    @Test
+    void testFocusOnNonExistentNodeReturnsEmptyView() {
+        DependencyGraph graph = new DependencyGraph.MutableBuilder()
+            .addNode(Node.builder().id("java:com.example.A").type(NodeType.CLASS).build())
+            .build();
+
+        PerspectiveBuilder builder = new PerspectiveBuilder(graph, Map.of());
+        PerspectiveView view = builder.buildFocusPerspective("java:nonexistent", 2);
+
+        assertTrue(view.groups().isEmpty());
+    }
 }
