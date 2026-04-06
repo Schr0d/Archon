@@ -16,12 +16,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Shared analysis pipeline used by both AnalyzeCommand and ViewCommand.
  * Encapsulates plugin discovery, source collection, parsing, and computation.
  */
 public class AnalysisPipeline {
+
+    private static final Logger LOGGER = Logger.getLogger(AnalysisPipeline.class.getName());
+    private static final Set<String> EXCLUDED_DIRECTORIES = Set.of(
+        "node_modules",
+        ".git",
+        "target",
+        "build",
+        "dist",
+        ".gradle"
+    );
 
     /**
      * Run complete analysis pipeline on a project root.
@@ -174,7 +186,7 @@ public class AnalysisPipeline {
                 }
             });
         } catch (java.io.IOException e) {
-            // Silently skip directories we can't read
+            LOGGER.log(Level.WARNING, "Cannot read directory: " + dir + ", skipping", e);
         }
     }
 
@@ -184,9 +196,7 @@ public class AnalysisPipeline {
                 @Override
                 public java.nio.file.FileVisitResult preVisitDirectory(Path dir, java.nio.file.attribute.BasicFileAttributes attrs) {
                     String dirName = dir.getFileName().toString();
-                    if (dirName.equals("node_modules") || dirName.equals(".git")
-                        || dirName.equals("target") || dirName.equals("build")
-                        || dirName.equals("dist") || dirName.equals(".gradle")) {
+                    if (EXCLUDED_DIRECTORIES.contains(dirName)) {
                         return java.nio.file.FileVisitResult.SKIP_SUBTREE;
                     }
                     return java.nio.file.FileVisitResult.CONTINUE;
@@ -206,7 +216,7 @@ public class AnalysisPipeline {
                 }
             });
         } catch (java.io.IOException e) {
-            // Silently skip on failure
+            LOGGER.log(Level.WARNING, "Cannot walk project tree: " + root + ", skipping", e);
         }
     }
 }

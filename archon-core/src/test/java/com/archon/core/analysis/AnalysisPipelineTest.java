@@ -24,4 +24,16 @@ public class AnalysisPipelineTest {
         assertNotNull(result.blindSpots(), "blindSpots should not be null");
         assertNotNull(result.thresholds(), "thresholds should not be null");
     }
+
+    @Test
+    void testRunWithEmptyProjectReturnsEmptyResult() {
+        Path emptyRoot = Path.of("src/test/resources/empty-project");
+        AnalysisResult result = AnalysisPipeline.run(emptyRoot);
+
+        assertEquals(0, result.graph().nodeCount());
+        assertTrue(result.domains().isEmpty());
+        assertTrue(result.cycles().isEmpty());
+        assertTrue(result.hotspots().isEmpty());
+        assertTrue(result.blindSpots().isEmpty());
+    }
 }
