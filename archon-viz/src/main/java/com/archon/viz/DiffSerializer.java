@@ -13,8 +13,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -24,6 +26,7 @@ import java.util.Set;
  * <ul>
  *   <li>addedNodes - Set of node IDs that were added</li>
  *   <li>removedNodes - Set of node IDs that were removed</li>
+ *   <li>changedNodes - Union of addedNodes and removedNodes, representing all nodes that participated in any change operation</li>
  *   <li>addedEdges - Set of edges that were added</li>
  *   <li>removedEdges - Set of edges that were removed</li>
  *   <li>newCycles - List of cycles that were introduced</li>
@@ -33,14 +36,14 @@ import java.util.Set;
  * </ul>
  */
 public class DiffSerializer {
-    private static final ObjectMapper mapper = createObjectMapper();
+    private static final ObjectMapper mapper = new ObjectMapper();
     private final ChangeImpactReport impactReport;
     private final DependencyGraph headGraph;
     private final Map<String, String> domains;
 
     public DiffSerializer(ChangeImpactReport impactReport, DependencyGraph headGraph, Map<String, String> domains) {
-        this.impactReport = impactReport;
-        this.headGraph = headGraph;
+        this.impactReport = Objects.requireNonNull(impactReport, "impactReport cannot be null");
+        this.headGraph = Objects.requireNonNull(headGraph, "headGraph cannot be null");
         this.domains = domains != null ? domains : Map.of();
     }
 
@@ -76,6 +79,12 @@ public class DiffSerializer {
         return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
     }
 
+    /**
+     * Adds diff annotations to the JSON output.
+     * <p>
+     * changedNodes: union of addedNodes and removedNodes, representing
+     * all nodes that participated in any change operation.
+     */
     private void addDiffAnnotations(ObjectNode root) {
         GraphDiff diff = impactReport.getGraphDiff();
 
@@ -93,10 +102,9 @@ public class DiffSerializer {
 
         // Mark changed nodes (union of added and removed)
         ArrayNode changedNodes = root.putArray("changedNodes");
-        for (String nodeId : diff.getAddedNodes()) {
-            changedNodes.add(nodeId);
-        }
-        for (String nodeId : diff.getRemovedNodes()) {
+        Set<String> changed = new HashSet<>(diff.getAddedNodes());
+        changed.addAll(diff.getRemovedNodes());
+        for (String nodeId : changed) {
             changedNodes.add(nodeId);
         }
 
@@ -193,13 +201,5 @@ public class DiffSerializer {
             edgeObj.put("evidence", edge.getEvidence());
         }
         return edgeObj;
-    }
-
-    /**
-     * Creates an ObjectMapper for JSON serialization.
-     * Reuses the configuration from JsonSerializer.
-     */
-    private static ObjectMapper createObjectMapper() {
-        return new ObjectMapper();
     }
 }

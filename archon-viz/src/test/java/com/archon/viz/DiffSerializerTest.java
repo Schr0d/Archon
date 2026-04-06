@@ -18,6 +18,11 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DiffSerializerTest {
+    private static final String NODE_A = "java:com.example.A";
+    private static final String NODE_B = "java:com.example.B";
+    private static final String NODE_NEW = "java:com.example.NewClass";
+    private static final String DOMAIN_SERVICE = "service";
+    private static final String DOMAIN_PERSISTENCE = "persistence";
     @Test
     void testDiffSerializationIncludesAddedNodes() throws Exception {
         DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
@@ -458,5 +463,32 @@ class DiffSerializerTest {
         assertTrue(root.get("riskSummary").has("domainRisks"));
         assertEquals("HIGH", root.get("riskSummary").get("domainRisks").get("service").asText());
         assertEquals("LOW", root.get("riskSummary").get("domainRisks").get("persistence").asText());
+    }
+
+    @Test
+    void testConstructorWithNullImpactReportThrowsException() {
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        builder.addNode(Node.builder()
+            .id(NODE_A)
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+        DependencyGraph graph = builder.build();
+
+        assertThrows(NullPointerException.class, () -> {
+            new DiffSerializer(null, graph, Map.of());
+        });
+    }
+
+    @Test
+    void testConstructorWithNullHeadGraphThrowsException() {
+        GraphDiff diff = new GraphDiff(Set.of(), Set.of(), Set.of(), Set.of(), List.of(), List.of());
+        RiskSummary riskSummary = new RiskSummary(RiskLevel.LOW, 0, 0, 0, Map.of());
+        ChangeImpactReport report = new ChangeImpactReport("base", "head",
+            Set.of(), diff, Map.of(), List.of(), riskSummary);
+
+        assertThrows(NullPointerException.class, () -> {
+            new DiffSerializer(report, null, Map.of());
+        });
     }
 }
