@@ -15,6 +15,7 @@ import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
+import com.archon.core.viz.DotExporter;
 import com.archon.java.ModuleDetector;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -44,6 +45,9 @@ public class AnalyzeCommand implements Callable<Integer> {
 
     @Option(names = "--dot", description = "Export Graphviz DOT to file")
     private String dotFile;
+
+    @Option(names = "--mermaid", description = "Export Mermaid flowchart to file")
+    private String mermaidFile;
 
     @Option(names = "--verbose", description = "Show detailed parsing logs")
     private boolean verbose;
@@ -160,8 +164,25 @@ public class AnalyzeCommand implements Callable<Integer> {
 
         // Step 6: DOT export
         if (dotFile != null) {
-            exportDot(graph, domainMap, dotFile);
+            DotExporter exporter = new DotExporter();
+            String dot = exporter.exportWithSubgraphs(graph, domainMap);
+            try {
+                java.nio.file.Files.writeString(Path.of(dotFile), dot);
+            } catch (Exception e) {
+                System.err.println("Failed to write DOT file: " + e.getMessage());
+            }
             System.out.println("\nDOT exported to: " + dotFile);
+        }
+
+        // Step 7: Mermaid export
+        if (mermaidFile != null) {
+            String mermaid = exportMermaid(graph, domainMap, cycles);
+            try {
+                java.nio.file.Files.writeString(Path.of(mermaidFile), mermaid);
+            } catch (Exception e) {
+                System.err.println("Failed to write Mermaid file: " + e.getMessage());
+            }
+            System.out.println("\nMermaid exported to: " + mermaidFile);
         }
 
         // Summary
@@ -177,36 +198,77 @@ public class AnalyzeCommand implements Callable<Integer> {
         return (!cycles.isEmpty()) ? 1 : 0;
     }
 
-    private void exportDot(DependencyGraph graph, Map<String, String> domainMap, String file) {
+    /**
+     * Export dependency graph to Mermaid flowchart format.
+     * Uses domain-based subgraph grouping for better visualization.
+     */
+    private String exportMermaid(DependencyGraph graph, Map<String, String> domainMap, List<List<String>> cycles) {
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph dependencies {\n");
-        sb.append("  rankdir=LR;\n");
+        sb.append("flowchart TD\n");
+
+        // Group nodes by domain for subgraph organization
+        java.util.Map<String, java.util.List<String>> domains = new java.util.LinkedHashMap<>();
         for (String nodeId : graph.getNodeIds()) {
-            String domain = domainMap.getOrDefault(nodeId, "");
-            String label = nodeId.substring(nodeId.lastIndexOf('.') + 1);
-            String color = domain.isEmpty() ? "white" : hashColor(domain);
-            sb.append("  \"").append(nodeId).append("\" [label=\"").append(label)
-                .append("\" style=filled fillcolor=\"").append(color).append("\"];\n");
+            String domain = domainMap.getOrDefault(nodeId, "ungrouped");
+            domains.computeIfAbsent(domain, k -> new java.util.ArrayList<>()).add(nodeId);
         }
-        for (String src : graph.getNodeIds()) {
-            for (String tgt : graph.getDependencies(src)) {
-                sb.append("  \"").append(src).append("\" -> \"").append(tgt).append("\";\n");
+
+        // Define nodes with domain grouping
+        for (java.util.Map.Entry<String, java.util.List<String>> entry : domains.entrySet()) {
+            String domain = entry.getKey();
+            sb.append("  subgraph ").append(mermaidSanitize(domain)).append("[\"").append(domain).append("\"]\n");
+            for (String nodeId : entry.getValue()) {
+                String label = getNodeLabel(nodeId);
+                sb.append("    ").append(mermaidSanitize(nodeId)).append("[\"").append(label).append("\"]\n");
+            }
+            sb.append("  end\n");
+        }
+
+        // Define edges
+        for (String source : graph.getNodeIds()) {
+            for (String target : graph.getDependencies(source)) {
+                // Skip self-edges
+                if (!source.equals(target)) {
+                    sb.append("  ").append(mermaidSanitize(source)).append(" --> ")
+                        .append(mermaidSanitize(target)).append("\n");
+                }
             }
         }
-        sb.append("}\n");
-        try {
-            java.nio.file.Files.writeString(Path.of(file), sb.toString());
-        } catch (Exception e) {
-            System.err.println("Failed to write DOT file: " + e.getMessage());
+
+        // Annotate cycles if any
+        if (!cycles.isEmpty()) {
+            sb.append("\n  %% Cycles detected:\n");
+            for (List<String> cycle : cycles) {
+                sb.append("  %% Cycle: ").append(String.join(" -> ", cycle)).append(" -> ").append(cycle.get(0)).append("\n");
+            }
         }
+
+        return sb.toString();
     }
 
-    private String hashColor(String domain) {
-        int hash = domain.hashCode();
-        int r = Math.abs(hash % 128) + 100;
-        int g = Math.abs((hash >> 8) % 128) + 100;
-        int b = Math.abs((hash >> 16) % 128) + 100;
-        return "#" + Integer.toHexString(r) + Integer.toHexString(g) + Integer.toHexString(b);
+    /**
+     * Sanitize node IDs for Mermaid format.
+     * Mermaid IDs cannot contain certain characters like dots or colons.
+     */
+    private String mermaidSanitize(String id) {
+        // Replace dots and colons with underscores, and remove other problematic characters
+        return id.replaceAll("[.:]", "_").replaceAll("[^a-zA-Z0-9_]", "");
+    }
+
+    /**
+     * Extract a short label from the node ID.
+     * For fully-qualified class names, uses just the class name.
+     */
+    private String getNodeLabel(String nodeId) {
+        int lastDot = nodeId.lastIndexOf('.');
+        if (lastDot > 0 && Character.isUpperCase(nodeId.charAt(lastDot + 1))) {
+            return nodeId.substring(lastDot + 1);
+        }
+        int lastSlash = nodeId.lastIndexOf('/');
+        if (lastSlash > 0) {
+            return nodeId.substring(lastSlash + 1);
+        }
+        return nodeId;
     }
 
     /**

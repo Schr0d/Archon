@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0.0] - 2026-04-06
+
+### Added
+- **Interactive Web Visualization** — New `archon view` command with web-based dependency graph viewer
+- **Web Diff Viewer** — `archon diff --view` opens browser with red/green/yellow diff visualization
+- **Static HTML Export** — `archon view --export diagram.html` generates standalone HTML files
+- **Mermaid Export** — `archon analyze --mermaid diagram.mmd` exports to Mermaid flowchart format
+- **Terminal Visualization** — Structured text output with domain grouping and formatting
+- **Idle Timeout** — Web server auto-stops after 30 minutes of inactivity (configurable via `--idle-timeout`)
+- **Shared Analysis Pipeline** — Extracted AnalysisPipeline for reuse across commands
+- **New Module: archon-viz** — Visualization module with JSON serializers and web server
+
+### Changed
+- ViewServer binds to 127.0.0.1 only (security: never 0.0.0.0)
+- DotExporter reimplemented using centralized class in archon-core
+- Port auto-selection now works correctly in all scenarios (8420-8430 fallback)
+
+### Fixed
+- ViewServer port bug: browser now opens correct URL when auto-port selection happens
+- ViewServer: proper request tracking for idle timeout functionality
+- ViewCommand: server no longer starts when `--format json` is specified
+
+### Acknowledgments
+- The web viewer adapts the approach of [oh-my-mermaid](https://github.com/oh-my-mermaid/oh-my-mermaid) (MIT licensed)
+- Uses dagre 0.8.5 for graph layout (vendored in JAR for offline use)
+
 ## [0.4.0.3] - 2026-04-04
 
 ### Fixed

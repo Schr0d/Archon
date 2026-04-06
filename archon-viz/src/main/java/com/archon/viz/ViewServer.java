@@ -5,20 +5,32 @@ import java.awt.*;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class ViewServer {
     private static final int DEFAULT_PORT = 8420;
     private static final int MAX_PORT = 8430;
+    private static final int DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
     private HttpServer server;
     private final int port;
+    private final int idleTimeoutMinutes;
     private int actualPort;
+    private long lastRequestTime;
+    private ScheduledExecutorService idleChecker;
 
     public ViewServer() throws IOException {
-        this.port = 0; // Will find available port in start()
+        this(0, DEFAULT_IDLE_TIMEOUT_MINUTES);
     }
 
     public ViewServer(int port) throws IOException {
+        this(port, DEFAULT_IDLE_TIMEOUT_MINUTES);
+    }
+
+    public ViewServer(int port, int idleTimeoutMinutes) throws IOException {
         this.port = port;
+        this.idleTimeoutMinutes = idleTimeoutMinutes;
     }
 
     public void start() throws IOException {
@@ -31,22 +43,61 @@ public class ViewServer {
         server.createContext("/api/diff", this::serveDiff);
         server.createContext("/api/stats", this::serveStats);
         server.createContext("/lib/", this::serveLib);
-        server.setExecutor(null); // creates a default executor
+        server.setExecutor(Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return t;
+        }));
+
+        // Initialize last request time
+        lastRequestTime = System.currentTimeMillis();
+
+        // Start idle timeout checker
+        startIdleChecker();
 
         // Add shutdown hook for clean shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (server != null) {
-                server.stop(0);
-            }
+            shutdown();
         }, "ViewServer-shutdown"));
 
         server.start();
     }
 
     public void stop() {
+        shutdown();
+    }
+
+    private void shutdown() {
+        if (idleChecker != null) {
+            idleChecker.shutdownNow();
+            idleChecker = null;
+        }
         if (server != null) {
             server.stop(0);
+            server = null;
         }
+    }
+
+    private void startIdleChecker() {
+        idleChecker = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return t;
+        });
+
+        idleChecker.scheduleAtFixedRate(() -> {
+            long idleTime = System.currentTimeMillis() - lastRequestTime;
+            long idleTimeoutMs = idleTimeoutMinutes * 60_000L;
+            if (idleTime > idleTimeoutMs) {
+                System.out.println("\narchon: server idle for " + idleTimeoutMinutes + " minutes, shutting down");
+                shutdown();
+                System.exit(0);
+            }
+        }, 1, 1, TimeUnit.MINUTES);
+    }
+
+    private void recordRequest() {
+        lastRequestTime = System.currentTimeMillis();
     }
 
     public int getPort() {
@@ -81,11 +132,13 @@ public class ViewServer {
     }
 
     private void serveIndex(HttpExchange exchange) throws IOException {
+        recordRequest();
         String html = loadResource("archon-viewer.html");
         sendResponse(exchange, 200, "text/html", html);
     }
 
     private void serveGraph(HttpExchange exchange) throws IOException {
+        recordRequest();
         String query = exchange.getRequestURI().getQuery();
         String response;
 
@@ -105,6 +158,7 @@ public class ViewServer {
     }
 
     private void serveNode(HttpExchange exchange) throws IOException {
+        recordRequest();
         String path = exchange.getRequestURI().getPath();
         String nodeId = path.substring("/api/node/".length());
 
@@ -121,10 +175,12 @@ public class ViewServer {
     }
 
     private void serveDiff(HttpExchange exchange) throws IOException {
+        recordRequest();
         sendResponse(exchange, 200, "application/json", diffData != null ? diffData : "{}");
     }
 
     private void serveLib(HttpExchange exchange) throws IOException {
+        recordRequest();
         String path = exchange.getRequestURI().getPath();
         String libName = path.substring("/lib/".length());
         String js = loadResource("lib/" + libName);
@@ -132,7 +188,8 @@ public class ViewServer {
     }
 
     private void serveStats(HttpExchange exchange) throws IOException {
-        String stats = "{\"port\":" + port + ",\"status\":\"running\"}";
+        recordRequest();
+        String stats = "{\"port\":" + actualPort + ",\"status\":\"running\"}";
         sendResponse(exchange, 200, "application/json", stats);
     }
 
@@ -162,10 +219,10 @@ public class ViewServer {
     public void openBrowser() {
         try {
             if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().browse(new URI("http://127.0.0.1:" + port + "/"));
+                Desktop.getDesktop().browse(new URI("http://127.0.0.1:" + actualPort + "/"));
             }
         } catch (Exception e) {
-            System.out.println("archon: cannot open browser. View at http://127.0.0.1:" + port);
+            System.out.println("archon: cannot open browser. View at http://127.0.0.1:" + actualPort);
         }
     }
 }

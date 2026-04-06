@@ -10,12 +10,13 @@ Archon analyzes codebases to help engineers make informed decisions:
 - **Impact Propagation** — Predict how changes ripple through the system
 - **Rule Validation** — Enforce architectural constraints with CI integration
 - **Diff Analysis** — Git-aware change impact between refs
+- **Interactive Visualization** — Web-based graph viewer with pan/zoom and filtering
 
 ## Quick Start
 
 ### Installation
 
-Download the latest shadow JAR from [releases](https://github.com/yourname/archon/releases):
+Download the latest shadow JAR from [releases](https://github.com/Schr0d/Archon/releases):
 
 ```bash
 # Or build from source
@@ -25,8 +26,17 @@ Download the latest shadow JAR from [releases](https://github.com/yourname/archo
 ### Basic Usage
 
 ```bash
-# Analyze a Java project
-java -jar archon-cli/build/libs/archon-0.4.0.3.jar analyze /path/to/project
+# Interactive web visualization (opens browser)
+java -jar archon-cli/build/libs/archon-0.5.0.0.jar view /path/to/project
+
+# Analyze with terminal output
+java -jar archon-cli/build/libs/archon-0.5.0.0.jar analyze /path/to/project
+
+# Export static HTML diagram
+java -jar archon.jar view /path/to/project --export diagram.html
+
+# Diff with web viewer (red=removed, green=added, yellow=changed)
+java -jar archon.jar diff main HEAD /path/to/project --view
 
 # Check impact of changing a specific module (Java class, TS module, or Python file)
 java -jar archon.jar impact com.example.Service /path/to/project
@@ -34,11 +44,23 @@ java -jar archon.jar impact com.example.Service /path/to/project
 # Validate against architectural rules
 java -jar archon.jar check /path/to/project --ci
 
-# Diff-based impact analysis between git refs
-java -jar archon.jar diff main HEAD /path/to/project
+# Export to DOT or Mermaid formats
+java -jar archon.jar analyze /path/to/project --dot graph.dot
+java -jar archon.jar analyze /path/to/project --mermaid diagram.mmd
 ```
 
 ## Features
+
+### Interactive Web Visualization
+
+New in v0.5 — Archon now includes an interactive web viewer:
+
+- **Pan & Zoom** — Figma-style mouse wheel navigation, space+drag to pan
+- **Domain Grouping** — Automatically clusters nodes by architectural domain
+- **Diff Visualization** — Git-aware diff with color-coded changes (red/green/yellow)
+- **Theme Toggle** — Light and dark mode support
+- **Search & Filter** — Text search with real-time highlighting
+- **Offline Ready** — All dependencies bundled, no network required
 
 ### Multi-Language Support
 
@@ -62,10 +84,11 @@ Archon uses a plugin architecture for language extensibility:
 ### CLI Commands
 
 ```
-archon analyze <path> [--json] [--dot <file>] [--verbose]
+archon view <path> [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
+archon analyze <path> [--json] [--dot <file>] [--mermaid <file>] [--verbose]
 archon impact <module> <path> [--depth N]
 archon check <path> [--ci]
-archon diff <base> <head> <path> [--ci] [--depth N]
+archon diff <base> <head> <path> [--ci] [--depth N] [--view]
 ```
 
 ## Architecture
@@ -76,6 +99,8 @@ archon diff <base> <head> <path> [--ci] [--depth N]
 archon-core/     — Language-agnostic graph model, analysis engines, SPI
 archon-java/     — Java parser plugin
 archon-js/       — JavaScript/TypeScript parser plugin
+archon-python/   — Python import parser plugin
+archon-viz/      — Web visualization and export formats
 archon-cli/      — CLI with shadow JAR packaging
 archon-test/     — Shared test fixtures
 ```
@@ -96,7 +121,7 @@ archon-test/     — Shared test fixtures
 # Build shadow JAR
 ./gradlew shadowJar
 
-# Output: archon-cli/build/libs/archon-0.4.0.3.jar
+# Output: archon-cli/build/libs/archon-0.5.0.0.jar
 ```
 
 ## Configuration
@@ -125,8 +150,8 @@ domains:
 - [x] v0.2 — Diff-based analysis
 - [x] v0.3 — Multi-language SPI
 - [x] v0.4 — Security hardening + Vue support
-- [ ] v0.5 — Cross-language edge detection (Java REST ↔ JS HTTP)
-- [ ] v0.6 — Visualization (web UI)
+- [x] v0.5 — Visualization (web UI)
+- [ ] v0.6 — Cross-language edge detection (Java REST ↔ JS HTTP)
 
 ## Contributing
 
@@ -135,6 +160,10 @@ See [TODOS.md](TODOS.md) for deferred work and contribution opportunities.
 ## License
 
 MIT
+
+## Acknowledgments
+
+The web viewer adapts the approach of [oh-my-mermaid](https://github.com/oh-my-mermaid/oh-my-mermaid) (MIT licensed).
 
 ## Links
 
