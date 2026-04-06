@@ -60,6 +60,14 @@
             cursor: grabbing;
         }
 
+        /* Main content wrapper - spans full grid until sidebar is added */
+        #main-content {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
         svg {
             width: 100%;
             height: 100%;
@@ -613,7 +621,8 @@
 </head>
 <body>
     <div id="app-container">
-        <div id="loading">
+        <div id="main-content">
+            <div id="loading">
         <div class="spinner"></div>
         <div>Loading graph...</div>
     </div>
@@ -1543,6 +1552,7 @@
         // Initialize
         loadGraph();
     </script>
+        </div>
     </div>
 </body>
 </html>
