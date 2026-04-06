@@ -113,6 +113,7 @@ public class ViewServer {
 
     public void setDiffData(String jsonData) {
         this.diffData = jsonData;
+        System.err.println("Debug: ViewServer.setDiffData called with " + jsonData.length() + " bytes");
     }
 
     private String graphData;
@@ -146,7 +147,8 @@ public class ViewServer {
             String focusId = query.substring(7); // after "focus="
             response = getFocusSubgraph(focusId);
         } else {
-            response = graphData != null ? graphData : "{}";
+            // Return diffData if available (contains graph data + diff annotations), otherwise graphData
+            response = diffData != null ? diffData : (graphData != null ? graphData : "{}");
         }
 
         sendResponse(exchange, 200, "application/json", response);
