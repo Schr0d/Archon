@@ -844,20 +844,6 @@
                 // Class-level view: show all nodes and edges
                 renderData = data;
             }
-            const svg = elements.svg;
-            const mainGroup = elements.mainGroup;
-            mainGroup.innerHTML = '';
-
-            // Group nodes by domain
-            const domains = {};
-            data.nodes.forEach(node => {
-                const domain = node.domain || 'general';
-                if (!domains[domain]) domains[domain] = [];
-                domains[domain].push(node);
-            });
-
-            // Sort domains by name for consistent ordering
-            const sortedDomains = Object.keys(domains).sort();
 
             // Simple left-to-right layout without compound nodes
             const g = new dagre.graphlib.Graph()
@@ -871,7 +857,7 @@
                 });
 
             // Add all nodes
-            data.nodes.forEach(node => {
+            renderData.nodes.forEach(node => {
                 const label = shortId(node.id);
                 // Domain nodes get larger size and special styling
                 const isDomain = node.isDomain || false;
@@ -884,8 +870,8 @@
             });
 
             // Add edges
-            if (data.edges) {
-                data.edges.forEach(edge => {
+            if (renderData.edges) {
+                renderData.edges.forEach(edge => {
                     g.setEdge(edge.source, edge.target, {
                         confidence: edge.confidence || 'HIGH'
                     });
