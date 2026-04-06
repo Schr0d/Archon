@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":archon-java"))
     implementation(project(":archon-js"))
     implementation(project(":archon-python"))
+    implementation(project(":archon-viz"))
     implementation("info.picocli:picocli:4.7.+")
     implementation("ch.qos.logback:logback-classic:1.5.+")
     annotationProcessor("info.picocli:picocli-codegen:4.7.+")
