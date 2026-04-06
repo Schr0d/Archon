@@ -66,4 +66,25 @@ class ViewServerTest {
         conn.disconnect();
         server.stop();
     }
+
+    @Test
+    void testStatsEndpointReturnsServerInfo() throws IOException {
+        ViewServer server = new ViewServer();
+        server.start();
+
+        URL url = new URL("http://127.0.0.1:" + server.getPort() + "/api/stats");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(5000);
+
+        assertEquals(200, conn.getResponseCode());
+        assertEquals("application/json", conn.getContentType());
+
+        String response = new String(conn.getInputStream().readAllBytes());
+        assertTrue(response.contains("\"port\""));
+        assertTrue(response.contains("\"status\":\"running\""));
+
+        conn.disconnect();
+        server.stop();
+    }
 }

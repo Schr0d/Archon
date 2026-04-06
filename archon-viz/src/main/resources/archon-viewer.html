@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Archon Dependency Viewer</title>
+    <title>Archon Viewer</title>
 </head>
 <body>
     <h1>Archon Dependency Viewer</h1>
-    <div id="graph"></div>
-    <script src="/lib/d3.min.js"></script>
+    <p>Loading graph data...</p>
     <script>
-        // Graph visualization will be implemented here
+        fetch('/api/graph')
+            .then(r => r.json())
+            .then(data => console.log('Graph loaded:', data));
     </script>
 </body>
 </html>
