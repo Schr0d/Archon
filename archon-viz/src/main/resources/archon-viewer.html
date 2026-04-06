@@ -60,9 +60,9 @@
             cursor: grabbing;
         }
 
-        /* Main content wrapper - spans full grid until sidebar is added */
+        /* Main content wrapper - spans second grid column after sidebar */
         #main-content {
-            grid-column: 1 / -1;
+            grid-column: 2;
             display: flex;
             flex-direction: column;
             position: relative;
@@ -707,6 +707,11 @@
 </head>
 <body>
     <div id="app-container">
+        <div id="nav-sidebar">
+            <div id="nav-header">Archon</div>
+            <div id="nav-stats"></div>
+            <div id="nav-tree"></div>
+        </div>
         <div id="main-content">
             <div id="loading">
         <div class="spinner"></div>
