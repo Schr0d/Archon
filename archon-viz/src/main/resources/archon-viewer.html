@@ -709,7 +709,8 @@
             dragStart: { x: 0, y: 0 },
             isTransitioning: false,
             searchQuery: '',
-            theme: 'dark'
+            theme: 'dark',
+            expandedDomains: new Set()  // Track which domains are expanded
         };
 
         // DOM elements
@@ -767,8 +768,82 @@
             }
         }
 
+        // Aggregate class-level edges to domain-level dependencies
+        function aggregateToDomainLevel(data) {
+            // Get unique domains
+            const domains = new Set();
+            data.nodes.forEach(node => {
+                if (node.domain) domains.add(node.domain);
+            });
+
+            // Build domain-to-domain edge map
+            const domainEdgeMap = new Map(); // key: "src->dst", value: count
+
+            data.edges.forEach(edge => {
+                const srcNode = data.nodes.find(n => n.id === edge.source);
+                const dstNode = data.nodes.find(n => n.id === edge.target);
+                if (srcNode && dstNode && srcNode.domain && dstNode.domain) {
+                    if (srcNode.domain !== dstNode.domain) {
+                        const key = `${srcNode.domain}->${dstNode.domain}`;
+                        domainEdgeMap.set(key, (domainEdgeMap.get(key) || 0) + 1);
+                    }
+                }
+            });
+
+            // Convert to domain nodes and edges
+            const domainNodes = Array.from(domains).map(domain => ({
+                id: domain,
+                label: domain,
+                domain: domain,
+                isDomain: true
+            }));
+
+            const domainEdges = [];
+            domainEdgeMap.forEach((count, key) => {
+                const [source, target] = key.split('->');
+                domainEdges.push({ source, target, weight: count });
+            });
+
+            return { nodes: domainNodes, edges: domainEdges };
+        }
+
+        // Toggle domain expansion
+        function toggleDomain(domainId) {
+            if (state.expandedDomains.has(domainId)) {
+                state.expandedDomains.delete(domainId);
+            } else {
+                state.expandedDomains.add(domainId);
+            }
+            renderGraph(state.currentData);
+        }
+
         // Render graph using dagre with horizontal layout
         function renderGraph(data) {
+            const svg = elements.svg;
+            const mainGroup = elements.mainGroup;
+            mainGroup.innerHTML = '';
+
+            // Group nodes by domain
+            const domains = {};
+            data.nodes.forEach(node => {
+                const domain = node.domain || 'general';
+                if (!domains[domain]) domains[domain] = [];
+                domains[domain].push(node);
+            });
+
+            const sortedDomains = Object.keys(domains).sort();
+
+            // Check if we should show domain-level view or class-level view
+            const showDomainLevel = state.expandedDomains.size === 0;
+
+            let renderData;
+            if (showDomainLevel) {
+                // Domain-level view: aggregate to domain nodes and edges
+                renderData = aggregateToDomainLevel(data);
+            } else {
+                // Class-level view: show all nodes and edges
+                renderData = data;
+            }
             const svg = elements.svg;
             const mainGroup = elements.mainGroup;
             mainGroup.innerHTML = '';
@@ -798,10 +873,12 @@
             // Add all nodes
             data.nodes.forEach(node => {
                 const label = shortId(node.id);
+                // Domain nodes get larger size and special styling
+                const isDomain = node.isDomain || false;
                 g.setNode(node.id, {
                     label: label,
-                    width: calculateNodeWidth(label),
-                    height: 40,
+                    width: isDomain ? calculateNodeWidth(label) * 1.5 : calculateNodeWidth(label),
+                    height: isDomain ? 50 : 40,
                     ...node
                 });
             });
@@ -838,8 +915,9 @@
             // Generate domain colors
             const domainColors = generateDomainColors(sortedDomains);
 
-            // Render domain cluster backgrounds
-            sortedDomains.forEach(domain => {
+            // Render domain cluster backgrounds only in class-level view
+            if (!showDomainLevel) {
+                sortedDomains.forEach(domain => {
                 const bounds = domainBounds[domain];
                 const padding = 30;
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -866,7 +944,8 @@
                 label.setAttribute('opacity', '0.9');
                 label.textContent = domain;
                 mainGroup.appendChild(label);
-            });
+                });
+            }
 
             // Render edges with bezier curves (before nodes so they're underneath)
             const edgeOpacity = 0.4;
@@ -948,6 +1027,10 @@
             group.setAttribute('data-domain', node.domain || 'general');
             group.setAttribute('transform', `translate(${node.x},${node.y})`);
             group.setAttribute('tabindex', '0');
+            // Domain nodes get pointer cursor to indicate clickability
+            if (node.isDomain) {
+                group.style.cursor = 'pointer';
+            }
 
             // Add diff class if applicable
             if (node.diffStatus) {
@@ -960,9 +1043,16 @@
             rect.setAttribute('y', -node.height / 2);
             rect.setAttribute('width', node.width);
             rect.setAttribute('height', node.height);
-            rect.setAttribute('rx', 4);
-            // Add subtle domain color border
-            if (domainColor) {
+            rect.setAttribute('rx', node.isDomain ? 8 : 4);
+
+            // Domain nodes get filled background and thicker border
+            if (node.isDomain && domainColor) {
+                rect.style.fill = domainColor;
+                rect.style.fillOpacity = '0.15';
+                rect.style.stroke = domainColor;
+                rect.style.strokeWidth = '3px';
+            } else if (domainColor) {
+                // Class nodes get subtle border
                 rect.style.stroke = domainColor;
                 rect.style.strokeWidth = '1.5px';
             }
@@ -971,6 +1061,11 @@
             text.setAttribute('class', 'node-text');
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('dy', 4);
+            // Domain nodes get larger, bolder text
+            if (node.isDomain) {
+                text.setAttribute('font-size', '14');
+                text.setAttribute('font-weight', '700');
+            }
             text.textContent = truncateText(node.label, node.width);
 
             // Domain indicator dot
@@ -987,13 +1082,24 @@
             group.appendChild(text);
 
             // Event listeners
-            group.addEventListener('click', () => showSidebar(nodeId, node));
+            group.addEventListener('click', () => {
+                // If this is a domain node in domain-level view, toggle expansion
+                if (node.isDomain) {
+                    toggleDomain(nodeId);
+                } else {
+                    showSidebar(nodeId, node);
+                }
+            });
             group.addEventListener('mouseenter', (e) => showTooltip(e, nodeId, node));
             group.addEventListener('mouseleave', hideTooltip);
             group.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    showSidebar(nodeId, node);
+                    if (node.isDomain) {
+                        toggleDomain(nodeId);
+                    } else {
+                        showSidebar(nodeId, node);
+                    }
                 }
             });
 
