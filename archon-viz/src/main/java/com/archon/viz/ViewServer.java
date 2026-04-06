@@ -113,7 +113,6 @@ public class ViewServer {
 
     public void setDiffData(String jsonData) {
         this.diffData = jsonData;
-        System.err.println("Debug: ViewServer.setDiffData called with " + jsonData.length() + " bytes");
     }
 
     private String graphData;

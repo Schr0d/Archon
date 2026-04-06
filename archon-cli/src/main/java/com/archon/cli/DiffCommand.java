@@ -220,10 +220,6 @@ public class DiffCommand implements Callable<Integer> {
                 DiffSerializer diffSerializer = new DiffSerializer(report, headGraph, domainMap);
                 String diffJson = diffSerializer.toJson();
 
-                // Debug: confirm diff data was generated
-                System.err.println("Debug: Generated " + diffJson.length() + " bytes of diff JSON");
-                System.err.flush();
-
                 ViewServer server = new ViewServer();
                 server.setDiffData(diffJson);
                 server.start();
