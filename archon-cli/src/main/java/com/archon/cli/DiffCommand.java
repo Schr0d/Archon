@@ -15,6 +15,8 @@ import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
+import com.archon.viz.DiffSerializer;
+import com.archon.viz.ViewServer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -34,19 +36,25 @@ import java.util.stream.Collectors;
 public class DiffCommand implements Callable<Integer> {
 
     @Parameters(index = "0", description = "Base git ref (branch, tag, or SHA)")
-    private String baseRef;
+    String baseRef;
 
     @Parameters(index = "1", description = "Head git ref (branch, tag, or SHA)")
-    private String headRef;
+    String headRef;
 
     @Parameters(index = "2", description = "Path to the project root")
-    private String projectPath;
+    String projectPath;
 
     @Option(names = "--ci", description = "CI mode: exit 1 on new cycles or HIGH+ risk")
-    private boolean ciMode;
+    boolean ciMode;
 
     @Option(names = "--depth", defaultValue = "3", description = "Max impact propagation depth")
-    private int maxDepth;
+    int maxDepth;
+
+    @Option(names = "--view", description = "Open web diff viewer instead of terminal output")
+    boolean view;
+
+    @Option(names = "--no-open", description = "Do not open browser automatically (use with --view)")
+    boolean noOpen;
 
     @Override
     public Integer call() {
@@ -206,17 +214,47 @@ public class DiffCommand implements Callable<Integer> {
             changedClassDomains, allImpactedNodes, riskSummary);
 
         // Output
-        printReport(report, git, repoRoot, baseSha, headSha);
+        if (view) {
+            // Web viewer mode - start server with diff data
+            try {
+                DiffSerializer diffSerializer = new DiffSerializer(report, headGraph, domainMap);
+                String diffJson = diffSerializer.toJson();
 
-        // CI mode
-        if (ciMode) {
-            RiskLevel overall = report.getRiskSummary().getOverallRisk();
-            if (!report.getGraphDiff().getNewCycles().isEmpty()
-                || overall == RiskLevel.HIGH || overall == RiskLevel.VERY_HIGH || overall == RiskLevel.BLOCKED) {
-                System.out.println("\n\u001B[31mCI: FAIL — new cycles or HIGH+ risk detected\u001B[0m");
+                ViewServer server = new ViewServer();
+                server.setDiffData(diffJson);
+                server.start();
+
+                System.out.println("archon: diff viewer running at http://127.0.0.1:" + server.getPort() + "/");
+                System.out.println("Press Ctrl+C to stop");
+
+                if (!noOpen) {
+                    server.openBrowser();
+                }
+
+                // Keep server running until interrupted
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    server.stop();
+                }
+            } catch (IOException e) {
+                System.err.println("Error starting web viewer: " + e.getMessage());
                 return 1;
             }
-            System.out.println("\n\u001B[32mCI: PASS\u001B[0m");
+        } else {
+            // Terminal mode - existing output
+            printReport(report, git, repoRoot, baseSha, headSha);
+
+            // CI mode
+            if (ciMode) {
+                RiskLevel overall = report.getRiskSummary().getOverallRisk();
+                if (!report.getGraphDiff().getNewCycles().isEmpty()
+                    || overall == RiskLevel.HIGH || overall == RiskLevel.VERY_HIGH || overall == RiskLevel.BLOCKED) {
+                    System.out.println("\n\u001B[31mCI: FAIL — new cycles or HIGH+ risk detected\u001B[0m");
+                    return 1;
+                }
+                System.out.println("\n\u001B[32mCI: PASS\u001B[0m");
+            }
         }
 
         return 0;
