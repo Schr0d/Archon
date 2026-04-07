@@ -1,16 +1,72 @@
 # Archon
 
-**Domain Analyzer & Dependency Guard** — An engineering decision tool for understanding system structure, evaluating change impact, and controlling architectural complexity.
+> **Structure-Constrained AI Refactoring Pipeline**
 
-## What It Does
+[English](README.md) | [中文文档](README-zh.md)
 
-Archon analyzes codebases to help engineers make informed decisions:
+Archon is a system that integrates architectural analysis directly into AI-driven code modification workflows.
 
-- **Structure Analysis** — Detect cycles, hotspots, and domain boundaries
-- **Impact Propagation** — Predict how changes ripple through the system
-- **Rule Validation** — Enforce architectural constraints with CI integration
-- **Diff Analysis** — Git-aware change impact between refs
-- **Interactive Visualization** — Web-based graph viewer with pan/zoom and filtering
+It turns refactoring from an ad-hoc, model-driven process into a **structured, verifiable, and feedback-controlled pipeline**.
+
+---
+
+## Problem
+
+Modern AI coding tools are powerful, but unstable in large-scale systems:
+
+- They modify code without understanding system boundaries
+- Refactoring decisions are opaque and non-deterministic
+- Reviews happen too late, often after structural damage is done
+- Architecture knowledge is not explicitly used as a constraint
+
+**Result:** AI-assisted refactoring becomes fast but unsafe.
+
+---
+
+## Solution
+
+Archon introduces a structured pipeline that tightly couples structural analysis with code modification:
+
+### 1. Pre-Analysis (Plan Stage)
+
+Before any code change, perform structural analysis of the repository:
+
+- Module boundaries
+- Dependency graph
+- Risk hotspots
+- Impact surfaces of target changes
+
+This becomes **explicit input context for the AI**.
+
+### 2. Constrained Execution (Act Stage)
+
+The AI operates under structural constraints:
+
+- Scoped context windows
+- Explicit change intent (diff-oriented execution)
+- Architectural boundary awareness
+
+This turns generation into **bounded transformation**.
+
+### 3. Pre-Merge Verification (Review Stage)
+
+Before merging, perform a second-pass evaluation:
+
+- Diff-based structural impact analysis
+- Cross-module dependency validation
+- Consistency checks against pre-analysis snapshot
+
+This acts as an **automated architecture-aware review layer**.
+
+---
+
+## Core Idea
+
+> Move architecture from documentation → runtime constraint system
+
+Archon is not just a code analyzer. It is a **closed-loop control system for AI-driven code evolution**.
+
+---
 
 ## Quick Start
 
@@ -27,10 +83,10 @@ Download the latest shadow JAR from [releases](https://github.com/Schr0d/Archon/
 
 ```bash
 # Interactive web visualization (opens browser)
-java -jar archon-cli/build/libs/archon-0.5.0.0.jar view /path/to/project
+java -jar archon.jar view /path/to/project
 
 # Analyze with terminal output
-java -jar archon-cli/build/libs/archon-0.5.0.0.jar analyze /path/to/project
+java -jar archon.jar analyze /path/to/project
 
 # Export static HTML diagram
 java -jar archon.jar view /path/to/project --export diagram.html
@@ -38,65 +94,175 @@ java -jar archon.jar view /path/to/project --export diagram.html
 # Diff with web viewer (red=removed, green=added, yellow=changed)
 java -jar archon.jar diff main HEAD /path/to/project --view
 
-# Check impact of changing a specific module (Java class, TS module, or Python file)
+# Check impact of changing a specific module
 java -jar archon.jar impact com.example.Service /path/to/project
 
 # Validate against architectural rules
 java -jar archon.jar check /path/to/project --ci
-
-# Export to DOT or Mermaid formats
-java -jar archon.jar analyze /path/to/project --dot graph.dot
-java -jar archon.jar analyze /path/to/project --mermaid diagram.mmd
 ```
 
-## Features
+---
 
-### Interactive Web Visualization [EXPERIMENTAL]
+## AI Agent Workflow
 
-New in v0.5 — Archon includes an interactive web viewer (experimental):
+Archon is designed to be called by AI agents during the development loop. Here's how it integrates:
 
-**Working features:**
-- Static HTML export with offline support (no internet required)
-- JSON output format for programmatic access
-- Mermaid and DOT export formats
-- **Left sidebar navigation tree** for domain hierarchy exploration
-- **Hotspot indicators** showing classes with high dependency counts (⭐ for 10+ dependencies)
-- **Accessibility improvements** — 44px minimum button height, WCAG AA text contrast, motion reduction support
-- **Intro hint overlay** for first-time users
+### Stage 1: Plan — AI Gets Architectural Context
 
-**Known limitations:**
-- Hierarchical domain/class visualization has rendering issues
-- Domain bounding boxes may overlap in complex graphs
-- Expand/collapse interaction needs refinement
-- Layout algorithm (dagre.js) produces inconsistent results
+```bash
+# Agent runs analysis before proposing changes
+$ java -jar archon.jar analyze . --json > archon-context.json
+```
 
-**Recommended usage:**
-- Use `--format json` for programmatic data access
-- Use `--mermaid` or `--dot` for external visualization tools
-- Use `--export` for static HTML (works offline)
+The AI agent receives:
 
-For production use, prefer JSON output and integrate with your preferred visualization tool.
+```json
+{
+  "domains": [
+    {"name": "core", "nodes": 45, "boundaries": ["com.archon.core.*"]},
+    {"name": "java", "nodes": 12, "boundaries": ["com.archon.java.*"]},
+    {"name": "cli", "nodes": 8, "boundaries": ["com.archon.cli.*"]}
+  ],
+  "hotspots": [
+    {"node": "com.archon.core.graph.DependencyGraph", "inDegree": 18, "risk": "HIGH"},
+    {"node": "com.archon.core.plugin.LanguagePlugin", "inDegree": 7, "risk": "MEDIUM"}
+  ],
+  "cycles": [],
+  "blindSpots": [
+    {"type": "CommonJS", "count": 624, "file": "archon-viz/src/main/resources/lib/dagre.min"}
+  ]
+}
+```
 
-### Multi-Language Support
+**AI uses this to:**
+- Avoid high-risk hotspots
+- Respect domain boundaries
+- Stay within safe change surfaces
+- Declare uncertainty for blind spots
 
-Archon uses a plugin architecture for language extensibility:
+---
 
-| Language | Plugin | Status |
+### Stage 2: Execute — AI Makes Constrained Changes
+
+```python
+# AI agent internal state
+archon_context = load("archon-context.json")
+
+# Agent plans refactoring with constraints
+def plan_refactoring(target):
+    if target in archon_context["hotspots"]:
+        return f"SKIP: {target} is HIGH-RISK hotspot (inDegree: 18)"
+
+    impact = archon.impact(target)
+    if impact.cross_domain > 3:
+        return f"SKIP: {target} affects {impact.cross_domain} domains"
+
+    return generate_safe_refactoring_plan(target, archon_context)
+```
+
+**AI is constrained by:**
+- Pre-calculated impact surface
+- Domain boundary rules
+- Risk hotspot avoidance
+- Explicit scope limits
+
+---
+
+### Stage 3: Review — AI Verifies Structural Integrity
+
+```bash
+# Agent validates changes before committing
+$ java -jar archon.jar diff main HEAD . --ci
+```
+
+The review gate returns:
+
+```
+=== Structural Impact Review ===
+
+Added edges: 2
+  com.auth.service → com.payment.client [CROSS-DOMAIN] ⚠️
+  com.payment.dao → com.database.pool [SAME-DOMAIN]
+
+Removed edges: 1
+  com.auth.util → com.logging.helper
+
+Violations: 1
+  ✗ max_cross_domain exceeded (current: 4, limit: 3)
+    → com.auth.service → com.payment.client
+
+Gate: BLOCKED
+```
+
+**AI responds:**
+- Rollback cross-domain violation
+- Re-plan within architectural constraints
+- Re-verify with clean diff
+
+---
+
+## Full Workflow Diagram
+
+```mermaid
+sequenceDiagram
+    participant AI as AI Agent
+    participant Archon as Archon
+    participant Repo as Codebase
+
+    Note over AI,Archon: PLAN STAGE
+    AI->>Archon: analyze . --json
+    Archon-->>AI: {domains, hotspots, cycles}
+    AI->>AI: Generate constrained plan
+
+    Note over AI,Repo: EXECUTE STAGE
+    AI->>Repo: Make scoped changes
+    AI->>AI: Respect boundaries from context
+
+    Note over AI,Archon: REVIEW STAGE
+    AI->>Archon: diff main HEAD . --ci
+    Archon-->>AI: {violations, gate_status}
+
+    alt Gate: PASS
+        AI->>Repo: Commit changes
+    else Gate: BLOCKED
+        AI->>AI: Fix violations
+    end
+```
+
+---
+
+## Key Properties
+
+- **Constrained AI behavior** — not free-form generation
+- **Architecture-aware context injection**
+- **Plan → Execute → Verify loop**
+- **Diff-level structural review**
+- **Deterministic validation on top of probabilistic models**
+
+---
+
+## Multi-Language Support
+
+| Language | Parser | Status |
 |----------|--------|--------|
-| Java | JavaParser-based | Built-in |
+| Java | Reflection-based | Built-in |
 | JavaScript/TypeScript | Closure Compiler | Built-in |
-| Python | Regex-based import parser | Built-in |
+| Python | Import parser | Built-in |
 | Vue | SFC script extraction | Built-in |
 
-### Analysis Capabilities
+---
 
-- **Cycle Detection** — Find circular dependencies
-- **Hotspot Analysis** — Identify high-coupling nodes
-- **Domain Detection** — Automatic domain assignment
-- **Blind Spot Reporting** — Flag dynamic patterns (reflection, EventBus)
-- **Risk Scoring** — Quantitative risk assessment (LOW/MEDIUM/HIGH/VERY_HIGH/BLOCKED)
+## Use Cases
 
-### CLI Commands
+- Large monorepo refactoring
+- Service boundary cleanup
+- Dependency cycle removal
+- Gradual architecture migration
+- AI-assisted code review augmentation
+
+---
+
+## CLI Commands
 
 ```
 archon view <path> [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
@@ -106,38 +272,7 @@ archon check <path> [--ci]
 archon diff <base> <head> <path> [--ci] [--depth N] [--view]
 ```
 
-## Architecture
-
-### Modules
-
-```
-archon-core/     — Language-agnostic graph model, analysis engines, SPI
-archon-java/     — Java parser plugin
-archon-js/       — JavaScript/TypeScript parser plugin
-archon-python/   — Python import parser plugin
-archon-viz/      — Web visualization and export formats
-archon-cli/      — CLI with shadow JAR packaging
-archon-test/     — Shared test fixtures
-```
-
-### Design Principles
-
-1. **Deterministic First** — Static analysis only. LLMs assist but never modify dependency graphs.
-2. **Declare Uncertainty** — Dynamic patterns are flagged as blind spots, not silently ignored.
-3. **Human-in-the-loop** — The tool provides assessment; humans make decisions.
-4. **Taste → Constraint** — Engineering judgments crystallize into enforceable rules.
-
-## Building
-
-```bash
-# Run all tests
-./gradlew test
-
-# Build shadow JAR
-./gradlew shadowJar
-
-# Output: archon-cli/build/libs/archon-0.5.0.0.jar
-```
+---
 
 ## Configuration
 
@@ -159,6 +294,45 @@ domains:
     - ".*\\.service\\..*"
 ```
 
+---
+
+## Design Philosophy
+
+- Structure is more important than code
+- Constraints improve model reliability
+- AI should operate inside a system, not replace it
+- Refactoring is a controlled transformation process, not a creative act
+
+---
+
+## Architecture
+
+```
+archon-core/     — Language-agnostic graph model, analysis engines, SPI
+archon-java/     — Java parser plugin
+archon-js/       — JavaScript/TypeScript parser plugin
+archon-python/   — Python import parser plugin
+archon-viz/      — Web visualization and export formats
+archon-cli/      — CLI with shadow JAR packaging
+archon-test/     — Shared test fixtures
+```
+
+---
+
+## Building
+
+```bash
+# Run all tests
+./gradlew test
+
+# Build shadow JAR
+./gradlew shadowJar
+
+# Output: archon-cli/build/libs/archon-<version>.jar
+```
+
+---
+
 ## Roadmap
 
 - [x] v0.1 — CLI + basic analysis
@@ -166,7 +340,18 @@ domains:
 - [x] v0.3 — Multi-language SPI
 - [x] v0.4 — Security hardening + Vue support
 - [x] v0.5 — Visualization (web UI)
-- [ ] v0.6 — Cross-language edge detection (Java REST ↔ JS HTTP)
+- [ ] v0.6 — Cross-language edge detection
+- [ ] v1.0 — Full AI-refactoring pipeline integration
+
+---
+
+## Status
+
+Experimental / early-stage system design
+
+Not a coding assistant — a **code evolution control system**
+
+---
 
 ## Contributing
 
@@ -182,5 +367,6 @@ The web viewer adapts the approach of [oh-my-mermaid](https://github.com/oh-my-m
 
 ## Links
 
+- [skill.md](skill.md) — AI agent integration guide
 - [CHANGELOG.md](CHANGELOG.md) — Version history
 - [TODOS.md](TODOS.md) — Deferred work
