@@ -52,6 +52,9 @@ public class AnalyzeCommand implements Callable<Integer> {
     @Option(names = "--verbose", description = "Show detailed parsing logs")
     private boolean verbose;
 
+    @Option(names = "--quiet", description = "Suppress progress messages (errors still shown)")
+    private boolean quiet;
+
     @Override
     public Integer call() {
         Path root = Path.of(projectPath);
