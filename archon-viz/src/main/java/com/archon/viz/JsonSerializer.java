@@ -291,6 +291,23 @@ public class JsonSerializer {
         return Math.min(1.0, Math.log(total + 1) / Math.log(100));
     }
 
+    /**
+     * Calculate risk level based on raw fan counts (Tier 1).
+     *
+     * Tier 1 uses simple thresholds on raw dependency counts:
+     * - High risk: >20 dependencies (fanIn or fanOut)
+     * - Medium risk: >10 dependencies
+     * - Low risk: ≤10 dependencies
+     *
+     * This is a fast heuristic that doesn't require centrality computation.
+     * For Tier 2, see calculateRiskLevelFromCentrality() which uses
+     * normalized centrality metrics.
+     *
+     * @param nodeId Node to calculate risk for
+     * @param inDegreeCache Map of node IDs to in-degrees (dependents)
+     * @param outDegreeCache Map of node IDs to out-degrees (dependencies)
+     * @return "high", "medium", or "low"
+     */
     private String calculateRiskLevel(String nodeId, Map<String, Integer> inDegreeCache, Map<String, Integer> outDegreeCache) {
         int fanIn = inDegreeCache.get(nodeId);
         int fanOut = outDegreeCache.get(nodeId);
@@ -383,6 +400,27 @@ public class JsonSerializer {
         }
     }
 
+    /**
+     * Calculate risk level based on centrality metrics (Tier 2).
+     *
+     * Tier 2 uses weighted combination of normalized centrality metrics:
+     * - PageRank (50% weight): measures global importance
+     * - Betweenness (30% weight): measures control over information flow
+     * - Closeness (20% weight): measures reachability
+     *
+     * Thresholds:
+     * - High risk: combined score >0.7
+     * - Medium risk: combined score >0.3
+     * - Low risk: combined score ≤0.3
+     *
+     * This is more accurate than Tier 1 but requires O(V²) computation.
+     * Results may differ from Tier 1 for the same node due to different
+     * metrics (raw counts vs normalized centrality).
+     *
+     * @param nodeId Node to calculate risk for
+     * @param fullAnalysis Full analysis data containing centrality metrics
+     * @return "high", "medium", or "low"
+     */
     private String calculateRiskLevelFromCentrality(String nodeId, FullAnalysisData fullAnalysis) {
         double pageRank = fullAnalysis.getPageRank().getOrDefault(nodeId, 0.0);
         double betweenness = fullAnalysis.getBetweenness().getOrDefault(nodeId, 0.0);
