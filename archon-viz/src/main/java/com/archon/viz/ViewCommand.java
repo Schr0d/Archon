@@ -2,6 +2,7 @@ package com.archon.viz;
 
 import com.archon.core.analysis.AnalysisPipeline;
 import com.archon.core.analysis.AnalysisResult;
+import com.archon.core.analysis.CentralityCalculator;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -24,6 +25,12 @@ public class ViewCommand implements Callable<Integer> {
     @Option(names = {"--format"}, description = "Output format: text or json (default: text)")
     String format = "text";
 
+    @Option(names = {"--with-metadata"}, description = "Include metadata field for AI integration (opt-in)")
+    boolean withMetadata = false;
+
+    @Option(names = {"--with-full-analysis"}, description = "Include full analysis metrics in metadata (PageRank, betweenness, closeness, etc.)")
+    boolean withFullAnalysis = false;
+
     @Option(names = {"--export"}, description = "Export to static HTML file (no server)")
     String exportFile;
 
@@ -38,10 +45,23 @@ public class ViewCommand implements Callable<Integer> {
         // Parse the project using shared pipeline
         AnalysisResult result = AnalysisPipeline.run(Paths.get(path));
 
+        // Compute full analysis if requested (Tier 2)
+        JsonSerializer.FullAnalysisData fullAnalysis = null;
+        if (withFullAnalysis) {
+            CentralityCalculator calculator = new CentralityCalculator(result.graph());
+            fullAnalysis = new JsonSerializer.FullAnalysisData(
+                calculator.computePageRank(),
+                calculator.computeBetweenness(),
+                calculator.computeCloseness(),
+                calculator.computeConnectedComponents(),
+                calculator.findBridges()
+            );
+        }
+
         // Serialize graph data
         JsonSerializer serializer = new JsonSerializer();
         String graphJson = serializer.toJson(result.graph(), result.domains(),
-            result.cycles(), result.hotspots(), result.blindSpots());
+            result.cycles(), result.hotspots(), result.blindSpots(), withMetadata, fullAnalysis);
 
         // Handle --export flag (static HTML)
         if (exportFile != null) {

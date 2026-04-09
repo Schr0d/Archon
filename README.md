@@ -109,28 +109,64 @@ Archon is designed to be called by AI agents during the development loop. Here's
 
 ### Stage 1: Plan — AI Gets Architectural Context
 
+Archon provides three output tiers for AI integration:
+
+#### Tier 1: Default Output (Lightweight)
 ```bash
-# Agent runs analysis before proposing changes
-$ java -jar archon.jar analyze . --json > archon-context.json
+# Basic JSON output with graph structure
+$ java -jar archon.jar view . --format json
 ```
 
-The AI agent receives:
+#### Tier 2: Full Analysis (AI-Enhanced Metadata)
+```bash
+# Include metadata field with impact scores, risk levels, and issue flags
+$ java -jar archon.jar view . --format json --with-metadata
+
+# Include full centrality metrics (PageRank, betweenness, closeness, etc.)
+$ java -jar archon.jar view . --format json --with-metadata --with-full-analysis
+```
+
+#### Tier 3: On-Demand Query
+```bash
+# Query specific metrics for specific nodes (coming soon)
+$ java -jar archon.jar query --centrality com.example.MyClass
+```
+
+**JSON Schema (Tier 2 with --with-full-analysis):**
 
 ```json
 {
-  "domains": [
-    {"name": "core", "nodes": 45, "boundaries": ["com.archon.core.*"]},
-    {"name": "java", "nodes": 12, "boundaries": ["com.archon.java.*"]},
-    {"name": "cli", "nodes": 8, "boundaries": ["com.archon.cli.*"]}
+  "$schema": "archon-metadata-v1",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "com.archon.core.graph.DependencyGraph",
+      "domain": "core",
+      "inDegree": 18,
+      "outDegree": 3,
+      "metadata": {
+        "metrics": {
+          "fanIn": 18,
+          "fanOut": 3,
+          "pageRank": 0.087,
+          "betweenness": 0.034,
+          "closeness": 0.125,
+          "impactScore": 0.087,
+          "riskLevel": "medium"
+        },
+        "issues": {
+          "hotspot": true,
+          "cycle": false,
+          "blindSpots": [],
+          "bridge": false
+        }
+      }
+    }
   ],
-  "hotspots": [
-    {"node": "com.archon.core.graph.DependencyGraph", "inDegree": 18, "risk": "HIGH"},
-    {"node": "com.archon.core.plugin.LanguagePlugin", "inDegree": 7, "risk": "MEDIUM"}
-  ],
-  "cycles": [],
-  "blindSpots": [
-    {"type": "CommonJS", "count": 624, "file": "archon-viz/src/main/resources/lib/dagre.min"}
-  ]
+  "fullAnalysis": {
+    "connectedComponents": 1,
+    "bridges": []
+  }
 }
 ```
 
@@ -139,6 +175,8 @@ The AI agent receives:
 - Respect domain boundaries
 - Stay within safe change surfaces
 - Declare uncertainty for blind spots
+- **NEW:** Use centrality metrics to identify critical nodes (high PageRank = high impact)
+- **NEW:** Understand bridge nodes (removal increases fragmentation)
 
 ---
 
