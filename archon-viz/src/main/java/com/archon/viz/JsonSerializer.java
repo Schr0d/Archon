@@ -287,8 +287,18 @@ public class JsonSerializer {
     private ArrayNode getBlindSpotsForNode(String nodeId, List<BlindSpot> blindSpots) {
         ArrayNode nodeBlindSpots = mapper.createArrayNode();
         for (BlindSpot bs : blindSpots) {
-            // Match blind spots to nodes by location/pattern
-            if (bs.getLocation() != null && bs.getLocation().contains(nodeId)) {
+            String location = bs.getLocation();
+            if (location == null) {
+                continue;
+            }
+
+            // Exact match: blind spot location exactly equals node ID
+            // Prefix match: blind spot location + "." is a prefix of node ID
+            // This prevents false positives like "com.example.Foo" matching "com.example.FooHelper"
+            boolean matches = nodeId.equals(location) ||
+                              nodeId.startsWith(location + ".");
+
+            if (matches) {
                 nodeBlindSpots.add(bs.getType());
             }
         }

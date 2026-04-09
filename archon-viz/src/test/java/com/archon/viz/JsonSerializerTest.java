@@ -379,4 +379,108 @@ class JsonSerializerTest {
         assertTrue(exception.getMessage().contains("com.example.C"),
             "Error message should include the missing node ID");
     }
+
+    @Test
+    void testGetBlindSpotsForNodeExactMatch() throws Exception {
+        // Given: JsonSerializer with blind spots at "com.example.Foo" and "com.example.Bar"
+        JsonSerializer serializer = new JsonSerializer();
+
+        List<BlindSpot> blindSpots = List.of(
+            new BlindSpot("CommonJS", "com.example.Foo", "test"),
+            new BlindSpot("CommonJS", "com.example.Bar", "test")
+        );
+
+        // Test Case 1: Node "com.example.Foo" should match blind spot "com.example.Foo" (exact match)
+        DependencyGraph.MutableBuilder builder1 = new DependencyGraph.MutableBuilder();
+        builder1.addNode(Node.builder()
+            .id("com.example.Foo")
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+
+        DependencyGraph graph1 = builder1.build();
+
+        String json1 = serializer.toJson(
+            graph1,
+            Map.of("com.example.Foo", "CORE"),
+            List.of(),
+            List.of(),
+            blindSpots,
+            true
+        );
+
+        // Parse JSON and verify blind spots match
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root1 = mapper.readTree(json1);
+        JsonNode node1 = root1.get("nodes").get(0);
+        JsonNode issues1 = node1.get("metadata").get("issues");
+        JsonNode nodeBlindSpots1 = issues1.get("blindSpots");
+
+        // Should contain 1 blind spot (exact match)
+        assertTrue(nodeBlindSpots1.isArray());
+        assertEquals(1, nodeBlindSpots1.size());
+        assertEquals("CommonJS", nodeBlindSpots1.get(0).asText());
+
+        // Test Case 2: Node "com.example.FooHelper" should NOT match blind spot "com.example.Foo"
+        // This demonstrates the need for exact/prefix matching instead of substring matching
+        DependencyGraph.MutableBuilder builder2 = new DependencyGraph.MutableBuilder();
+        builder2.addNode(Node.builder()
+            .id("com.example.FooHelper")
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+
+        DependencyGraph graph2 = builder2.build();
+
+        String json2 = serializer.toJson(
+            graph2,
+            Map.of("com.example.FooHelper", "CORE"),
+            List.of(),
+            List.of(),
+            blindSpots,
+            true
+        );
+
+        // Parse JSON and verify blind spots
+        JsonNode root2 = mapper.readTree(json2);
+        JsonNode node2 = root2.get("nodes").get(0);
+        JsonNode issues2 = node2.get("metadata").get("issues");
+        JsonNode nodeBlindSpots2 = issues2.get("blindSpots");
+
+        // Should be empty (no match - "com.example.Foo" should not match "com.example.FooHelper")
+        assertTrue(nodeBlindSpots2.isArray());
+        assertEquals(0, nodeBlindSpots2.size(),
+            "Node 'com.example.FooHelper' should not match blind spot 'com.example.Foo' to avoid false positives");
+
+        // Test Case 3: Node "com.example.Foo.Utils" should match blind spot "com.example.Foo" (prefix match)
+        DependencyGraph.MutableBuilder builder3 = new DependencyGraph.MutableBuilder();
+        builder3.addNode(Node.builder()
+            .id("com.example.Foo.Utils")
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+
+        DependencyGraph graph3 = builder3.build();
+
+        String json3 = serializer.toJson(
+            graph3,
+            Map.of("com.example.Foo.Utils", "CORE"),
+            List.of(),
+            List.of(),
+            blindSpots,
+            true
+        );
+
+        // Parse JSON and verify blind spots
+        JsonNode root3 = mapper.readTree(json3);
+        JsonNode node3 = root3.get("nodes").get(0);
+        JsonNode issues3 = node3.get("metadata").get("issues");
+        JsonNode nodeBlindSpots3 = issues3.get("blindSpots");
+
+        // Should contain 1 blind spot (prefix match)
+        assertTrue(nodeBlindSpots3.isArray());
+        assertEquals(1, nodeBlindSpots3.size(),
+            "Node 'com.example.Foo.Utils' should match blind spot 'com.example.Foo' (prefix match with dot)");
+        assertEquals("CommonJS", nodeBlindSpots3.get(0).asText());
+    }
 }
