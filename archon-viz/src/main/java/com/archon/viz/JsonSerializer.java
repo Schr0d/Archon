@@ -6,6 +6,7 @@ import com.archon.core.plugin.BlindSpot;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,6 +17,10 @@ import java.util.Set;
 public class JsonSerializer {
     private static final String SCHEMA_VERSION = "archon-metadata-v1";
     private static final String OUTPUT_VERSION = "1.0.0";
+    private static final int RISK_HIGH_FAN_THRESHOLD = 20;
+    private static final int RISK_MEDIUM_FAN_THRESHOLD = 10;
+    private static final double RISK_HIGH_CENTRALITY_THRESHOLD = 0.7;
+    private static final double RISK_MEDIUM_CENTRALITY_THRESHOLD = 0.3;
     private final ObjectMapper mapper;
 
     public JsonSerializer() {
@@ -97,43 +102,16 @@ public class JsonSerializer {
         }
 
         // Serialize edges
-
-        // Serialize edges
-        ArrayNode edgesArray = root.putArray("edges");
-        for (String source : graph.getNodeIds()) {
-            for (String target : graph.getDependencies(source)) {
-                ObjectNode edgeObj = edgesArray.addObject();
-                edgeObj.put("source", source);
-                edgeObj.put("target", target);
-            }
-        }
+        serializeEdges(root, graph);
 
         // Serialize cycles
-        ArrayNode cyclesArray = root.putArray("cycles");
-        for (List<String> cycle : cycles) {
-            ArrayNode cycleArray = cyclesArray.addArray();
-            for (String nodeId : cycle) {
-                cycleArray.add(nodeId);
-            }
-        }
+        serializeCycles(root, cycles);
 
         // Serialize hotspots
-        ArrayNode hotspotsArray = root.putArray("hotspots");
-        for (Node hotspot : hotspots) {
-            ObjectNode hotspotObj = hotspotsArray.addObject();
-            hotspotObj.put("id", hotspot.getId());
-            hotspotObj.put("inDegree", hotspot.getInDegree());
-            hotspotObj.put("outDegree", hotspot.getOutDegree());
-        }
+        serializeHotspots(root, hotspots);
 
         // Serialize blind spots
-        ArrayNode blindSpotsArray = root.putArray("blindSpots");
-        for (BlindSpot blindSpot : blindSpots) {
-            ObjectNode bsObj = blindSpotsArray.addObject();
-            bsObj.put("type", blindSpot.getType());
-            bsObj.put("location", blindSpot.getLocation());
-            bsObj.put("description", blindSpot.getDescription());
-        }
+        serializeBlindSpots(root, blindSpots);
 
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
@@ -199,6 +177,11 @@ public class JsonSerializer {
         root.put("$schema", SCHEMA_VERSION);
         root.put("version", OUTPUT_VERSION);
 
+        // Validate centrality maps contain all nodes
+        if (fullAnalysis != null) {
+            validateFullAnalysisData(graph, fullAnalysis);
+        }
+
         // Serialize nodes
         ArrayNode nodesArray = root.putArray("nodes");
         for (String nodeId : graph.getNodeIds()) {
@@ -241,51 +224,20 @@ public class JsonSerializer {
         }
 
         // Serialize edges
-        ArrayNode edgesArray = root.putArray("edges");
-        for (String source : graph.getNodeIds()) {
-            for (String target : graph.getDependencies(source)) {
-                ObjectNode edgeObj = edgesArray.addObject();
-                edgeObj.put("source", source);
-                edgeObj.put("target", target);
-            }
-        }
+        serializeEdges(root, graph);
 
         // Serialize cycles
-        ArrayNode cyclesArray = root.putArray("cycles");
-        for (List<String> cycle : cycles) {
-            ArrayNode cycleArray = cyclesArray.addArray();
-            for (String nodeId : cycle) {
-                cycleArray.add(nodeId);
-            }
-        }
+        serializeCycles(root, cycles);
 
         // Serialize hotspots
-        ArrayNode hotspotsArray = root.putArray("hotspots");
-        for (Node hotspot : hotspots) {
-            ObjectNode hotspotObj = hotspotsArray.addObject();
-            hotspotObj.put("id", hotspot.getId());
-            hotspotObj.put("inDegree", hotspot.getInDegree());
-            hotspotObj.put("outDegree", hotspot.getOutDegree());
-        }
+        serializeHotspots(root, hotspots);
 
         // Serialize blind spots
-        ArrayNode blindSpotsArray = root.putArray("blindSpots");
-        for (BlindSpot blindSpot : blindSpots) {
-            ObjectNode bsObj = blindSpotsArray.addObject();
-            bsObj.put("type", blindSpot.getType());
-            bsObj.put("location", blindSpot.getLocation());
-            bsObj.put("description", blindSpot.getDescription());
-        }
+        serializeBlindSpots(root, blindSpots);
 
         // Serialize full analysis metadata if available
         if (fullAnalysis != null) {
-            ObjectNode analysis = root.putObject("fullAnalysis");
-            analysis.put("connectedComponents", fullAnalysis.getConnectedComponents());
-
-            ArrayNode bridgesArray = analysis.putArray("bridges");
-            for (String bridge : fullAnalysis.getBridges()) {
-                bridgesArray.add(bridge);
-            }
+            serializeFullAnalysis(root, fullAnalysis);
         }
 
         try {
@@ -319,8 +271,8 @@ public class JsonSerializer {
         int fanOut = graph.getDependencies(nodeId).size();
 
         // Simple heuristic thresholds for Tier 1
-        if (fanIn > 20 || fanOut > 20) return "high";
-        if (fanIn > 10 || fanOut > 10) return "medium";
+        if (fanIn > RISK_HIGH_FAN_THRESHOLD || fanOut > RISK_HIGH_FAN_THRESHOLD) return "high";
+        if (fanIn > RISK_MEDIUM_FAN_THRESHOLD || fanOut > RISK_MEDIUM_FAN_THRESHOLD) return "medium";
         return "low";
     }
 
@@ -343,6 +295,59 @@ public class JsonSerializer {
         return nodeBlindSpots;
     }
 
+    // Helper methods for DRY serialization
+
+    private void serializeEdges(ObjectNode root, DependencyGraph graph) {
+        ArrayNode edgesArray = root.putArray("edges");
+        for (String source : graph.getNodeIds()) {
+            for (String target : graph.getDependencies(source)) {
+                ObjectNode edgeObj = edgesArray.addObject();
+                edgeObj.put("source", source);
+                edgeObj.put("target", target);
+            }
+        }
+    }
+
+    private void serializeCycles(ObjectNode root, List<List<String>> cycles) {
+        ArrayNode cyclesArray = root.putArray("cycles");
+        for (List<String> cycle : cycles) {
+            ArrayNode cycleArray = cyclesArray.addArray();
+            for (String nodeId : cycle) {
+                cycleArray.add(nodeId);
+            }
+        }
+    }
+
+    private void serializeHotspots(ObjectNode root, List<Node> hotspots) {
+        ArrayNode hotspotsArray = root.putArray("hotspots");
+        for (Node hotspot : hotspots) {
+            ObjectNode hotspotObj = hotspotsArray.addObject();
+            hotspotObj.put("id", hotspot.getId());
+            hotspotObj.put("inDegree", hotspot.getInDegree());
+            hotspotObj.put("outDegree", hotspot.getOutDegree());
+        }
+    }
+
+    private void serializeBlindSpots(ObjectNode root, List<BlindSpot> blindSpots) {
+        ArrayNode blindSpotsArray = root.putArray("blindSpots");
+        for (BlindSpot blindSpot : blindSpots) {
+            ObjectNode bsObj = blindSpotsArray.addObject();
+            bsObj.put("type", blindSpot.getType());
+            bsObj.put("location", blindSpot.getLocation());
+            bsObj.put("description", blindSpot.getDescription());
+        }
+    }
+
+    private void serializeFullAnalysis(ObjectNode root, FullAnalysisData fullAnalysis) {
+        ObjectNode analysis = root.putObject("fullAnalysis");
+        analysis.put("connectedComponents", fullAnalysis.getConnectedComponents());
+
+        ArrayNode bridgesArray = analysis.putArray("bridges");
+        for (String bridge : fullAnalysis.getBridges()) {
+            bridgesArray.add(bridge);
+        }
+    }
+
     private String calculateRiskLevelFromCentrality(String nodeId, FullAnalysisData fullAnalysis) {
         double pageRank = fullAnalysis.getPageRank().getOrDefault(nodeId, 0.0);
         double betweenness = fullAnalysis.getBetweenness().getOrDefault(nodeId, 0.0);
@@ -351,9 +356,58 @@ public class JsonSerializer {
         // Combine centrality metrics for better risk assessment
         double combined = (pageRank * 0.5) + (betweenness * 0.3) + (closeness * 0.2);
 
+        // Clamp to [0, 1] to handle edge cases in dense graphs
+        combined = Math.max(0.0, Math.min(1.0, combined));
+
         // Tier 2 thresholds based on centrality
         if (combined > 0.7) return "high";
         if (combined > 0.3) return "medium";
         return "low";
+    }
+
+    /**
+     * Validates that centrality maps contain all nodes in the graph.
+     * Throws IllegalStateException if any nodes are missing.
+     */
+    private void validateFullAnalysisData(DependencyGraph graph, FullAnalysisData fullAnalysis) {
+        // Defensive null check: ensures validation safety even if caller logic changes
+        if (fullAnalysis == null) {
+            return;
+        }
+
+        Set<String> graphNodes = new HashSet<>(graph.getNodeIds());
+
+        // Check PageRank contains all nodes
+        Set<String> missingPageRank = new HashSet<>(graphNodes);
+        missingPageRank.removeAll(fullAnalysis.getPageRank().keySet());
+        if (!missingPageRank.isEmpty()) {
+            throw new IllegalStateException(
+                "PageRank missing " + missingPageRank.size() + " nodes: " +
+                missingPageRank.stream().limit(5).collect(java.util.stream.Collectors.joining(", ")) +
+                (missingPageRank.size() > 5 ? "..." : "")
+            );
+        }
+
+        // Check betweenness contains all nodes
+        Set<String> missingBetweenness = new HashSet<>(graphNodes);
+        missingBetweenness.removeAll(fullAnalysis.getBetweenness().keySet());
+        if (!missingBetweenness.isEmpty()) {
+            throw new IllegalStateException(
+                "Betweenness missing " + missingBetweenness.size() + " nodes: " +
+                missingBetweenness.stream().limit(5).collect(java.util.stream.Collectors.joining(", ")) +
+                (missingBetweenness.size() > 5 ? "..." : "")
+            );
+        }
+
+        // Check closeness contains all nodes
+        Set<String> missingCloseness = new HashSet<>(graphNodes);
+        missingCloseness.removeAll(fullAnalysis.getCloseness().keySet());
+        if (!missingCloseness.isEmpty()) {
+            throw new IllegalStateException(
+                "Closeness missing " + missingCloseness.size() + " nodes: " +
+                missingCloseness.stream().limit(5).collect(java.util.stream.Collectors.joining(", ")) +
+                (missingCloseness.size() > 5 ? "..." : "")
+            );
+        }
     }
 }
