@@ -3,6 +3,7 @@ package com.archon.core.analysis;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -44,7 +45,7 @@ public class CentralityCalculator {
             double convergenceThreshold) {
 
         if (nodeCount == 0) {
-            return Map.of();
+            return Collections.emptyMap();
         }
 
         // Initialize equal scores
@@ -58,7 +59,10 @@ public class CentralityCalculator {
         for (int iter = 0; iter < iterations; iter++) {
             Map<String, Double> newPageRank = new HashMap<>();
             double maxChange = 0.0;
+
+            // Kahan summation for floating-point precision with large graphs
             double totalScore = 0.0;
+            double compensation = 0.0; // Kahan compensation term
 
             for (String nodeId : graph.getNodeIds()) {
                 double score = (1 - dampingFactor) / nodeCount;
@@ -72,7 +76,12 @@ public class CentralityCalculator {
                 }
 
                 newPageRank.put(nodeId, score);
-                totalScore += score;
+
+                // Kahan summation: totalScore += score with reduced floating-point error
+                double y = score - compensation;
+                double t = totalScore + y;
+                compensation = (t - totalScore) - y;
+                totalScore = t;
 
                 double change = Math.abs(score - pageRank.get(nodeId));
                 maxChange = Math.max(maxChange, change);
@@ -116,7 +125,18 @@ public class CentralityCalculator {
      */
     public Map<String, Double> computeBetweenness() {
         if (nodeCount == 0) {
-            return Map.of();
+            return Collections.emptyMap();
+        }
+
+        // DoS protection: reject overly dense graphs where O(V*E) becomes prohibitive
+        // Threshold: E > V * log(V) indicates dense graph that could hang computation
+        int edgeCount = graph.edgeCount();
+        if (edgeCount > nodeCount * (Math.log(nodeCount) + 1)) {
+            throw new IllegalStateException(
+                "Graph too dense for betweenness computation: " + nodeCount + " nodes, " +
+                edgeCount + " edges. This would require O(" + (nodeCount * edgeCount) +
+                ") operations. Consider using a smaller graph or disabling --with-full-analysis."
+            );
         }
 
         // Cache node IDs to avoid repeated calls
@@ -195,16 +215,19 @@ public class CentralityCalculator {
         }
 
         // Normalize to 0-1 range
-        double maxBetweenness = betweenness.values().stream().max(Double::compare).orElse(1.0);
-        if (maxBetweenness > 0) {
-            Map<String, Double> normalized = new HashMap<>();
-            for (Map.Entry<String, Double> entry : betweenness.entrySet()) {
-                normalized.put(entry.getKey(), entry.getValue() / maxBetweenness);
-            }
-            return normalized;
+        double maxBetweenness = betweenness.values().stream().max(Double::compare).orElse(0.0);
+
+        // Handle edge case: all betweenness values are 0 (can happen in star topologies or source/sink graphs)
+        // Return the original map with 0 values - this is mathematically correct for such graphs
+        if (maxBetweenness == 0.0) {
+            return betweenness;
         }
 
-        return betweenness;
+        Map<String, Double> normalized = new HashMap<>();
+        for (Map.Entry<String, Double> entry : betweenness.entrySet()) {
+            normalized.put(entry.getKey(), entry.getValue() / maxBetweenness);
+        }
+        return normalized;
     }
 
     /**
@@ -220,7 +243,7 @@ public class CentralityCalculator {
      */
     public Map<String, Double> computeCloseness() {
         if (nodeCount == 0) {
-            return Map.of();
+            return Collections.emptyMap();
         }
 
         Map<String, Double> closeness = new HashMap<>();
@@ -333,10 +356,10 @@ public class CentralityCalculator {
         // Run DFS from each unvisited node (handles disconnected graphs)
         for (String startNode : graph.getNodeIds()) {
             if (!visited.contains(startNode)) {
-                // Iterative DFS using explicit stack
-                // Stack frame: [node, edgeFrom, state, neighborIndex]
-                java.util.Stack<Object[]> stack = new java.util.Stack<>();
-                stack.push(new Object[]{startNode, null, 0, -1});
+                // Iterative DFS using ArrayDeque (more memory-efficient than Stack)
+                // Stack frame: [node, edgeFrom, state]
+                java.util.ArrayDeque<Object[]> stack = new java.util.ArrayDeque<>();
+                stack.push(new Object[]{startNode, null, 0});
 
                 while (!stack.isEmpty()) {
                     Object[] frame = stack.peek();
@@ -366,7 +389,7 @@ public class CentralityCalculator {
                         for (String v : neighbors) {
                             if (!visited.contains(v)) {
                                 parent.put(v, u);
-                                stack.push(new Object[]{v, u, 0, -1});
+                                stack.push(new Object[]{v, u, 0});
                             } else if (!v.equals(edgeFrom)) {
                                 // Update low value for back edge
                                 low.put(u, Math.min(low.get(u), disc.get(v)));

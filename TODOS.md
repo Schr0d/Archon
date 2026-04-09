@@ -44,3 +44,14 @@
 - **Cons:** Small projects may not expose all edge cases (large monorepos, complex relative imports, etc.).
 - **Context:** Design step 8 includes "Test on real Python codebase." This TODO captures the validation target explicitly. Similar to TODO #6 for JS/TS.
 - **Depends on:** archon-python module must parse basic Python first.
+
+## 6. BUG: AnalyzeCommand JSON output not implemented
+- **What:** `AnalyzeCommand` defines `--json`, `--with-metadata`, `--with-full-analysis` flags but doesn't implement JSON output. Flags are parsed but never used.
+- **Why:** User confusion — flags exist in help text but do nothing. Found during integration testing.
+- **Status:** BUG — Needs fix
+- **Workaround:** Use `view --format json --with-full-analysis --with-metadata` instead
+- **Fix options:**
+  1. Implement JSON output in AnalyzeCommand (add JsonSerializer call)
+  2. Remove unused flags to avoid confusion
+- **Context:** Testing specialist found "CLI flags have no integration test verifying execution behavior" — this test would have caught the bug.
+- **File:** `archon-cli/src/main/java/com/archon/cli/AnalyzeCommand.java`
