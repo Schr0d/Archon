@@ -1,5 +1,6 @@
 package com.archon.viz;
 
+import com.archon.core.analysis.FullAnalysisData;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Node;
 import com.archon.core.plugin.BlindSpot;
@@ -150,36 +151,6 @@ public class JsonSerializer {
     }
 
     /**
-     * Full analysis data for Tier 2 output.
-     */
-    public static class FullAnalysisData {
-        private final Map<String, Double> pageRank;
-        private final Map<String, Double> betweenness;
-        private final Map<String, Double> closeness;
-        private final int connectedComponents;
-        private final Set<String> bridges;
-
-        public FullAnalysisData(
-                Map<String, Double> pageRank,
-                Map<String, Double> betweenness,
-                Map<String, Double> closeness,
-                int connectedComponents,
-                Set<String> bridges) {
-            this.pageRank = pageRank;
-            this.betweenness = betweenness;
-            this.closeness = closeness;
-            this.connectedComponents = connectedComponents;
-            this.bridges = bridges;
-        }
-
-        public Map<String, Double> getPageRank() { return pageRank; }
-        public Map<String, Double> getBetweenness() { return betweenness; }
-        public Map<String, Double> getCloseness() { return closeness; }
-        public int getConnectedComponents() { return connectedComponents; }
-        public Set<String> getBridges() { return bridges; }
-    }
-
-    /**
      * Convert analysis results to JSON string with optional full analysis.
      *
      * @param graph Dependency graph
@@ -201,7 +172,7 @@ public class JsonSerializer {
         List<Node> hotspots,
         List<BlindSpot> blindSpots,
         boolean withMetadata,
-        FullAnalysisData fullAnalysis
+        com.archon.core.analysis.FullAnalysisData fullAnalysis
     ) {
         ObjectNode root = mapper.createObjectNode();
 
@@ -409,7 +380,7 @@ public class JsonSerializer {
         }
     }
 
-    private void serializeFullAnalysis(ObjectNode root, FullAnalysisData fullAnalysis) {
+    private void serializeFullAnalysis(ObjectNode root, com.archon.core.analysis.FullAnalysisData fullAnalysis) {
         ObjectNode analysis = root.putObject("fullAnalysis");
         analysis.put("connectedComponents", fullAnalysis.getConnectedComponents());
 
@@ -440,7 +411,7 @@ public class JsonSerializer {
      * @param fullAnalysis Full analysis data containing centrality metrics
      * @return "high", "medium", or "low"
      */
-    private String calculateRiskLevelFromCentrality(String nodeId, FullAnalysisData fullAnalysis) {
+    private String calculateRiskLevelFromCentrality(String nodeId, com.archon.core.analysis.FullAnalysisData fullAnalysis) {
         double pageRank = fullAnalysis.getPageRank().getOrDefault(nodeId, 0.0);
         double betweenness = fullAnalysis.getBetweenness().getOrDefault(nodeId, 0.0);
         double closeness = fullAnalysis.getCloseness().getOrDefault(nodeId, 0.0);
@@ -461,7 +432,7 @@ public class JsonSerializer {
      * Validates that centrality maps contain all nodes in the graph.
      * Throws IllegalStateException if any nodes are missing.
      */
-    private void validateFullAnalysisData(DependencyGraph graph, FullAnalysisData fullAnalysis) {
+    private void validateFullAnalysisData(DependencyGraph graph, com.archon.core.analysis.FullAnalysisData fullAnalysis) {
         // Defensive null check: ensures validation safety even if caller logic changes
         if (fullAnalysis == null) {
             return;
@@ -514,7 +485,7 @@ public class JsonSerializer {
         private List<Node> hotspots = List.of();
         private List<BlindSpot> blindSpots = List.of();
         private boolean withMetadata = false;
-        private FullAnalysisData fullAnalysis = null;
+        private com.archon.core.analysis.FullAnalysisData fullAnalysis = null;
 
         public Builder(DependencyGraph graph) {
             this.graph = graph;
@@ -545,7 +516,7 @@ public class JsonSerializer {
             return this;
         }
 
-        public Builder fullAnalysis(FullAnalysisData fullAnalysis) {
+        public Builder fullAnalysis(com.archon.core.analysis.FullAnalysisData fullAnalysis) {
             this.fullAnalysis = fullAnalysis;
             return this;
         }

@@ -1,5 +1,6 @@
 package com.archon.viz;
 
+import com.archon.core.analysis.FullAnalysisData;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
@@ -97,7 +98,7 @@ class JsonSerializerTest {
         List<Node> hotspots = List.of();
         List<BlindSpot> blindSpots = List.of();
 
-        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
+        FullAnalysisData fullAnalysis = new FullAnalysisData(
             Map.of("com.example.Foo", 0.087),  // pageRank
             Map.of("com.example.Foo", 0.034),  // betweenness
             Map.of("com.example.Foo", 0.125),  // closeness
@@ -166,7 +167,7 @@ class JsonSerializerTest {
         Set<String> bridges = new HashSet<>();
 
         // When: constructing FullAnalysisData
-        JsonSerializer.FullAnalysisData data = new JsonSerializer.FullAnalysisData(
+        FullAnalysisData data = new FullAnalysisData(
             pageRank, betweenness, closeness, components, bridges
         );
 
@@ -358,7 +359,7 @@ class JsonSerializerTest {
         DependencyGraph graph = builder.build();
 
         // FullAnalysisData missing node C
-        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
+        FullAnalysisData fullAnalysis = new FullAnalysisData(
             Map.of("com.example.A", 0.5, "com.example.B", 0.3),  // Missing C
             Map.of("com.example.A", 0.2, "com.example.B", 0.1, "com.example.C", 0.0),
             Map.of("com.example.A", 0.4, "com.example.B", 0.2, "com.example.C", 0.1),
@@ -497,7 +498,7 @@ class JsonSerializerTest {
         DependencyGraph graph = builder.build();
         Map<String, String> domains = Map.of("com.example.Foo", "CORE");
 
-        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
+        FullAnalysisData fullAnalysis = new FullAnalysisData(
             Map.of("com.example.Foo", 0.5),
             Map.of("com.example.Foo", 0.3),
             Map.of("com.example.Foo", 0.7),

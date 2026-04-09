@@ -1,0 +1,376 @@
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #f5f5f5; --border: #ddd; --text: #1a1a1a; --text-mid: #666; --text-dim: #999;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'SF Mono', 'Fira Code', monospace;
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+.app-container { display: grid; grid-template-columns: 200px 1fr; height: 100vh; width: 100vw; }
+
+/* LEFT SIDEBAR - Real domain tree */
+#nav-sidebar {
+  background: #fff; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+#nav-title {
+  padding: 14px 16px; font-size: 14px; font-weight: 700; color: #1a1a1a;
+  font-family: var(--mono); border-bottom: 1px solid var(--border);
+}
+#nav-stats {
+  padding: 8px 16px; font-size: 10px; color: #999; border-bottom: 1px solid var(--border);
+}
+#nav-list { flex: 1; overflow-y: auto; }
+
+.tree-item { display: block; }
+.tree-label {
+  padding: 4px 16px 4px 0; font-size: 11px; color: #666; cursor: pointer;
+  white-space: nowrap; display: flex; align-items: center; gap: 6px;
+}
+.tree-label:hover { background: #f0f0f0; color: #1a1a1a; }
+.tree-label.active { background: #e8f5e9; color: #2e7d32; font-weight: 600; }
+.tree-domain { font-weight: 600; color: #444; padding-left: 12px; margin-top: 4px; font-size: 12px; }
+.tree-count { font-size: 9px; color: #999; margin-left: auto; }
+.tree-children { margin-left: 14px; }
+
+/* GRAPH CANVAS */
+#canvas-wrap {
+  position: relative; overflow: hidden;
+  background: #fff; background-image: radial-gradient(circle, #ddd 1px, transparent 1px);
+  background-size: 20px 20px; cursor: grab;
+}
+#canvas { position: absolute; }
+
+svg { display: block; overflow: visible; }
+.reg-node { cursor: pointer; transition: filter .12s; }
+.reg-node:hover { filter: brightness(1.05); }
+.nshape { fill: #fff; stroke: #666; stroke-width: 2px; rx: 4; }
+.nlabel { fill: #333; font-size: 11px; font-family: var(--font); font-weight: 500; pointer-events: none; }
+.edge-path { fill: none; stroke: #bbb; stroke-width: 1.5px; }
+.edge-arrow { fill: #999; }
+
+/* Domain colors - based on real archon structure */
+.domain-core .nshape { stroke: #2e7d32; fill: #f1f8f4; }
+.domain-java .nshape { stroke: #9c27b0; fill: #f3e5f5; }
+.domain-js .nshape { stroke: #f44336; fill: #ffebee; }
+.domain-python .nshape { stroke: #fbc02d; fill: #fffde7; }
+.domain-viz .nshape { stroke: #1976d2; fill: #e3f2fd; }
+.domain-cli .nshape { stroke: #607d8b; fill: #eceff1; }
+.domain-analysis .nshape { stroke: #00796b; fill: #e0f2f1; }
+
+/* Hotspot glow */
+.hotspot { filter: drop-shadow(0 0 4px rgba(46, 125, 50, 0.4)); }
+
+/* Breadcrumb */
+#breadcrumb {
+  position: absolute; top: 12px; left: 12px; z-index: 100;
+  background: rgba(255,255,255,0.95); padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); font-size: 12px; color: #666;
+  font-family: var(--mono); display: flex; align-items: center; gap: 6px;
+}
+.crumb { cursor: pointer; }
+.crumb:hover { color: #1a1a1a; text-decoration: underline; }
+.crumb-current { color: #1a1a1a; font-weight: 600; cursor: default; }
+.crumb-separator { color: #999; }
+
+/* Stats panel */
+#stats-panel {
+  position: absolute; bottom: 12px; left: 12px; right: 12px;
+  background: rgba(255,255,255,0.95); padding: 12px; border-radius: 6px;
+  border: 1px solid var(--border); font-size: 11px; color: #666;
+}
+.stat { display: inline-block; margin-right: 16px; }
+.stat strong { color: #1a1a1a; }
+</style>
+
+<div class="app-container">
+  <!-- LEFT SIDEBAR: Real Archon domain structure -->
+  <div id="nav-sidebar">
+    <div id="nav-title">Archon</div>
+    <div id="nav-stats">80 classes • 7 domains • 124 deps</div>
+    <div id="nav-list">
+      <!-- Core domain (biggest!) -->
+      <div class="tree-item">
+        <div class="tree-domain" data-view="core">
+          core <span class="tree-count">42</span>
+        </div>
+        <div class="tree-children" id="children-core">
+          <div class="tree-item">
+            <div class="tree-label" data-view="DependencyGraph">
+              → DependencyGraph <span class="tree-count" title="in-degree: 18">⭐</span>
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="GraphBuilder">
+              → GraphBuilder <span class="tree-count" title="in-degree: 6">6</span>
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="Node">
+              → Node <span class="tree-count" title="in-degree: 6">6</span>
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="Edge">
+              → Edge
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="EdgeType">
+              → EdgeType
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="NodeType">
+              → NodeType
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="GraphBuilder">
+              → GraphBuilder
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analysis domain -->
+      <div class="tree-item">
+        <div class="tree-domain" data-view="analysis">
+          analysis <span class="tree-count">17</span>
+        </div>
+        <div class="tree-children" id="children-analysis">
+          <div class="tree-item">
+            <div class="tree-label" data-view="DomainStrategy">
+              → DomainStrategy <span class="tree-count" title="in-degree: 8">8</span>
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="AnalysisPipeline">
+              → AnalysisPipeline
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="CouplingAnalyzer">
+              → CouplingAnalyzer
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="CycleDetector">
+              → CycleDetector
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="RiskScorer">
+              → RiskScorer
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plugin domain -->
+      <div class="tree-item">
+        <div class="tree-domain" data-view="plugin">
+          plugin <span class="tree-count">8</span>
+        </div>
+        <div class="tree-children" id="children-plugin">
+          <div class="tree-item">
+            <div class="tree-label" data-view="LanguagePlugin">
+              → LanguagePlugin <span class="tree-count" title="in-degree: 7">7</span>
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="ParseContext">
+              → ParseContext
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="ParseResult">
+              → ParseResult
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="BlindSpot">
+              → BlindSpot
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLI domain -->
+      <div class="tree-item">
+        <div class="tree-domain" data-view="cli">
+          cli <span class="tree-count">4</span>
+        </div>
+        <div class="tree-children" id="children-cli">
+          <div class="tree-item">
+            <div class="tree-label" data-view="ArchonCommandLine">
+              → ArchonCommandLine
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="ViewCommand">
+              → ViewCommand
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Viz domain -->
+      <div class="tree-item">
+        <div class="tree-domain" data-view="viz">
+          viz <span class="tree-count">4</span>
+        </div>
+        <div class="tree-children" id="children-viz">
+          <div class="tree-item">
+            <div class="tree-label" data-view="DotExporter">
+              → DotExporter
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="ViewServer">
+              → ViewServer
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="TerminalRenderer">
+              → TerminalRenderer
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="MermaidExporter">
+              → MermaidExporter
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Language plugins -->
+      <div class="tree-item">
+        <div class="tree-domain" data-view="java">
+          java <span class="tree-count">3</span>
+        </div>
+        <div class="tree-children" id="children-java">
+          <div class="tree-item">
+            <div class="tree-label" data-view="JavaPlugin">
+              → JavaPlugin
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="ReflectionParser">
+              → ReflectionParser
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tree-item">
+        <div class="tree-domain" data-view="javascript">
+          javascript <span class="tree-count">2</span>
+        </div>
+        <div class="tree-children" id="children-js">
+          <div class="tree-item">
+            <div class="tree-label" data-view="JsPlugin">
+              → JsPlugin
+            </div>
+          </div>
+          <div class="tree-item">
+            <div class="tree-label" data-view="ClosureParser">
+              → ClosureParser
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRAPH CANVAS: Domain-level view -->
+  <div id="canvas-wrap">
+    <!-- Breadcrumb -->
+    <div id="breadcrumb">
+      <span class="crumb-current">📊 All Domains</span>
+    </div>
+
+    <!-- Domain graph showing 7 domains and their relationships -->
+    <div id="view-root" class="graph-view">
+      <div id="canvas">
+        <svg width="800" height="450">
+          <!-- Edges between domains -->
+          <path class="edge-path" d="M150,180 L280,150" />
+          <path class="edge-path" d="M150,180 L280,200" />
+          <path class="edge-path" d="M150,180 L280,250" />
+          <path class="edge-path" d="M150,180 L280,300" />
+          <path class="edge-path" d="M150,180 L280,350" />
+          <path class="edge-path" d="M150,180 L450,180" />
+          <path class="edge-path" d="M280,200 L450,220" />
+
+          <!-- Core domain (42 classes, biggest) -->
+          <g class="reg-node domain-core hotspot" transform="translate(80, 160)">
+            <rect class="nshape" x="0" y="0" width="140" height="40" />
+            <text class="nlabel" x="70" y="25" text-anchor="middle">core</text>
+          </g>
+
+          <!-- Analysis domain (17 classes) -->
+          <g class="reg-node domain-analysis" transform="translate(200, 130)">
+            <rect class="nshape" x="0" y="0" width="160" height="40" />
+            <text class="nlabel" x="80" y="25" text-anchor="middle">analysis</text>
+          </g>
+
+          <!-- Plugin domain (8 classes) -->
+          <g class="reg-node domain-plugin" transform="translate(200, 180)">
+            <rect class="nshape" x="0" y="0" width="120" height="40" />
+            <text class="nlabel" x="60" y="25" text-anchor="middle">plugin</text>
+          </g>
+
+          <!-- CLI domain (4 classes) -->
+          <g class="reg-node domain-cli" transform="translate(200, 230)">
+            <rect class="nshape" x="0" y="0" width="80" height="40" />
+            <text class="nlabel" x="40" y="25" text-anchor="middle">cli</text>
+          </g>
+
+          <!-- Viz domain (4 classes) -->
+          <g class="reg-node domain-viz" transform="translate(200, 280)">
+            <rect class="nshape" x="0" y="0" width="80" height="40" />
+            <text class="nlabel" x="40" y="25" text-anchor="middle">viz</text>
+          </g>
+
+          <!-- Language plugins -->
+          <g class="reg-node domain-java" transform="translate(200, 330)">
+            <rect class="nshape" x="0" y="0" width="80" height="40" />
+            <text class="nlabel" x="40" y="25" text-anchor="middle">java</text>
+          </g>
+          <g class="reg-node domain-js" transform="translate(200, 380)">
+            <rect class="nshape" x="0" y="0" width="80" height="40" />
+            <text class="nlabel" x="40" y="25" text-anchor="middle">javascript</text>
+          </g>
+
+          <!-- Viz separately (connected to core) -->
+          <g class="reg-node domain-viz" transform="translate(390, 160)">
+            <rect class="nshape" x="0" y="0" width="80" height="40" />
+            <text class="nlabel" x="40" y="25" text-anchor="middle">viz</text>
+          </g>
+        </svg>
+      </div>
+      <div id="stats-panel">
+        <span class="stat"><strong>80 classes</strong> across 7 domains</span>
+        <span class="stat">•</span>
+        <span class="stat"><strong>124 dependencies</strong> total</span>
+        <span class="stat">•</span>
+        <span class="stat">Hotspot: DependencyGraph (18 in-deg)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Click navigation to show item would link to detailed view
+document.querySelectorAll('[data-view]').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('[data-view]').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+
+    const view = item.getAttribute('data-view');
+    const breadcrumb = document.querySelector('#breadcrumb');
+    breadcrumb.innerHTML = `<span class="crumb" data-view="root">All Domains</span><span class="crumb-separator">›</span><span class="crumb-current">${view}</span>`;
+  });
+});
+</script>

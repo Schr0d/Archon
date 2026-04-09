@@ -2,7 +2,8 @@ package com.archon.viz;
 
 import com.archon.core.analysis.AnalysisPipeline;
 import com.archon.core.analysis.AnalysisResult;
-import com.archon.core.analysis.CentralityCalculator;
+import com.archon.core.analysis.CentralityService;
+import com.archon.core.analysis.FullAnalysisData;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -46,16 +47,10 @@ public class ViewCommand implements Callable<Integer> {
         AnalysisResult result = AnalysisPipeline.run(Paths.get(path));
 
         // Compute full analysis if requested (Tier 2)
-        JsonSerializer.FullAnalysisData fullAnalysis = null;
+        FullAnalysisData fullAnalysis = null;
         if (withFullAnalysis) {
-            CentralityCalculator calculator = new CentralityCalculator(result.graph());
-            fullAnalysis = new JsonSerializer.FullAnalysisData(
-                calculator.computePageRank(),
-                calculator.computeBetweenness(),
-                calculator.computeCloseness(),
-                calculator.computeConnectedComponents(),
-                calculator.findBridges()
-            );
+            CentralityService service = new CentralityService(result.graph());
+            fullAnalysis = service.computeFullAnalysis();
         }
 
         // Serialize graph data

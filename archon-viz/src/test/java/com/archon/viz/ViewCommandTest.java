@@ -2,6 +2,8 @@ package com.archon.viz;
 
 import com.archon.core.analysis.AnalysisPipeline;
 import com.archon.core.analysis.AnalysisResult;
+import com.archon.core.analysis.CentralityService;
+import com.archon.core.analysis.FullAnalysisData;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
@@ -13,6 +15,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+// Note: FullAnalysisData is now in archon-core.analysis package, not JsonSerializer
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -136,16 +140,8 @@ class ViewCommandTest {
         List<BlindSpot> blindSpots = List.of();
 
         // Simulate what ViewCommand.call() does with --with-full-analysis flag
-        com.archon.core.analysis.CentralityCalculator calculator =
-            new com.archon.core.analysis.CentralityCalculator(graph);
-
-        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
-            calculator.computePageRank(),
-            calculator.computeBetweenness(),
-            calculator.computeCloseness(),
-            calculator.computeConnectedComponents(),
-            calculator.findBridges()
-        );
+        CentralityService service = new CentralityService(graph);
+        FullAnalysisData fullAnalysis = service.computeFullAnalysis();
 
         // When: serializing with --with-full-analysis flag
         JsonSerializer serializer = new JsonSerializer();
@@ -232,16 +228,8 @@ class ViewCommandTest {
         List<BlindSpot> blindSpots = List.of();
 
         // When: simulating ViewCommand.call() with --with-full-analysis
-        com.archon.core.analysis.CentralityCalculator calculator =
-            new com.archon.core.analysis.CentralityCalculator(graph);
-
-        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
-            calculator.computePageRank(),
-            calculator.computeBetweenness(),
-            calculator.computeCloseness(),
-            calculator.computeConnectedComponents(),
-            calculator.findBridges()
-        );
+        CentralityService service = new CentralityService(graph);
+        FullAnalysisData fullAnalysis = service.computeFullAnalysis();
 
         JsonSerializer serializer = new JsonSerializer();
         String json = serializer.toJson(graph, domains, cycles, hotspots, blindSpots,
@@ -308,16 +296,8 @@ class ViewCommandTest {
         List<BlindSpot> blindSpots = List.of();
 
         // When: simulating ViewCommand.call() with --format json
-        com.archon.core.analysis.CentralityCalculator calculator =
-            new com.archon.core.analysis.CentralityCalculator(graph);
-
-        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
-            calculator.computePageRank(),
-            calculator.computeBetweenness(),
-            calculator.computeCloseness(),
-            calculator.computeConnectedComponents(),
-            calculator.findBridges()
-        );
+        CentralityService service = new CentralityService(graph);
+        FullAnalysisData fullAnalysis = service.computeFullAnalysis();
 
         JsonSerializer serializer = new JsonSerializer();
         String json = serializer.toJson(graph, domains, cycles, hotspots, blindSpots,
@@ -388,16 +368,8 @@ class ViewCommandTest {
         List<BlindSpot> blindSpots = List.of();
 
         // When: simulating ViewCommand.call() with --with-full-analysis
-        com.archon.core.analysis.CentralityCalculator calculator =
-            new com.archon.core.analysis.CentralityCalculator(graph);
-
-        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
-            calculator.computePageRank(),
-            calculator.computeBetweenness(),
-            calculator.computeCloseness(),
-            calculator.computeConnectedComponents(),
-            calculator.findBridges()
-        );
+        CentralityService service = new CentralityService(graph);
+        FullAnalysisData fullAnalysis = service.computeFullAnalysis();
 
         JsonSerializer serializer = new JsonSerializer();
         String json = serializer.toJson(graph, domains, cycles, hotspots, blindSpots,
