@@ -116,7 +116,11 @@ public class JsonSerializer {
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize to JSON", e);
+            throw new RuntimeException(
+                "Failed to serialize to JSON: " +
+                (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()),
+                e
+            );
         }
     }
 
@@ -243,7 +247,11 @@ public class JsonSerializer {
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize to JSON", e);
+            throw new RuntimeException(
+                "Failed to serialize to JSON: " +
+                (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()),
+                e
+            );
         }
     }
 
