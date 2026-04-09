@@ -483,4 +483,45 @@ class JsonSerializerTest {
             "Node 'com.example.Foo.Utils' should match blind spot 'com.example.Foo' (prefix match with dot)");
         assertEquals("CommonJS", nodeBlindSpots3.get(0).asText());
     }
+
+    @Test
+    void testBuilderPattern() throws Exception {
+        // Given: graph and analysis data
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        builder.addNode(Node.builder()
+            .id("com.example.Foo")
+            .type(NodeType.CLASS)
+            .confidence(Confidence.HIGH)
+            .build());
+
+        DependencyGraph graph = builder.build();
+        Map<String, String> domains = Map.of("com.example.Foo", "CORE");
+
+        JsonSerializer.FullAnalysisData fullAnalysis = new JsonSerializer.FullAnalysisData(
+            Map.of("com.example.Foo", 0.5),
+            Map.of("com.example.Foo", 0.3),
+            Map.of("com.example.Foo", 0.7),
+            1,
+            new HashSet<>()
+        );
+
+        // When: using builder pattern
+        String json = JsonSerializer.builder(graph)
+            .domains(domains)
+            .withMetadata(true)
+            .fullAnalysis(fullAnalysis)
+            .build();
+
+        // Then: should produce valid JSON with all features
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(json);
+
+        assertTrue(root.has("nodes"));
+        assertTrue(root.has("$schema"));
+        assertTrue(root.has("fullAnalysis"));
+
+        JsonNode node = root.get("nodes").get(0);
+        assertTrue(node.get("metadata").has("metrics"));
+        assertTrue(node.get("metadata").get("metrics").has("pageRank"));
+    }
 }

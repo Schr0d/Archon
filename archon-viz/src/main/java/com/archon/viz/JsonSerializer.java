@@ -29,6 +29,16 @@ public class JsonSerializer {
     }
 
     /**
+     * Create a builder for fluent JSON serialization.
+     *
+     * @param graph Dependency graph to serialize
+     * @return Builder instance
+     */
+    public static Builder builder(DependencyGraph graph) {
+        return new Builder(graph);
+    }
+
+    /**
      * Convert analysis results to JSON string.
      *
      * @param graph Dependency graph
@@ -37,7 +47,10 @@ public class JsonSerializer {
      * @param hotspots Hotspot nodes
      * @param blindSpots Blind spot reports
      * @return JSON string
+     * @deprecated Use {@link #builder(DependencyGraph)} for clearer API.
+     *             This method is kept for backward compatibility.
      */
+    @Deprecated
     public String toJson(
         DependencyGraph graph,
         Map<String, String> domains,
@@ -58,7 +71,10 @@ public class JsonSerializer {
      * @param blindSpots Blind spot reports
      * @param withMetadata Include metadata field for AI integration (opt-in for backward compatibility)
      * @return JSON string
+     * @deprecated Use {@link #builder(DependencyGraph)} for clearer API.
+     *             This method is kept for backward compatibility.
      */
+    @Deprecated
     public String toJson(
         DependencyGraph graph,
         Map<String, String> domains,
@@ -174,7 +190,10 @@ public class JsonSerializer {
      * @param withMetadata Include metadata field for AI integration (opt-in for backward compatibility)
      * @param fullAnalysis Full analysis data (PageRank, betweenness, etc.) or null for Tier 1 only
      * @return JSON string
+     * @deprecated Use {@link #builder(DependencyGraph)} for clearer API.
+     *             This method is kept for backward compatibility.
      */
+    @Deprecated
     public String toJson(
         DependencyGraph graph,
         Map<String, String> domains,
@@ -481,6 +500,70 @@ public class JsonSerializer {
                 missingCloseness.stream().limit(5).collect(java.util.stream.Collectors.joining(", ")) +
                 (missingCloseness.size() > 5 ? "..." : "")
             );
+        }
+    }
+
+    /**
+     * Builder for JsonSerializer toJson() calls.
+     * Provides fluent API for configuring JSON output options.
+     */
+    public static class Builder {
+        private final DependencyGraph graph;
+        private Map<String, String> domains = Map.of();
+        private List<List<String>> cycles = List.of();
+        private List<Node> hotspots = List.of();
+        private List<BlindSpot> blindSpots = List.of();
+        private boolean withMetadata = false;
+        private FullAnalysisData fullAnalysis = null;
+
+        public Builder(DependencyGraph graph) {
+            this.graph = graph;
+        }
+
+        public Builder domains(Map<String, String> domains) {
+            this.domains = domains;
+            return this;
+        }
+
+        public Builder cycles(List<List<String>> cycles) {
+            this.cycles = cycles;
+            return this;
+        }
+
+        public Builder hotspots(List<Node> hotspots) {
+            this.hotspots = hotspots;
+            return this;
+        }
+
+        public Builder blindSpots(List<BlindSpot> blindSpots) {
+            this.blindSpots = blindSpots;
+            return this;
+        }
+
+        public Builder withMetadata(boolean withMetadata) {
+            this.withMetadata = withMetadata;
+            return this;
+        }
+
+        public Builder fullAnalysis(FullAnalysisData fullAnalysis) {
+            this.fullAnalysis = fullAnalysis;
+            return this;
+        }
+
+        /**
+         * Build and serialize to JSON string.
+         */
+        public String build() {
+            JsonSerializer serializer = new JsonSerializer();
+            if (fullAnalysis != null) {
+                return serializer.toJson(graph, domains, cycles, hotspots, blindSpots,
+                                         withMetadata, fullAnalysis);
+            } else if (withMetadata) {
+                return serializer.toJson(graph, domains, cycles, hotspots, blindSpots,
+                                         withMetadata);
+            } else {
+                return serializer.toJson(graph, domains, cycles, hotspots, blindSpots);
+            }
         }
     }
 }
