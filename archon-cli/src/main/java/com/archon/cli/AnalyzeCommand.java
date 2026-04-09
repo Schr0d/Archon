@@ -37,23 +37,29 @@ import java.util.stream.Collectors;
     mixinStandardHelpOptions = true
 )
 public class AnalyzeCommand implements Callable<Integer> {
-    @Parameters(index = "0", description = "Path to the project root")
-    private String projectPath;
+        @Parameters(index = "0", description = "Path to the project root")
+    String projectPath;
 
     @Option(names = "--json", description = "Output machine-readable JSON")
-    private boolean json;
+    boolean json;
 
     @Option(names = "--dot", description = "Export Graphviz DOT to file")
-    private String dotFile;
+    String dotFile;
 
     @Option(names = "--mermaid", description = "Export Mermaid flowchart to file")
-    private String mermaidFile;
+    String mermaidFile;
 
     @Option(names = "--verbose", description = "Show detailed parsing logs")
-    private boolean verbose;
+    boolean verbose;
 
     @Option(names = "--quiet", description = "Suppress progress messages (errors still shown)")
-    private boolean quiet;
+    boolean quiet;
+
+    @Option(names = "--with-metadata", description = "Include metadata field in JSON output for AI integration")
+    boolean withMetadata;
+
+    @Option(names = "--with-full-analysis", description = "Include full analysis (centrality metrics, bridges, components) in JSON output")
+    boolean withFullAnalysis;
 
     @Override
     public Integer call() {
