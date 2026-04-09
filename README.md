@@ -239,6 +239,39 @@ Gate: BLOCKED
 
 ---
 
+## Migration Guide
+
+### AI Integration (v0.4.0)
+
+The `archon view` command now supports three-tier JSON output for AI integration:
+
+**Tier 1: Basic Output**
+```bash
+archon view . --format json
+```
+Returns nodes, edges, cycles, hotspots, and blindspots.
+
+**Tier 2: Metadata**
+```bash
+archon view . --format json --with-metadata
+```
+Adds metrics (fanIn, fanOut, impactScore, riskLevel) and issues (hotspot, cycle, blindSpots).
+
+**Tier 3: Full Analysis**
+```bash
+archon view . --format json --with-metadata --with-full-analysis
+```
+Adds centrality metrics (PageRank, betweenness, closeness), connected components, and bridges.
+
+**Backward Compatibility:** All flags are opt-in. Existing workflows without flags continue to work as before.
+
+**When to use each tier:**
+- **Tier 1:** Quick overview, identify obvious hotspots and cycles
+- **Tier 2:** Risk assessment, impact analysis for refactoring decisions
+- **Tier 3:** Deep architectural analysis, identifies critical control points and system structure
+
+---
+
 ## Full Workflow Diagram
 
 ```mermaid
