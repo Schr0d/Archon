@@ -127,6 +127,8 @@ class CentralityCalculatorTest {
     @Test
     void testBetweennessStarTopology() {
         // B -> A <- C (A is central)
+        // With directed traversal: B->A and C->A, but no path between B and C
+        // All nodes have equal betweenness (0) since no node lies on paths between others
         DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         builder.addNode(Node.builder().id("A").type(NodeType.CLASS).confidence(Confidence.HIGH).build());
@@ -152,9 +154,45 @@ class CentralityCalculatorTest {
 
         Map<String, Double> betweenness = calculator.computeBetweenness();
 
-        // A should have highest betweenness (on all shortest paths)
-        assertTrue(betweenness.get("A") > betweenness.get("B"));
-        assertTrue(betweenness.get("A") > betweenness.get("C"));
+        // With directed traversal, B and C cannot reach each other
+        // All nodes have 0 betweenness (no intermediate nodes on directed paths)
+        assertEquals(0.0, betweenness.get("A"), 0.001);
+        assertEquals(0.0, betweenness.get("B"), 0.001);
+        assertEquals(0.0, betweenness.get("C"), 0.001);
+    }
+
+    @Test
+    void testBetweennessDirectedGraph() {
+        // A -> B -> C (linear chain, direction matters)
+        // B is architecturally central (all paths from A go through B)
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+
+        builder.addNode(Node.builder().id("A").type(NodeType.CLASS).confidence(Confidence.HIGH).build());
+        builder.addNode(Node.builder().id("B").type(NodeType.CLASS).confidence(Confidence.HIGH).build());
+        builder.addNode(Node.builder().id("C").type(NodeType.CLASS).confidence(Confidence.HIGH).build());
+
+        builder.addEdge(Edge.builder()
+            .source("A")
+            .target("B")
+            .type(EdgeType.IMPORTS)
+            .confidence(Confidence.HIGH)
+            .build());
+
+        builder.addEdge(Edge.builder()
+            .source("B")
+            .target("C")
+            .type(EdgeType.IMPORTS)
+            .confidence(Confidence.HIGH)
+            .build());
+
+        DependencyGraph graph = builder.build();
+        CentralityCalculator calculator = new CentralityCalculator(graph);
+
+        Map<String, Double> betweenness = calculator.computeBetweenness();
+
+        // B should have highest betweenness (lies on path A->C)
+        assertTrue(betweenness.get("B") > betweenness.get("A"));
+        assertTrue(betweenness.get("B") > betweenness.get("C"));
     }
 
     @Test
@@ -187,7 +225,8 @@ class CentralityCalculatorTest {
 
     @Test
     void testClosenessCentralNode() {
-        // B -> A <- C (A is most central)
+        // B -> A <- C (A is most central in undirected, but with directed traversal)
+        // B can reach A (distance 1), C can reach A (distance 1), A cannot reach anyone
         DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         builder.addNode(Node.builder().id("A").type(NodeType.CLASS).confidence(Confidence.HIGH).build());
@@ -213,9 +252,13 @@ class CentralityCalculatorTest {
 
         Map<String, Double> closeness = calculator.computeCloseness();
 
-        // A should have highest closeness (closest to all other nodes)
-        assertTrue(closeness.get("A") > closeness.get("B"));
-        assertTrue(closeness.get("A") > closeness.get("C"));
+        // With directed traversal:
+        // A can reach 0 nodes (closeness = 0)
+        // B can reach 1 node (A) at distance 1 (closeness = 0, need >1 reachable)
+        // C can reach 1 node (A) at distance 1 (closeness = 0, need >1 reachable)
+        assertEquals(0.0, closeness.get("A"), 0.001, "A has no outgoing edges");
+        assertEquals(0.0, closeness.get("B"), 0.001, "B reaches only A");
+        assertEquals(0.0, closeness.get("C"), 0.001, "C reaches only A");
     }
 
     @Test

@@ -104,8 +104,9 @@ public class CentralityCalculator {
     }
 
     /**
-     * Computes betweenness centrality for all nodes.
-     * Measures how often a node lies on the shortest path between other nodes.
+     * Computes betweenness centrality for all nodes (DIRECTED).
+     * Measures how often a node lies on the shortest path between other nodes,
+     * following dependency direction (A->B means A depends on B).
      * Uses Brandes' algorithm for efficient computation.
      *
      * @return map of node ID to betweenness score (0-1 range, normalized)
@@ -140,15 +141,14 @@ public class CentralityCalculator {
 
             List<String> orderedNodes = new LinkedList<>();
 
-            // BFS to find shortest paths (using undirected graph: both dependencies and dependents)
+            // BFS to find shortest paths (using directed graph: only follow dependencies)
             while (!queue.isEmpty()) {
                 String current = queue.removeFirst();
                 orderedNodes.add(current);
 
-                // Follow both forward and reverse edges for undirected traversal
-                Set<String> neighbors = new HashSet<>();
-                neighbors.addAll(graph.getDependencies(current));
-                neighbors.addAll(graph.getDependents(current));
+                // Only follow forward dependencies (A->B means A depends on B)
+                // For betweenness in dependency graphs, we care about downstream impact
+                Set<String> neighbors = graph.getDependencies(current);
 
                 for (String neighbor : neighbors) {
                     if (distance.get(neighbor) < 0) {
@@ -202,8 +202,10 @@ public class CentralityCalculator {
     }
 
     /**
-     * Computes closeness centrality for all nodes.
-     * Measures the average distance from a node to all other reachable nodes.
+     * Computes closeness centrality for all nodes (DIRECTED).
+     * Measures the average distance from a node to all other reachable nodes,
+     * following dependency direction. Nodes that can quickly reach many dependencies
+     * score higher.
      *
      * @return map of node ID to closeness score (0-1 range, normalized)
      */
@@ -218,7 +220,7 @@ public class CentralityCalculator {
             int reachableCount = 0;
             int totalDistance = 0;
 
-            // BFS to compute distances to all reachable nodes (using undirected graph)
+            // BFS to compute distances to all reachable nodes (using directed graph)
             Map<String, Integer> distance = new HashMap<>();
             for (String nodeId : graph.getNodeIds()) {
                 distance.put(nodeId, -1);
@@ -232,10 +234,8 @@ public class CentralityCalculator {
                 String current = queue.removeFirst();
                 int dist = distance.get(current);
 
-                // Follow both forward and reverse edges for undirected traversal
-                Set<String> neighbors = new HashSet<>();
-                neighbors.addAll(graph.getDependencies(current));
-                neighbors.addAll(graph.getDependents(current));
+                // Only follow forward dependencies
+                Set<String> neighbors = graph.getDependencies(current);
 
                 for (String neighbor : neighbors) {
                     if (distance.get(neighbor) < 0) {
