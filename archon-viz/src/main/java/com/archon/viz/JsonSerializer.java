@@ -360,8 +360,8 @@ public class JsonSerializer {
         combined = Math.max(0.0, Math.min(1.0, combined));
 
         // Tier 2 thresholds based on centrality
-        if (combined > 0.7) return "high";
-        if (combined > 0.3) return "medium";
+        if (combined > RISK_HIGH_CENTRALITY_THRESHOLD) return "high";
+        if (combined > RISK_MEDIUM_CENTRALITY_THRESHOLD) return "medium";
         return "low";
     }
 

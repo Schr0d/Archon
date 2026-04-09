@@ -109,6 +109,9 @@ public class CentralityCalculator {
      * following dependency direction (A->B means A depends on B).
      * Uses Brandes' algorithm for efficient computation.
      *
+     * Time complexity: O(V * (V + E)) where V = nodes, E = edges
+     * Space complexity: O(V)
+     *
      * @return map of node ID to betweenness score (0-1 range, normalized)
      */
     public Map<String, Double> computeBetweenness() {
@@ -116,18 +119,21 @@ public class CentralityCalculator {
             return Map.of();
         }
 
+        // Cache node IDs to avoid repeated calls
+        List<String> nodeIds = new java.util.ArrayList<>(graph.getNodeIds());
+
         Map<String, Double> betweenness = new HashMap<>();
-        for (String nodeId : graph.getNodeIds()) {
+        for (String nodeId : nodeIds) {
             betweenness.put(nodeId, 0.0);
         }
 
         // For each source node, compute shortest paths and accumulate betweenness
-        for (String source : graph.getNodeIds()) {
+        for (String source : nodeIds) {
             Map<String, List<String>> predecessors = new HashMap<>();
             Map<String, Integer> distance = new HashMap<>();
             Map<String, Double> sigma = new HashMap<>(); // number of shortest paths
 
-            for (String nodeId : graph.getNodeIds()) {
+            for (String nodeId : nodeIds) {
                 predecessors.put(nodeId, new LinkedList<>());
                 distance.put(nodeId, -1); // -1 means unvisited
                 sigma.put(nodeId, 0.0);
@@ -165,7 +171,7 @@ public class CentralityCalculator {
 
             // Accumulate betweenness using dependency values
             Map<String, Double> delta = new HashMap<>();
-            for (String nodeId : graph.getNodeIds()) {
+            for (String nodeId : nodeIds) {
                 delta.put(nodeId, 0.0);
             }
 
@@ -181,7 +187,7 @@ public class CentralityCalculator {
             }
 
             // Add to total betweenness (exclude source)
-            for (String nodeId : graph.getNodeIds()) {
+            for (String nodeId : nodeIds) {
                 if (!nodeId.equals(source)) {
                     betweenness.put(nodeId, betweenness.get(nodeId) + delta.get(nodeId));
                 }
@@ -206,6 +212,9 @@ public class CentralityCalculator {
      * Measures the average distance from a node to all other reachable nodes,
      * following dependency direction. Nodes that can quickly reach many dependencies
      * score higher.
+     *
+     * Time complexity: O(V * (V + E)) where V = nodes, E = edges
+     * Space complexity: O(V)
      *
      * @return map of node ID to closeness score (0-1 range, normalized)
      */
@@ -285,17 +294,10 @@ public class CentralityCalculator {
                 while (!queue.isEmpty()) {
                     String current = queue.removeFirst();
 
-                    for (String neighbor : graph.getDependencies(current)) {
+                    for (String neighbor : getUndirectedNeighbors(current)) {
                         if (!visited.contains(neighbor)) {
                             visited.add(neighbor);
                             queue.add(neighbor);
-                        }
-                    }
-
-                    for (String dependent : graph.getDependents(current)) {
-                        if (!visited.contains(dependent)) {
-                            visited.add(dependent);
-                            queue.add(dependent);
                         }
                     }
                 }
@@ -355,9 +357,7 @@ public class CentralityCalculator {
                         time[0]++;
 
                         // Get all neighbors (both dependencies and dependents for undirected graph)
-                        Set<String> neighbors = new HashSet<>();
-                        neighbors.addAll(graph.getDependencies(u));
-                        neighbors.addAll(graph.getDependents(u));
+                        Set<String> neighbors = getUndirectedNeighbors(u);
 
                         // Update frame to state 1 (processing neighbors)
                         frame[2] = 1;
@@ -394,5 +394,16 @@ public class CentralityCalculator {
         }
 
         return bridges;
+    }
+
+    /**
+     * Get all neighbors (dependencies + dependents) for undirected traversal.
+     * Used by connected components and bridge detection where direction doesn't matter.
+     */
+    private Set<String> getUndirectedNeighbors(String node) {
+        Set<String> neighbors = new HashSet<>();
+        neighbors.addAll(graph.getDependencies(node));
+        neighbors.addAll(graph.getDependents(node));
+        return neighbors;
     }
 }
