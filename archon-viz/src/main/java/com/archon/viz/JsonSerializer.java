@@ -6,6 +6,7 @@ import com.archon.core.plugin.BlindSpot;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -72,14 +73,22 @@ public class JsonSerializer {
         root.put("$schema", SCHEMA_VERSION);
         root.put("version", OUTPUT_VERSION);
 
+        // Cache degrees to avoid repeated getDependents/getDependencies calls
+        Map<String, Integer> inDegreeCache = new HashMap<>();
+        Map<String, Integer> outDegreeCache = new HashMap<>();
+        for (String nodeId : graph.getNodeIds()) {
+            inDegreeCache.put(nodeId, graph.getDependents(nodeId).size());
+            outDegreeCache.put(nodeId, graph.getDependencies(nodeId).size());
+        }
+
         // Serialize nodes
         ArrayNode nodesArray = root.putArray("nodes");
         for (String nodeId : graph.getNodeIds()) {
             ObjectNode nodeObj = nodesArray.addObject();
             nodeObj.put("id", nodeId);
             nodeObj.put("domain", domains.getOrDefault(nodeId, "ungrouped"));
-            nodeObj.put("inDegree", graph.getDependents(nodeId).size());
-            nodeObj.put("outDegree", graph.getDependencies(nodeId).size());
+            nodeObj.put("inDegree", inDegreeCache.get(nodeId));
+            nodeObj.put("outDegree", outDegreeCache.get(nodeId));
 
             // Add metadata field only if withMetadata is true (opt-in for AI integration)
             if (withMetadata) {
@@ -87,11 +96,11 @@ public class JsonSerializer {
 
                 // Metrics
                 ObjectNode metrics = metadata.putObject("metrics");
-                metrics.put("fanIn", graph.getDependents(nodeId).size());
-                metrics.put("fanOut", graph.getDependencies(nodeId).size());
+                metrics.put("fanIn", inDegreeCache.get(nodeId));
+                metrics.put("fanOut", outDegreeCache.get(nodeId));
                 // impactScore and riskLevel use simple heuristics for Tier 1
-                metrics.put("impactScore", calculateImpactScore(nodeId, graph));
-                metrics.put("riskLevel", calculateRiskLevel(nodeId, graph));
+                metrics.put("impactScore", calculateImpactScore(nodeId, inDegreeCache, outDegreeCache));
+                metrics.put("riskLevel", calculateRiskLevel(nodeId, inDegreeCache, outDegreeCache));
 
                 // Issues
                 ObjectNode issues = metadata.putObject("issues");
@@ -186,14 +195,22 @@ public class JsonSerializer {
             validateFullAnalysisData(graph, fullAnalysis);
         }
 
+        // Cache degrees to avoid repeated getDependents/getDependencies calls
+        Map<String, Integer> inDegreeCache = new HashMap<>();
+        Map<String, Integer> outDegreeCache = new HashMap<>();
+        for (String nodeId : graph.getNodeIds()) {
+            inDegreeCache.put(nodeId, graph.getDependents(nodeId).size());
+            outDegreeCache.put(nodeId, graph.getDependencies(nodeId).size());
+        }
+
         // Serialize nodes
         ArrayNode nodesArray = root.putArray("nodes");
         for (String nodeId : graph.getNodeIds()) {
             ObjectNode nodeObj = nodesArray.addObject();
             nodeObj.put("id", nodeId);
             nodeObj.put("domain", domains.getOrDefault(nodeId, "ungrouped"));
-            nodeObj.put("inDegree", graph.getDependents(nodeId).size());
-            nodeObj.put("outDegree", graph.getDependencies(nodeId).size());
+            nodeObj.put("inDegree", inDegreeCache.get(nodeId));
+            nodeObj.put("outDegree", outDegreeCache.get(nodeId));
 
             // Add metadata field only if withMetadata is true (opt-in for AI integration)
             if (withMetadata) {
@@ -201,8 +218,8 @@ public class JsonSerializer {
 
                 // Metrics
                 ObjectNode metrics = metadata.putObject("metrics");
-                metrics.put("fanIn", graph.getDependents(nodeId).size());
-                metrics.put("fanOut", graph.getDependencies(nodeId).size());
+                metrics.put("fanIn", inDegreeCache.get(nodeId));
+                metrics.put("fanOut", outDegreeCache.get(nodeId));
 
                 if (fullAnalysis != null) {
                     // Tier 2: Use computed centrality metrics
@@ -214,8 +231,8 @@ public class JsonSerializer {
                     metrics.put("riskLevel", calculateRiskLevelFromCentrality(nodeId, fullAnalysis));
                 } else {
                     // Tier 1: Simple heuristics
-                    metrics.put("impactScore", calculateImpactScore(nodeId, graph));
-                    metrics.put("riskLevel", calculateRiskLevel(nodeId, graph));
+                    metrics.put("impactScore", calculateImpactScore(nodeId, inDegreeCache, outDegreeCache));
+                    metrics.put("riskLevel", calculateRiskLevel(nodeId, inDegreeCache, outDegreeCache));
                 }
 
                 // Issues
@@ -264,19 +281,19 @@ public class JsonSerializer {
 
     // Helper methods for metadata calculation
 
-    private double calculateImpactScore(String nodeId, DependencyGraph graph) {
+    private double calculateImpactScore(String nodeId, Map<String, Integer> inDegreeCache, Map<String, Integer> outDegreeCache) {
         // Simple heuristic for Tier 1: fanIn * fanOut normalized
-        int fanIn = graph.getDependents(nodeId).size();
-        int fanOut = graph.getDependencies(nodeId).size();
+        int fanIn = inDegreeCache.get(nodeId);
+        int fanOut = outDegreeCache.get(nodeId);
         int total = fanIn + fanOut;
         if (total == 0) return 0.0;
         // Normalize to 0-1 range using logarithmic scale
         return Math.min(1.0, Math.log(total + 1) / Math.log(100));
     }
 
-    private String calculateRiskLevel(String nodeId, DependencyGraph graph) {
-        int fanIn = graph.getDependents(nodeId).size();
-        int fanOut = graph.getDependencies(nodeId).size();
+    private String calculateRiskLevel(String nodeId, Map<String, Integer> inDegreeCache, Map<String, Integer> outDegreeCache) {
+        int fanIn = inDegreeCache.get(nodeId);
+        int fanOut = outDegreeCache.get(nodeId);
 
         // Simple heuristic thresholds for Tier 1
         if (fanIn > RISK_HIGH_FAN_THRESHOLD || fanOut > RISK_HIGH_FAN_THRESHOLD) return "high";
