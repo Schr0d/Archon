@@ -17,6 +17,10 @@ import java.util.Set;
  */
 public class CentralityCalculator {
 
+    private static final double DEFAULT_DAMPING_FACTOR = 0.85;
+    private static final int DEFAULT_ITERATIONS = 30;
+    private static final double DEFAULT_CONVERGENCE_THRESHOLD = 1e-6;
+
     private final DependencyGraph graph;
     private final int nodeCount;
 
@@ -96,7 +100,7 @@ public class CentralityCalculator {
      * Computes PageRank with default parameters.
      */
     public Map<String, Double> computePageRank() {
-        return computePageRank(0.85, 30, 1e-6);
+        return computePageRank(DEFAULT_DAMPING_FACTOR, DEFAULT_ITERATIONS, DEFAULT_CONVERGENCE_THRESHOLD);
     }
 
     /**
@@ -302,8 +306,11 @@ public class CentralityCalculator {
     }
 
     /**
-     * Identifies bridge edges in the graph.
+     * Identifies bridge edges in the graph using Tarjan's algorithm (iterative).
      * A bridge is an edge whose removal increases the number of connected components.
+     *
+     * Time complexity: O(V + E)
+     * Space complexity: O(V) for explicit stack
      *
      * @return set of edge descriptions in format "source->target"
      */
@@ -313,64 +320,79 @@ public class CentralityCalculator {
             return bridges;
         }
 
-        int baseComponents = computeConnectedComponents();
+        // Tarjan's bridge finding algorithm for undirected graphs (iterative)
+        Map<String, Integer> disc = new HashMap<>();  // Discovery time
+        Map<String, Integer> low = new HashMap<>();    // Lowest discovery time reachable
+        Map<String, String> parent = new HashMap<>();  // Parent in DFS tree
+        Set<String> visited = new HashSet<>();
 
-        // Check each edge
-        for (var edge : graph.getAllEdges()) {
-            String source = edge.getSource();
-            String target = edge.getTarget();
+        int[] time = {0};
 
-            // Temporarily remove edge and count components
-            // Note: This is a simple heuristic; for production use Tarjan's algorithm
-            // would be more efficient (O(V + E) vs O(E * (V + E)))
+        // Run DFS from each unvisited node (handles disconnected graphs)
+        for (String startNode : graph.getNodeIds()) {
+            if (!visited.contains(startNode)) {
+                // Iterative DFS using explicit stack
+                // Stack frame: [node, edgeFrom, state, neighborIndex]
+                java.util.Stack<Object[]> stack = new java.util.Stack<>();
+                stack.push(new Object[]{startNode, null, 0, -1});
 
-            // Since our graph is immutable, we simulate edge removal by checking
-            // if there's an alternative path between source and target
-            if (!hasAlternativePath(source, target, edge)) {
-                bridges.add(source + "->" + target);
+                while (!stack.isEmpty()) {
+                    Object[] frame = stack.peek();
+                    String u = (String) frame[0];
+                    String edgeFrom = (String) frame[1];
+                    int state = (Integer) frame[2];
+
+                    if (state == 0) {
+                        // First time visiting this node
+                        if (visited.contains(u)) {
+                            stack.pop();
+                            continue;
+                        }
+
+                        visited.add(u);
+                        disc.put(u, time[0]);
+                        low.put(u, time[0]);
+                        time[0]++;
+
+                        // Get all neighbors (both dependencies and dependents for undirected graph)
+                        Set<String> neighbors = new HashSet<>();
+                        neighbors.addAll(graph.getDependencies(u));
+                        neighbors.addAll(graph.getDependents(u));
+
+                        // Update frame to state 1 (processing neighbors)
+                        frame[2] = 1;
+
+                        // Push neighbors onto stack
+                        for (String v : neighbors) {
+                            if (!visited.contains(v)) {
+                                parent.put(v, u);
+                                stack.push(new Object[]{v, u, 0, -1});
+                            } else if (!v.equals(edgeFrom)) {
+                                // Update low value for back edge
+                                low.put(u, Math.min(low.get(u), disc.get(v)));
+                            }
+                        }
+                    } else {
+                        // State 1: All neighbors processed, update low value and check bridge
+                        stack.pop();
+
+                        // Check bridge condition for edge from parent to u
+                        String p = parent.get(u);
+                        if (p != null) {
+                            // Update parent's low value
+                            low.put(p, Math.min(low.get(p), low.get(u)));
+
+                            // If the lowest vertex reachable from subtree rooted at u
+                            // is below p in DFS tree, then p-u is a bridge
+                            if (low.get(u) > disc.get(p)) {
+                                bridges.add(p + "->" + u);
+                            }
+                        }
+                    }
+                }
             }
         }
 
         return bridges;
-    }
-
-    /**
-     * Checks if there's an alternative path between source and target
-     * that doesn't use the specified edge.
-     */
-    private boolean hasAlternativePath(String source, String target, Edge excludedEdge) {
-        // BFS to find path excluding the specified edge
-        Set<String> visited = new HashSet<>();
-        LinkedList<String> queue = new LinkedList<>();
-        queue.add(source);
-        visited.add(source);
-
-        while (!queue.isEmpty()) {
-            String current = queue.removeFirst();
-
-            // Use both forward and reverse edges for undirected traversal
-            Set<String> neighbors = new HashSet<>();
-            neighbors.addAll(graph.getDependencies(current));
-            neighbors.addAll(graph.getDependents(current));
-
-            for (String neighbor : neighbors) {
-                // Skip the excluded edge (in either direction)
-                if ((current.equals(excludedEdge.getSource()) && neighbor.equals(excludedEdge.getTarget())) ||
-                    (current.equals(excludedEdge.getTarget()) && neighbor.equals(excludedEdge.getSource()))) {
-                    continue;
-                }
-
-                if (neighbor.equals(target)) {
-                    return true; // Found alternative path
-                }
-
-                if (!visited.contains(neighbor)) {
-                    visited.add(neighbor);
-                    queue.add(neighbor);
-                }
-            }
-        }
-
-        return false;
     }
 }
