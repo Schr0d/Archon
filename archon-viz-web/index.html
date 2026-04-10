@@ -1814,10 +1814,126 @@
             });
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            renderSidebar();
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check canvas support
+            const canvas = document.getElementById('graphCanvas');
+            if (!canvas.getContext) {
+                showError('Your browser does not support HTML5 Canvas. Please upgrade to a modern browser.');
+                return;
+            }
+
+            // Load data
+            const dataManager = new DataManager();
+            let data;
+            try {
+                data = await dataManager.load();
+            } catch (e) {
+                console.error('Failed to load graph data:', e);
+                return;
+            }
+
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').style.display = 'none';
+
+            // Initialize canvas with loaded data
+            window.graphCanvas = new GraphCanvas('graphCanvas', data);
+            window.graphCanvas.start();
+
+            // Populate sidebar (keep existing DOM sidebar for accessibility)
+            renderSidebar(data);
         });
+
+        function renderSidebar(data) {
+            // Group nodes by domain
+            const domains = {};
+            for (const node of data.nodes) {
+                const domain = node.domain || 'ungrouped';
+                if (!domains[domain]) {
+                    domains[domain] = { name: domain, nodes: [] };
+                }
+                domains[domain].nodes.push(node);
+            }
+
+            // Render domain list
+            const domainList = document.getElementById('domainList');
+            domainList.innerHTML = '';
+
+            for (const [domainId, domain] of Object.entries(domains)) {
+                const domainItem = document.createElement('div');
+                domainItem.className = 'domain-item';
+
+                const health = calculateDomainHealth(domain.nodes);
+
+                domainItem.innerHTML = `
+                    <div class="domain-node" data-domain="${domainId}">
+                        <span class="domain-icon">${getDomainIcon(domainId)}</span>
+                        <span class="domain-name">${domainId}</span>
+                        <div class="domain-meta">
+                            <span class="class-count">${domain.nodes.length}</span>
+                            <span class="health-indicator ${health}"></span>
+                            <span class="chevron">▶</span>
+                        </div>
+                    </div>
+                    <div class="class-list" data-domain="${domainId}">
+                        ${domain.nodes.map(node => `
+                            <div class="class-item" data-node="${node.id}">
+                                <span class="class-icon">⬡</span>
+                                <span>${node.id}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                domainList.appendChild(domainItem);
+
+                // Domain click handler
+                const domainNode = domainItem.querySelector('.domain-node');
+                domainNode.addEventListener('click', () => {
+                    const wasExpanded = domainNode.classList.contains('expanded');
+
+                    // Collapse all others
+                    document.querySelectorAll('.domain-node').forEach(n => {
+                        n.classList.remove('expanded', 'active');
+                        n.nextElementSibling.classList.remove('visible');
+                    });
+
+                    // Toggle current
+                    if (!wasExpanded) {
+                        domainNode.classList.add('expanded', 'active');
+                        domainItem.querySelector('.class-list').classList.add('visible');
+
+                        // Trigger canvas domain expansion
+                        if (window.graphCanvas) {
+                            window.graphCanvas.expandDomain(domainId);
+                        }
+                    }
+                });
+            }
+        }
+
+        function calculateDomainHealth(nodes) {
+            // Simple health check: any hotspots or cycles?
+            const hasIssues = nodes.some(n => n.metadata?.issues?.hotspot || n.metadata?.issues?.cycle);
+            return hasIssues ? 'error' : 'healthy';
+        }
+
+        function getDomainIcon(domainId) {
+            // Map domain IDs to icons
+            const icons = {
+                'CORE': '📦', 'archon-core': '📦',
+                'archon-java': '☕', 'archon-js': '📜',
+                'archon-python': '🐍', 'archon-cli': '⌨️',
+                'archon-viz': '🎨', 'archon-test': '🧪'
+            };
+            return icons[domainId] || '📁';
+        }
+
+        function showError(message) {
+            const banner = document.getElementById('errorBanner');
+            banner.textContent = message;
+            banner.style.display = 'flex';
+        }
 
         // Theme toggle
         const themeBtns = document.querySelectorAll('.theme-btn');
