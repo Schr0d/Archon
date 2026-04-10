@@ -1,9 +1,11 @@
 package com.archon.cli;
 
+import com.archon.core.analysis.CentralityService;
 import com.archon.core.analysis.CouplingAnalyzer;
 import com.archon.core.analysis.CycleDetector;
 import com.archon.core.analysis.DomainDetector;
 import com.archon.core.analysis.DomainResult;
+import com.archon.core.analysis.FullAnalysisData;
 import com.archon.core.analysis.ThresholdCalculator;
 import com.archon.core.analysis.Thresholds;
 import com.archon.core.config.ArchonConfig;
@@ -17,6 +19,7 @@ import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
 import com.archon.core.viz.DotExporter;
 import com.archon.java.ModuleDetector;
+import com.archon.viz.JsonSerializer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
@@ -192,6 +195,32 @@ public class AnalyzeCommand implements Callable<Integer> {
                 System.err.println("Failed to write Mermaid file: " + e.getMessage());
             }
             System.out.println("\nMermaid exported to: " + mermaidFile);
+        }
+
+        // JSON output format (must come before summary to avoid mixing output)
+        if (json) {
+            JsonSerializer serializer = new JsonSerializer();
+            String jsonOutput;
+
+            // Check if full analysis is requested
+            FullAnalysisData fullAnalysis = null;
+            if (withFullAnalysis) {
+                CentralityService centralityService = new CentralityService(graph);
+                fullAnalysis = centralityService.computeFullAnalysis();
+            }
+
+            jsonOutput = serializer.toJson(
+                graph,
+                domainMap,
+                cycles,
+                hotspots,
+                blindSpots,
+                withMetadata,
+                fullAnalysis
+            );
+
+            System.out.println(jsonOutput);
+            return 0;
         }
 
         // Summary
