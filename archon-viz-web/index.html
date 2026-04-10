@@ -1192,49 +1192,13 @@
                         domainNode.classList.add('expanded', 'active');
                         classList.classList.add('visible');
                     }
-
-                    // Update graph view
-                    renderGraph(module);
                 });
             });
-        }
-
-        // Render dependency graph
-        function renderGraph(module) {
-            const graph = document.getElementById('dependencyGraph');
-            graph.innerHTML = `
-                <div class="graph-node selected" data-module="${module.id}">
-                    <div class="node-icon-large">${module.icon}</div>
-                    <div class="node-content">
-                        <div class="node-header">
-                            <span class="node-title">${module.name}</span>
-                        </div>
-                        <div class="node-package">com.archon.${module.id}</div>
-                        <div class="node-description">${module.description}</div>
-                        <div class="node-stats">
-                            <div class="node-stat">
-                                <span>📥</span>
-                                <span class="node-stat-value">${module.stats.dependenciesIn}</span>
-                            </div>
-                            <div class="node-stat">
-                                <span>📤</span>
-                                <span class="node-stat-value">${module.stats.dependenciesOut}</span>
-                            </div>
-                            <div class="node-stat">
-                                <span>⚡</span>
-                                <span class="node-stat-value">${module.stats.complexity}</span>
-                            </div>
-                        </div>
-                    </div>
-                    ${module.health !== 'healthy' ? `<span class="node-badge ${module.health}">${module.health === 'warning' ? '⚠️ Hotspot' : '🔴 Cycle'}</span>` : ''}
-                </div>
-            `;
         }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             renderSidebar();
-            renderGraph(archonData.modules[0]);
         });
 
         // Theme toggle
