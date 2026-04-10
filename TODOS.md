@@ -48,10 +48,17 @@
 ## 6. BUG: AnalyzeCommand JSON output not implemented
 - **What:** `AnalyzeCommand` defines `--json`, `--with-metadata`, `--with-full-analysis` flags but doesn't implement JSON output. Flags are parsed but never used.
 - **Why:** User confusion — flags exist in help text but do nothing. Found during integration testing.
-- **Status:** BUG — Needs fix
+- **Status:** IN PROGRESS — Being fixed in feature/ai-integration-viz-redesign PR
 - **Workaround:** Use `view --format json --with-full-analysis --with-metadata` instead
-- **Fix options:**
-  1. Implement JSON output in AnalyzeCommand (add JsonSerializer call)
-  2. Remove unused flags to avoid confusion
-- **Context:** Testing specialist found "CLI flags have no integration test verifying execution behavior" — this test would have caught the bug.
+- **Fix:** Implement JSON output in AnalyzeCommand using JsonSerializer from archon-viz module
+- **Context:** Blocks canvas visualization testing. Needed for consistent `archon analyze --json` output.
 - **File:** `archon-cli/src/main/java/com/archon/cli/AnalyzeCommand.java`
+
+## 7. Browser automation tests for canvas visualization
+- **What:** Add Playwright or similar browser automation tests for canvas graph visualization.
+- **Why:** Manual testing is error-prone. Automated tests catch regressions in interactions (hover, click, pan, zoom, drill-down).
+- **Status:** Deferred to post-v0.5
+- **Pros:** Regression coverage for interactions, CI confidence
+- **Cons:** ~400 LOC of test infrastructure, slower CI runs
+- **Context:** Canvas viz ships with manual test plan. Add automation if it becomes a pain point.
+- **Depends on:** Canvas visualization must ship first.
