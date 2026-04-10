@@ -1233,9 +1233,11 @@
 
             closenessToColor(closeness) {
                 // Interpolate blue → green based on closeness
-                const r = Math.floor(74 + (74 - 74) * closeness);
-                const g = Math.floor(222 + (222 - 222) * closeness);
-                const b = Math.floor(128 + (26 - 128) * closeness);
+                // Low closeness (0) → blue: rgb(74, 144, 226)
+                // High closeness (1) → green: rgb(74, 222, 128)
+                const r = 74;  // Constant red channel
+                const g = Math.floor(144 + (222 - 144) * closeness);  // 144 → 222
+                const b = Math.floor(226 + (128 - 226) * closeness);  // 226 → 128
                 return `rgb(${r}, ${g}, ${b})`;
             }
 
