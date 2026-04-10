@@ -516,25 +516,6 @@
             to { transform: rotate(360deg); }
         }
 
-        .graph-view {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            padding: var(--space-6);
-        }
-
-        .dependency-graph {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: var(--space-6);
-            max-width: 700px;
-            width: 100%;
-        }
-
         .graph-node {
             position: relative;
             display: flex;
@@ -826,11 +807,11 @@
             </div>
 
             <!-- Add error/warning banners (hidden by default) -->
-            <div id="errorBanner" class="error-banner" style="display: none;"></div>
-            <div id="warningBanner" class="warning-banner" style="display: none;"></div>
+            <div id="errorBanner" class="error-banner" role="alert"></div>
+            <div id="warningBanner" class="warning-banner" role="alert"></div>
 
             <!-- Add loading overlay -->
-            <div id="loadingOverlay" class="loading-overlay">
+            <div id="loadingOverlay" class="loading-overlay" data-loading-text="Loading graph...">
                 <div class="spinner"></div>
                 <p>Loading graph...</p>
             </div>
