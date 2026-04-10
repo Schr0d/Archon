@@ -988,7 +988,7 @@
          */
         class ForceSimulation {
             constructor(nodes, edges) {
-                this.nodes = nodes.map(n => ({ ...n, vx: 0, vy: 0, fx: 0, fy: 0 }));
+                this.nodes = nodes.map(n => ({ ...n, vx: 0, vy: 0, fx: 0, fy: 0, mass: n.mass || 1 }));
                 this.edges = edges;
                 this.nodeCount = nodes.length;
 
