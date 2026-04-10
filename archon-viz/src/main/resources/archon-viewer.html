@@ -754,7 +754,7 @@
             <div id="nav-tree"></div>
         </div>
         <div id="main-content">
-            <div id="loading">
+            <div id="loading" data-loading-text="Loading graph...">
         <div class="spinner"></div>
         <div>Loading graph...</div>
     </div>
@@ -764,7 +764,7 @@
         <p>Archon analyzed this path and found no dependency relationships to visualize.</p>
     </div>
 
-    <div id="error">
+    <div id="error" role="alert">
         <h2>Failed to load graph</h2>
         <p id="error-message">An error occurred while loading the dependency graph.</p>
         <button onclick="location.reload()">Retry</button>
