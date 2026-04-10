@@ -807,6 +807,9 @@
             async load() {
                 try {
                     const rawData = window.GRAPH_DATA || await this.fetchFromServer();
+                    if (typeof rawData !== 'object' || rawData === null) {
+                        throw new Error('Invalid data type: expected object');
+                    }
                     this.validateSchema(rawData);
                     this.data = this.processData(rawData);
                     return this.data;
@@ -844,12 +847,20 @@
 
             showError(message) {
                 const banner = document.getElementById('errorBanner');
+                if (!banner) {
+                    console.error('Error banner not found:', message);
+                    return;
+                }
                 banner.textContent = `Error: ${message}`;
                 banner.style.display = 'flex';
             }
 
             showWarning(message) {
                 const banner = document.getElementById('warningBanner');
+                if (!banner) {
+                    console.warn('Warning banner not found:', message);
+                    return;
+                }
                 banner.textContent = `Warning: ${message}`;
                 banner.style.display = 'flex';
             }
