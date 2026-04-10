@@ -1198,10 +1198,11 @@
 
             initNode(nodeData) {
                 // Map Tier 3 metrics to visual properties
-                const pageRank = this.data.fullAnalysis?.pageRank?.[nodeData.id] || 0;
-                const betweenness = this.data.fullAnalysis?.betweenness?.[nodeData.id] || 0;
-                const closeness = this.data.fullAnalysis?.closeness?.[nodeData.id] || 0;
-                const isBridge = this.data.fullAnalysis?.bridges?.includes(nodeData.id) || false;
+                // Metrics are in node.metadata.metrics (from JsonSerializer)
+                const pageRank = nodeData.metadata?.metrics?.pageRank || 0;
+                const betweenness = nodeData.metadata?.metrics?.betweenness || 0;
+                const closeness = nodeData.metadata?.metrics?.closeness || 0;
+                const isBridge = nodeData.metadata?.issues?.bridge || false;
 
                 return {
                     ...nodeData,
@@ -1220,7 +1221,10 @@
 
             shouldGlow(pageRank) {
                 // Top 20% PageRank nodes get glow (selective glow optimization)
-                const pageRanks = Object.values(this.data.fullAnalysis?.pageRank || {});
+                // Collect all PageRank values from nodes
+                const pageRanks = this.data.nodes
+                    .map(n => n.metadata?.metrics?.pageRank || 0)
+                    .filter(pr => pr > 0); // Only nodes with actual PageRank
                 const threshold = this.percentile(pageRanks, 0.8);
                 return pageRank >= threshold;
             }
