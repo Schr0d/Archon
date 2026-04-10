@@ -1531,288 +1531,6 @@
             }
         }
 
-        // Real Archon module data
-        const archonData = {
-            modules: [
-                {
-                    id: 'archon-core',
-                    name: 'archon-core',
-                    icon: '📦',
-                    health: 'healthy',
-                    classCount: 12,
-                    description: 'Core interfaces and analysis engine',
-                    stats: { dependenciesIn: 0, dependenciesOut: 5, complexity: 'Low' },
-                    classes: [
-                        { name: 'LanguagePlugin', icon: '🔌' },
-                        { name: 'DependencyGraph', icon: '🕸️' },
-                        { name: 'GraphNode', icon: '⬡' },
-                        { name: 'AnalysisResult', icon: '📊' },
-                        { name: 'Dependency', icon: '🔗' },
-                        { name: 'ParseOrchestrator', icon: '🎯' },
-                        { name: 'PluginRegistry', icon: '📋' },
-                        { name: 'BlindSpotReport', icon: '⚠️' },
-                        { name: 'HotspotDetector', icon: '🔥' },
-                        { name: 'RiskCalculator', icon: '📈' },
-                        { name: 'LayerClassifier', icon: '🏷️' },
-                        { name: 'CycleDetector', icon: '🔄' }
-                    ]
-                },
-                {
-                    id: 'archon-java',
-                    name: 'archon-java',
-                    icon: '☕',
-                    health: 'healthy',
-                    classCount: 28,
-                    description: 'Java language plugin with reflection-based parsing',
-                    stats: { dependenciesIn: 1, dependenciesOut: 8, complexity: 'Medium' },
-                    classes: [
-                        { name: 'JavaLanguagePlugin', icon: '🔌' },
-                        { name: 'ReflectionParser', icon: '🔍' },
-                        { name: 'JavaDependencyExtractor', icon: '📤' },
-                        { name: 'AnnotationProcessor', icon: '📝' },
-                        { name: 'FieldDependencyScanner', icon: '🔬' },
-                        { name: 'MethodDependencyScanner', icon: '⚙️' },
-                        { name: 'ClassDependencyScanner', icon: '📦' },
-                        { name: 'ImportResolver', icon: '🧭' },
-                        { name: 'ReflectionUtils', icon: '🪞' },
-                        { name: 'TypeUtils', icon: '📐' },
-                        { name: 'AnnotationUtils', icon: '🏷️' },
-                        { name: 'DependencyFilter', icon: '🔎' },
-                        { name: 'JavaGraphNode', icon: '⬡' },
-                        { name: 'DependencyGraphBuilder', icon: '🏗️' },
-                        { name: 'BlindSpotDetector', icon: '👁️' },
-                        { name: 'DynamicInvocationFinder', icon: '⚡' },
-                        { name: 'ProxyHandlerAnalyzer', icon: '🎭' },
-                        { name: 'ReflectionConfig', icon: '⚙️' },
-                        { name: 'ClasspathScanner', icon: '📂' },
-                        { name: 'JarAnalyzer', icon: '🫙' },
-                        { name: 'SourceAnalyzer', icon: '📄' },
-                        { name: 'AstVisitor', icon: '🌳' },
-                        { name: 'DependencyCollector', icon: '🧺' },
-                        { name: 'ReferenceResolver', icon: '🔗' },
-                        { name: 'TypeHierarchyAnalyzer', icon: '🌲' },
-                        { name: 'FieldAccessAnalyzer', icon: '🚪' },
-                        { name: 'MethodCallAnalyzer', icon: '📞' },
-                        { name: 'ConstructorAnalyzer', icon: '🏗️' },
-                        { name: 'JavaModelBuilder', icon: '🔨' }
-                    ]
-                },
-                {
-                    id: 'archon-js',
-                    name: 'archon-js',
-                    icon: '📜',
-                    health: 'warning',
-                    classCount: 32,
-                    description: 'JavaScript/TypeScript plugin using Closure Compiler',
-                    stats: { dependenciesIn: 1, dependenciesOut: 12, complexity: 'High' },
-                    classes: [
-                        { name: 'JsLanguagePlugin', icon: '🔌' },
-                        { name: 'ClosureParser', icon: '🔧' },
-                        { name: 'TypeScriptParser', icon: '📘' },
-                        { name: 'JsDependencyExtractor', icon: '📤' },
-                        { name: 'ImportStatementParser', icon: '📥' },
-                        { name: 'RequireCallAnalyzer', icon: '📞' },
-                        { name: 'EsModuleAnalyzer', icon: '📦' },
-                        { name: 'TypeOnlyImportParser', icon: '🏷️' },
-                        { name: 'JsGraphNode', icon: '⬡' },
-                        { name: 'DependencyGraphBuilder', icon: '🏗️' },
-                        { name: 'SourceFileScanner', icon: '📂' },
-                        { name: 'ModuleResolver', icon: '🧭' },
-                        { name: 'NpmPackageAnalyzer', icon: '📦' },
-                        { name: 'NodeModulesScanner', icon: '🌳' },
-                        { name: 'JsAstVisitor', icon: '🔍' },
-                        { name: 'AstTraverser', icon: '🌳' },
-                        { name: 'ScopeAnalyzer', icon: '🎯' },
-                        { name: 'ReferenceFinder', icon: '🔎' },
-                        { name: 'TypeInference', icon: '🔮' },
-                        { name: 'JsxAnalyzer', icon: '⚛️' },
-                        { name: 'DecoratorParser', icon: '🎀' },
-                        { name: 'ClassAnalyzer', icon: '📦' },
-                        { name: 'FunctionAnalyzer', icon: '⚡' },
-                        { name: 'VariableAnalyzer', icon: '📝' },
-                        { name: 'ImportPathResolver', icon: '🛤️' },
-                        { name: 'ExportAnalyzer', icon: '📤' },
-                        { name: 'DynamicImportAnalyzer', icon: '⚡' },
-                        { name: 'CommonJsAnalyzer', icon: '📜' },
-                        { name: 'JsConfigParser', icon: '⚙️' },
-                        { name: 'TsConfigParser', icon: '⚙️' },
-                        { name: 'BundlerAnalyzer', icon: '📦' },
-                        { name: 'JsModelBuilder', icon: '🔨' }
-                    ]
-                },
-                {
-                    id: 'archon-python',
-                    name: 'archon-python',
-                    icon: '🐍',
-                    health: 'error',
-                    classCount: 45,
-                    description: 'Python language plugin with regex-based import parsing',
-                    stats: { dependenciesIn: 1, dependenciesOut: 15, complexity: 'High' },
-                    classes: [
-                        { name: 'PythonLanguagePlugin', icon: '🔌' },
-                        { name: 'ImportParser', icon: '📥' },
-                        { name: 'FromImportParser', icon: '📦' },
-                        { name: 'RelativeImportResolver', icon: '🧭' },
-                        { name: 'StdlibFilter', icon: '📚' },
-                        { name: 'PythonDependencyExtractor', icon: '📤' },
-                        { name: 'ModuleScanner', icon: '🔍' },
-                        { name: 'PackageAnalyzer', icon: '📦' },
-                        { name: 'InitFileAnalyzer', icon: '📄' },
-                        { name: 'PythonGraphNode', icon: '⬡' },
-                        { name: 'DependencyGraphBuilder', icon: '🏗️' },
-                        { name: 'AstAnalyzer', icon: '🌳' },
-                        { name: 'ImportStatementVisitor', icon: '🔍' },
-                        { name: 'ClassDefinitionFinder', icon: '📦' },
-                        { name: 'FunctionDefinitionFinder', icon: '⚡' },
-                        { name: 'DecoratorAnalyzer', icon: '🎀' },
-                        { name: 'MethodAnalyzer', icon: '⚙️' },
-                        { name: 'AttributeAnalyzer', icon: '🏷️' },
-                        { name: 'GlobalVariableAnalyzer', icon: '🌐' },
-                        { name: 'ImportAliasResolver', icon: '🔤' },
-                        { name: 'DynamicImportAnalyzer', icon: '⚡' },
-                        { name: 'MetaClassAnalyzer', icon: '🔮' },
-                        { name: 'PropertyAnalyzer', icon: '🏠' },
-                        { name: 'ContextManagerAnalyzer', icon: '📐' },
-                        { name: 'GeneratorAnalyzer', icon: '⚡' },
-                        { name: 'AsyncFunctionAnalyzer', icon: '🔄' },
-                        { name: 'TypeHintAnalyzer', icon: '📝' },
-                        { name: 'PythonPathResolver', icon: '🛤️' },
-                        { name: 'SitePackagesAnalyzer', icon: '📂' },
-                        { name: 'EntryAnalyzer', icon: '🚪' },
-                        { name: 'RequirementsAnalyzer', icon: '📋' },
-                        { name: 'SetupPyAnalyzer', icon: '⚙️' },
-                        { name: 'PyProjectAnalyzer', icon: '📄' },
-                        { name: 'CondaEnvAnalyzer', icon: '🐍' },
-                        { name: 'VirtualEnvAnalyzer', icon: '📦' },
-                        { name: 'PipAnalyzer', icon: '📥' },
-                        { name: 'BlindSpotDetector', icon: '👁️' },
-                        { name: 'DynamicCodeAnalyzer', icon: '⚡' },
-                        { name: 'PythonModelBuilder', icon: '🔨' },
-                        { name: 'IndentationAnalyzer', icon: '📏' },
-                        { name: 'DocstringAnalyzer', icon: '📄' },
-                        { name: 'AnnotationAnalyzer', icon: '🏷️' }
-                    ]
-                },
-                {
-                    id: 'archon-cli',
-                    name: 'archon-cli',
-                    icon: '⌨️',
-                    health: 'healthy',
-                    classCount: 8,
-                    description: 'Command-line interface and user commands',
-                    stats: { dependenciesIn: 1, dependenciesOut: 3, complexity: 'Low' },
-                    classes: [
-                        { name: 'ArchonCli', icon: '💻' },
-                        { name: 'AnalyzeCommand', icon: '🔍' },
-                        { name: 'DiffCommand', icon: '📊' },
-                        { name: 'ReportCommand', icon: '📄' },
-                        { name: 'ConfigLoader', icon: '⚙️' },
-                        { name: 'OutputFormatter', icon: '📝' },
-                        { name: 'CliOptions', icon: '🎛️' },
-                        { name: 'ProgressReporter', icon: '📈' }
-                    ]
-                },
-                {
-                    id: 'archon-viz',
-                    name: 'archon-viz',
-                    icon: '🎨',
-                    health: 'healthy',
-                    classCount: 10,
-                    description: 'Visualization components and rendering',
-                    stats: { dependenciesIn: 2, dependenciesOut: 4, complexity: 'Medium' },
-                    classes: [
-                        { name: 'VisualizationRenderer', icon: '🖼️' },
-                        { name: 'GraphRenderer', icon: '🕸️' },
-                        { name: 'TreeMapRenderer', icon: '📊' },
-                        { name: 'SunburstRenderer', icon: '☀️' },
-                        { name: 'ColorScheme', icon: '🎨' },
-                        { name: 'LayoutEngine', icon: '📐' },
-                        { name: 'InteractionHandler', icon: '🖱️' },
-                        { name: 'AnimationController', icon: '🎬' },
-                        { name: 'ExportGenerator', icon: '📤' },
-                        { name: 'VizConfig', icon: '⚙️' }
-                    ]
-                },
-                {
-                    id: 'archon-test',
-                    name: 'archon-test',
-                    icon: '🧪',
-                    health: 'healthy',
-                    classCount: 7,
-                    description: 'Test suite and validation utilities',
-                    stats: { dependenciesIn: 6, dependenciesOut: 0, complexity: 'Low' },
-                    classes: [
-                        { name: 'PluginTest', icon: '🔌' },
-                        { name: 'ParserTest', icon: '🔍' },
-                        { name: 'GraphTest', icon: '🕸️' },
-                        { name: 'IntegrationTest', icon: '🔗' },
-                        { name: 'PerformanceTest', icon: '⚡' },
-                        { name: 'ValidationUtils', icon: '✅' },
-                        { name: 'MockDataGenerator', icon: '🎭' }
-                    ]
-                }
-            ]
-        };
-
-        // Populate sidebar
-        function renderSidebar() {
-            const domainList = document.getElementById('domainList');
-            domainList.innerHTML = '';
-
-            archonData.modules.forEach(module => {
-                const domainItem = document.createElement('div');
-                domainItem.className = 'domain-item';
-
-                const domainNode = document.createElement('div');
-                domainNode.className = 'domain-node';
-                domainNode.dataset.moduleId = module.id;
-
-                domainNode.innerHTML = `
-                    <span class="domain-icon">${module.icon}</span>
-                    <span class="domain-name">${module.name}</span>
-                    <div class="domain-meta">
-                        <span class="class-count">${module.classCount}</span>
-                        <span class="health-indicator ${module.health}"></span>
-                        <span class="chevron">▶</span>
-                    </div>
-                `;
-
-                const classList = document.createElement('div');
-                classList.className = 'class-list';
-
-                module.classes.forEach(cls => {
-                    const classItem = document.createElement('div');
-                    classItem.className = 'class-item';
-                    classItem.innerHTML = `
-                        <span class="class-icon">${cls.icon}</span>
-                        <span>${cls.name}</span>
-                    `;
-                    classList.appendChild(classItem);
-                });
-
-                domainItem.appendChild(domainNode);
-                domainItem.appendChild(classList);
-                domainList.appendChild(domainItem);
-
-                // Domain click handler
-                domainNode.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const wasExpanded = domainNode.classList.contains('expanded');
-
-                    // Collapse all others
-                    document.querySelectorAll('.domain-node').forEach(n => {
-                        n.classList.remove('expanded', 'active');
-                        n.nextElementSibling?.classList.remove('visible');
-                    });
-
-                    // Toggle current
-                    if (!wasExpanded) {
-                        domainNode.classList.add('expanded', 'active');
-                        classList.classList.add('visible');
-                    }
-                });
-            });
-        }
 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1841,7 +1559,12 @@
             window.graphCanvas.start();
 
             // Populate sidebar (keep existing DOM sidebar for accessibility)
-            renderSidebar(data);
+            try {
+                renderSidebar(data);
+            } catch (e) {
+                console.error('Failed to render sidebar:', e);
+                showError('Failed to render sidebar: ' + e.message);
+            }
         });
 
         function renderSidebar(data) {
@@ -1865,30 +1588,61 @@
 
                 const health = calculateDomainHealth(domain.nodes);
 
-                domainItem.innerHTML = `
-                    <div class="domain-node" data-domain="${domainId}">
-                        <span class="domain-icon">${getDomainIcon(domainId)}</span>
-                        <span class="domain-name">${domainId}</span>
-                        <div class="domain-meta">
-                            <span class="class-count">${domain.nodes.length}</span>
-                            <span class="health-indicator ${health}"></span>
-                            <span class="chevron">▶</span>
-                        </div>
-                    </div>
-                    <div class="class-list" data-domain="${domainId}">
-                        ${domain.nodes.map(node => `
-                            <div class="class-item" data-node="${node.id}">
-                                <span class="class-icon">⬡</span>
-                                <span>${node.id}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
+                // Create domain node using DOM methods (no innerHTML for safety)
+                const domainNode = document.createElement('div');
+                domainNode.className = 'domain-node';
+                domainNode.dataset.domain = domainId;
 
+                const domainIcon = document.createElement('span');
+                domainIcon.className = 'domain-icon';
+                domainIcon.textContent = getDomainIcon(domainId);
+
+                const domainName = document.createElement('span');
+                domainName.className = 'domain-name';
+                domainName.textContent = domainId;
+
+                const domainMeta = document.createElement('div');
+                domainMeta.className = 'domain-meta';
+
+                const classCount = document.createElement('span');
+                classCount.className = 'class-count';
+                classCount.textContent = domain.nodes.length;
+
+                const healthIndicator = document.createElement('span');
+                healthIndicator.className = `health-indicator ${health}`;
+
+                const chevron = document.createElement('span');
+                chevron.className = 'chevron';
+                chevron.textContent = '▶';
+
+                domainMeta.append(classCount, healthIndicator, chevron);
+                domainNode.append(domainIcon, domainName, domainMeta);
+
+                // Create class list using DOM methods
+                const classList = document.createElement('div');
+                classList.className = 'class-list';
+                classList.dataset.domain = domainId;
+
+                for (const node of domain.nodes) {
+                    const classItem = document.createElement('div');
+                    classItem.className = 'class-item';
+                    classItem.dataset.node = node.id;
+
+                    const classIcon = document.createElement('span');
+                    classIcon.className = 'class-icon';
+                    classIcon.textContent = '⬡';
+
+                    const classText = document.createElement('span');
+                    classText.textContent = node.id;
+
+                    classItem.append(classIcon, classText);
+                    classList.appendChild(classItem);
+                }
+
+                domainItem.append(domainNode, classList);
                 domainList.appendChild(domainItem);
 
                 // Domain click handler
-                const domainNode = domainItem.querySelector('.domain-node');
                 domainNode.addEventListener('click', () => {
                     const wasExpanded = domainNode.classList.contains('expanded');
 
