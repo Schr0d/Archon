@@ -798,6 +798,63 @@
     </div>
 
     <script>
+        class DataManager {
+            constructor() {
+                this.data = null;
+                this.schemaVersion = "archon-metadata-v1";
+            }
+
+            async load() {
+                try {
+                    const rawData = window.GRAPH_DATA || await this.fetchFromServer();
+                    this.validateSchema(rawData);
+                    this.data = this.processData(rawData);
+                    return this.data;
+                } catch (e) {
+                    this.showError(e.message);
+                    throw e;
+                }
+            }
+
+            async fetchFromServer() {
+                const response = await fetch('/api/graph');
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                return await response.json();
+            }
+
+            validateSchema(data) {
+                if (!data.$schema || !data.$schema.startsWith(this.schemaVersion)) {
+                    throw new Error(`Unsupported schema version: ${data.$schema}`);
+                }
+                if (!data.nodes || !Array.isArray(data.nodes)) {
+                    throw new Error('Missing or invalid "nodes" field');
+                }
+                if (!data.edges || !Array.isArray(data.edges)) {
+                    throw new Error('Missing or invalid "edges" field');
+                }
+            }
+
+            processData(data) {
+                const hasFullAnalysis = !!data.fullAnalysis;
+                if (!hasFullAnalysis) {
+                    this.showWarning('Tier 3 metrics unavailable, using Tier 1 fallback');
+                }
+                return { ...data, hasFullAnalysis };
+            }
+
+            showError(message) {
+                const banner = document.getElementById('errorBanner');
+                banner.textContent = `Error: ${message}`;
+                banner.style.display = 'flex';
+            }
+
+            showWarning(message) {
+                const banner = document.getElementById('warningBanner');
+                banner.textContent = `Warning: ${message}`;
+                banner.style.display = 'flex';
+            }
+        }
+
         // Real Archon module data
         const archonData = {
             modules: [
