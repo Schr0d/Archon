@@ -1161,6 +1161,374 @@
             }
         }
 
+        /**
+         * GraphCanvas: Canvas-based graph renderer with Tier 3 metrics visualization
+         */
+        class GraphCanvas {
+            constructor(canvasId, data) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.data = data;
+                this.nodes = data.nodes.map(n => this.initNode(n));
+                this.edges = data.edges;
+
+                // View state
+                this.viewLevel = 'DOMAIN'; // 'DOMAIN' or 'CLASS'
+                this.expandedDomain = null;
+                this.selectedNode = null;
+                this.hoveredNode = null;
+
+                // Transform
+                this.transform = { x: 0, y: 0, k: 1 };
+                this.isDragging = false;
+                this.isPanning = false;
+                this.lastMouse = { x: 0, y: 0 };
+
+                // Physics
+                this.simulation = new ForceSimulation(this.nodes, this.edges);
+
+                // Animation
+                this.particles = this.initParticles();
+                this.lastTime = 0;
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.setupInteraction();
+            }
+
+            initNode(nodeData) {
+                // Map Tier 3 metrics to visual properties
+                const pageRank = this.data.fullAnalysis?.pageRank?.[nodeData.id] || 0;
+                const betweenness = this.data.fullAnalysis?.betweenness?.[nodeData.id] || 0;
+                const closeness = this.data.fullAnalysis?.closeness?.[nodeData.id] || 0;
+                const isBridge = this.data.fullAnalysis?.bridges?.includes(nodeData.id) || false;
+
+                return {
+                    ...nodeData,
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    vx: 0, vy: 0,
+                    // Visual properties
+                    radius: 12 + (betweenness * 30),
+                    color: this.closenessToColor(closeness),
+                    glow: this.shouldGlow(pageRank) ? 10 + (pageRank * 50) : 0,
+                    isBridge,
+                    // Domain grouping
+                    domain: nodeData.domain || 'ungrouped'
+                };
+            }
+
+            shouldGlow(pageRank) {
+                // Top 20% PageRank nodes get glow (selective glow optimization)
+                const pageRanks = Object.values(this.data.fullAnalysis?.pageRank || {});
+                const threshold = this.percentile(pageRanks, 0.8);
+                return pageRank >= threshold;
+            }
+
+            percentile(arr, p) {
+                const sorted = [...arr].sort((a, b) => a - b);
+                const idx = Math.floor(sorted.length * p);
+                return sorted[idx];
+            }
+
+            closenessToColor(closeness) {
+                // Interpolate blue → green based on closeness
+                const r = Math.floor(74 + (74 - 74) * closeness);
+                const g = Math.floor(222 + (222 - 222) * closeness);
+                const b = Math.floor(128 + (26 - 128) * closeness);
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            initParticles() {
+                // Create particles for edge flow animation
+                return this.edges.map(edge => ({
+                    edge,
+                    progress: Math.random(),
+                    speed: 0.005 + Math.random() * 0.01
+                }));
+            }
+
+            resize() {
+                const parent = this.canvas.parentElement;
+                this.canvas.width = parent.clientWidth;
+                this.canvas.height = parent.clientHeight;
+            }
+
+            setupInteraction() {
+                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
+                this.canvas.addEventListener('click', (e) => this.onClick(e));
+
+                // Keyboard
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') this.returnToDomainView();
+                });
+            }
+
+            onMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left - this.transform.x) / this.transform.k;
+                const my = (e.clientY - rect.top - this.transform.y) / this.transform.k;
+
+                // Find hovered node
+                this.hoveredNode = this.nodes.find(n => {
+                    const dx = n.x - mx;
+                    const dy = n.y - my;
+                    return Math.sqrt(dx * dx + dy * dy) < n.radius;
+                });
+
+                this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
+
+                // Handle panning
+                if (this.isPanning) {
+                    this.transform.x += e.clientX - this.lastMouse.x;
+                    this.transform.y += e.clientY - this.lastMouse.y;
+                }
+
+                this.lastMouse = { x: e.clientX, y: e.clientY };
+
+                // Announce to screen reader
+                this.announceHover();
+            }
+
+            onMouseDown(e) {
+                if (this.hoveredNode) {
+                    this.isDragging = true;
+                } else {
+                    this.isPanning = true;
+                }
+            }
+
+            onMouseUp(e) {
+                this.isDragging = false;
+                this.isPanning = false;
+            }
+
+            onWheel(e) {
+                e.preventDefault();
+                const zoomFactor = 1.1;
+                const newK = e.deltaY < 0 ? this.transform.k * zoomFactor : this.transform.k / zoomFactor;
+
+                // Clamp zoom
+                const clampedK = Math.max(0.1, Math.min(5, newK));
+
+                // Zoom toward mouse position
+                const rect = this.canvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+
+                this.transform.x = mx - (mx - this.transform.x) * (clampedK / this.transform.k);
+                this.transform.y = my - (my - this.transform.y) * (clampedK / this.transform.k);
+                this.transform.k = clampedK;
+            }
+
+            onClick(e) {
+                if (this.hoveredNode) {
+                    this.onNodeClick(this.hoveredNode);
+                } else {
+                    this.selectedNode = null;
+                    this.announceSelection();
+                }
+            }
+
+            onNodeClick(node) {
+                if (this.viewLevel === 'DOMAIN' && node.domain) {
+                    this.expandDomain(node.domain);
+                } else {
+                    this.selectedNode = node;
+                    this.announceSelection();
+                }
+            }
+
+            expandDomain(domainId) {
+                // Position inheritance: seed class nodes at parent domain position
+                const domainNode = this.nodes.find(n => n.id === domainId || n.domain === domainId);
+                if (!domainNode) return;
+
+                this.viewLevel = 'CLASS';
+                this.expandedDomain = domainId;
+
+                // Set class node positions to parent position
+                for (const node of this.nodes) {
+                    if (node.domain === domainId && node.id !== domainId) {
+                        this.simulation.setNodePosition(node.id, domainNode.x, domainNode.y);
+                    }
+                }
+
+                // Restart physics for expansion animation
+                this.simulation.restart();
+
+                // Announce
+                this.announceViewChange(`Now showing classes in ${domainId} domain`);
+            }
+
+            returnToDomainView() {
+                if (this.viewLevel === 'CLASS') {
+                    this.viewLevel = 'DOMAIN';
+                    this.expandedDomain = null;
+                    this.selectedNode = null;
+                    this.simulation.restart();
+                    this.announceViewChange('Returned to domain overview');
+                }
+            }
+
+            start() {
+                requestAnimationFrame((t) => this.render(t));
+            }
+
+            render(timestamp) {
+                const dt = timestamp - this.lastTime;
+                this.lastTime = timestamp;
+
+                // Update physics
+                this.simulation.update();
+
+                // Update particles
+                this.updateParticles();
+
+                // Clear
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Apply transform
+                this.ctx.save();
+                this.ctx.translate(this.transform.x, this.transform.y);
+                this.ctx.scale(this.transform.k, this.transform.k);
+
+                // Draw edges
+                this.drawEdges();
+
+                // Draw nodes
+                this.drawNodes();
+
+                this.ctx.restore();
+
+                requestAnimationFrame((t) => this.render(t));
+            }
+
+            drawEdges() {
+                for (const particle of this.particles) {
+                    const source = this.nodes.find(n => n.id === particle.edge.source);
+                    const target = this.nodes.find(n => n.id === particle.edge.target);
+                    if (!source || !target) continue;
+
+                    // Draw edge
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(source.x, source.y);
+                    this.ctx.lineTo(target.x, target.y);
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.stroke();
+
+                    // Draw particle (if selected or always flowing)
+                    if (!this.selectedNode || this.selectedNode.id === particle.edge.source) {
+                        const px = source.x + (target.x - source.x) * particle.progress;
+                        const py = source.y + (target.y - source.y) * particle.progress;
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(px, py, 2, 0, Math.PI * 2);
+                        this.ctx.fillStyle = this.selectedNode ? '#4ade80' : 'rgba(255, 255, 255, 0.5)';
+                        this.ctx.fill();
+                    }
+                }
+            }
+
+            drawNodes() {
+                for (const node of this.nodes) {
+                    // Skip if not in view
+                    if (this.viewLevel === 'CLASS' && node.domain !== this.expandedDomain) {
+                        // Fade other domains
+                        this.ctx.globalAlpha = 0.3;
+                    } else {
+                        this.ctx.globalAlpha = 1;
+                    }
+
+                    // Glow (only for top 20% PageRank)
+                    if (node.glow > 0) {
+                        this.ctx.shadowBlur = node.glow;
+                        this.ctx.shadowColor = node.color;
+                    } else {
+                        this.ctx.shadowBlur = 0;
+                    }
+
+                    // Draw node
+                    this.ctx.beginPath();
+                    this.ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+                    this.ctx.fillStyle = node.color;
+                    this.ctx.fill();
+
+                    // Bridge indicator (marching ants)
+                    if (node.isBridge) {
+                        this.ctx.strokeStyle = '#4ade80';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.setLineDash([4, 4]);
+                        this.ctx.lineDashOffset = -Date.now() / 50;
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]);
+                    }
+
+                    // Selection highlight
+                    if (node === this.selectedNode) {
+                        this.ctx.strokeStyle = '#4ade80';
+                        this.ctx.lineWidth = 3;
+                        this.ctx.stroke();
+                    }
+
+                    // Hover highlight
+                    if (node === this.hoveredNode) {
+                        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.stroke();
+                    }
+
+                    // Label (only when zoomed in)
+                    if (node.radius * this.transform.k > 15) {
+                        this.ctx.shadowBlur = 0;
+                        this.ctx.fillStyle = '#fafafa';
+                        this.ctx.font = '11px Geist Mono';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText(node.id, node.x, node.y + node.radius + 12);
+                    }
+                }
+
+                this.ctx.globalAlpha = 1;
+            }
+
+            updateParticles() {
+                for (const particle of this.particles) {
+                    particle.progress += particle.speed;
+                    if (particle.progress > 1) {
+                        particle.progress = 0;
+                    }
+                }
+            }
+
+            announceHover() {
+                if (this.hoveredNode) {
+                    this.announceToScreenReader(`${this.hoveredNode.id}`);
+                }
+            }
+
+            announceSelection() {
+                if (this.selectedNode) {
+                    const metrics = this.data.fullAnalysis ? 'with Tier 3 metrics' : 'Tier 1 only';
+                    this.announceToScreenReader(`Selected ${this.selectedNode.id}, ${metrics}`);
+                }
+            }
+
+            announceViewChange(message) {
+                this.announceToScreenReader(message);
+            }
+
+            announceToScreenReader(message) {
+                const announcer = document.getElementById('canvasAnnouncer');
+                if (announcer) {
+                    announcer.textContent = message;
+                }
+            }
+        }
+
         // Real Archon module data
         const archonData = {
             modules: [
