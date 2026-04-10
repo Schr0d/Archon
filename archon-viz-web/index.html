@@ -917,10 +917,11 @@
          * Quadtree node for Barnes-Hut optimization (O(n log n) repulsion)
          */
         class QuadTreeNode {
-            constructor(bounds, maxCapacity = 10, maxDepth = 8) {
+            constructor(bounds, maxCapacity = 10, maxDepth = 8, depth = 0) {
                 this.bounds = bounds; // {x, y, width, height}
                 this.maxCapacity = maxCapacity;
                 this.maxDepth = maxDepth;
+                this.depth = depth;
                 this.nodes = [];
                 this.children = null; // [nw, ne, sw, se]
                 this.centerOfMass = { x: 0, y: 0, mass: 0 };
@@ -947,10 +948,10 @@
                 const { x, y, width, height } = this.bounds;
                 const hw = width / 2, hh = height / 2;
                 this.children = [
-                    new QuadTreeNode({ x, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth + 1),
-                    new QuadTreeNode({ x: x + hw, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth + 1),
-                    new QuadTreeNode({ x, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth + 1),
-                    new QuadTreeNode({ x: x + hw, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth + 1)
+                    new QuadTreeNode({ x, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
+                    new QuadTreeNode({ x: x + hw, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
+                    new QuadTreeNode({ x, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
+                    new QuadTreeNode({ x: x + hw, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1)
                 ];
 
                 // Re-insert existing nodes into children
