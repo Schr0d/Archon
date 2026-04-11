@@ -761,11 +761,158 @@
             }
         }
 
+        /* Tooltip */
+        .node-tooltip {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 100;
+            max-width: 280px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            transition: opacity 150ms var(--ease-out);
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .node-tooltip.visible {
+            opacity: 1;
+        }
+
+        .node-tooltip-arrow {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+        }
+
+        .node-tooltip-arrow.below {
+            top: -8px;
+            border-bottom: 8px solid var(--bg-surface);
+        }
+
+        .node-tooltip-arrow.above {
+            bottom: -8px;
+            border-top: 8px solid var(--bg-surface);
+        }
+
+        .tooltip-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px 8px;
+        }
+
+        .tooltip-icon {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+            background: var(--bg-subtle);
+        }
+
+        .tooltip-name {
+            font-weight: 600;
+            font-size: 0.8125rem;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .tooltip-package {
+            font-family: 'Geist Mono', 'SF Mono', monospace;
+            font-size: 0.6875rem;
+            color: var(--text-tertiary);
+            margin-top: 1px;
+        }
+
+        .tooltip-separator {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 0 12px;
+        }
+
+        .tooltip-metrics {
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 12px;
+        }
+
+        .tooltip-metric {
+            text-align: center;
+        }
+
+        .tooltip-metric-label {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            margin-bottom: 2px;
+        }
+
+        .tooltip-metric-value {
+            font-family: 'Geist Mono', 'SF Mono', monospace;
+            font-size: 0.6875rem;
+            color: var(--text-primary);
+        }
+
+        .tooltip-badges {
+            display: flex;
+            gap: 6px;
+            padding: 6px 12px 8px;
+            flex-wrap: wrap;
+        }
+
+        .tooltip-badge {
+            font-size: 0.625rem;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .tooltip-badge.hotspot {
+            background: var(--status-error-soft);
+            color: var(--status-error);
+        }
+
+        .tooltip-badge.cycle {
+            background: var(--status-error);
+            color: #fff;
+        }
+
+        .tooltip-badge.bridge {
+            background: var(--status-warning-soft);
+            color: var(--status-warning);
+        }
+
+        .tooltip-badge.blindspot {
+            background: var(--status-warning);
+            color: #fff;
+        }
+
+        .tooltip-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 12px 10px;
+            font-family: 'Geist Mono', 'SF Mono', monospace;
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+        }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
+            }
+
+            .node-tooltip {
+                transition: none;
             }
         }
     </style>
@@ -814,6 +961,38 @@
         <main class="main-content">
             <div class="canvas-container" role="region" aria-label="Dependency graph visualization">
                 <canvas id="graphCanvas"></canvas>
+                <div id="nodeTooltip" class="node-tooltip" role="tooltip" aria-hidden="true">
+                    <div class="node-tooltip-arrow below" id="tooltipArrow"></div>
+                    <div class="tooltip-header">
+                        <div class="tooltip-icon" id="tooltipIcon"></div>
+                        <div>
+                            <div class="tooltip-name" id="tooltipName"></div>
+                            <div class="tooltip-package" id="tooltipPackage"></div>
+                        </div>
+                    </div>
+                    <div class="tooltip-separator"></div>
+                    <div class="tooltip-metrics" id="tooltipMetrics">
+                        <div class="tooltip-metric">
+                            <div class="tooltip-metric-label">PageRank</div>
+                            <div class="tooltip-metric-value" id="tooltipPageRank">---</div>
+                        </div>
+                        <div class="tooltip-metric">
+                            <div class="tooltip-metric-label">Betweenness</div>
+                            <div class="tooltip-metric-value" id="tooltipBetweenness">---</div>
+                        </div>
+                        <div class="tooltip-metric">
+                            <div class="tooltip-metric-label">Closeness</div>
+                            <div class="tooltip-metric-value" id="tooltipCloseness">---</div>
+                        </div>
+                    </div>
+                    <div class="tooltip-separator"></div>
+                    <div class="tooltip-badges" id="tooltipBadges"></div>
+                    <div class="tooltip-separator" id="tooltipBadgeSeparator"></div>
+                    <div class="tooltip-footer">
+                        <span id="tooltipFanIn">&larr; -- deps</span>
+                        <span id="tooltipFanOut">-- deps &rarr;</span>
+                    </div>
+                </div>
                 <div id="canvasAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
             </div>
 
@@ -1012,6 +1191,7 @@
                 this.nodes = nodes.map(n => ({ ...n, vx: 0, vy: 0, fx: 0, fy: 0, mass: n.mass || 1 }));
                 this.edges = edges;
                 this.nodeCount = nodes.length;
+                this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
 
                 // Physics constants (from design doc)
                 this.REPULSION_STRENGTH = 1000;
@@ -1128,8 +1308,8 @@
             applyAttraction() {
                 // O(e) spring attraction
                 for (const edge of this.edges) {
-                    const source = this.nodes.find(n => n.id === edge.source);
-                    const target = this.nodes.find(n => n.id === edge.target);
+                    const source = this.nodeMap.get(edge.source);
+                    const target = this.nodeMap.get(edge.target);
                     if (!source || !target) continue;
 
                     const dx = target.x - source.x;
@@ -1172,7 +1352,7 @@
             }
 
             setNodePosition(nodeId, x, y) {
-                const node = this.nodes.find(n => n.id === nodeId);
+                const node = this.nodeMap.get(nodeId);
                 if (node) {
                     node.x = x;
                     node.y = y;
@@ -1190,7 +1370,9 @@
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
                 this.data = data;
+                this.pageRankThreshold = this.computePageRankThreshold();
                 this.nodes = data.nodes.map(n => this.initNode(n));
+                this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
                 this.edges = data.edges;
 
                 // View state
@@ -1211,6 +1393,10 @@
                 // Animation
                 this.particles = this.initParticles();
                 this.lastTime = 0;
+                this._fadeStartTime = 0; // for node fade-in
+
+                // Reduced motion preference
+                this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
@@ -1219,11 +1405,19 @@
 
             initNode(nodeData) {
                 // Map Tier 3 metrics to visual properties
-                // Metrics are in node.metadata.metrics (from JsonSerializer)
                 const pageRank = nodeData.metadata?.metrics?.pageRank || 0;
                 const betweenness = nodeData.metadata?.metrics?.betweenness || 0;
                 const closeness = nodeData.metadata?.metrics?.closeness || 0;
                 const isBridge = nodeData.metadata?.issues?.bridge || false;
+
+                // Short label: class name after last dot
+                const shortLabel = nodeData.id.includes('.')
+                    ? nodeData.id.substring(nodeData.id.lastIndexOf('.') + 1)
+                    : nodeData.id;
+
+                // Node dimensions (capped at 200px for long names)
+                const width = Math.min(200, Math.max(80, shortLabel.length * 7 + 24));
+                const height = 28;
 
                 return {
                     ...nodeData,
@@ -1231,29 +1425,24 @@
                     y: Math.random() * this.canvas.height,
                     vx: 0, vy: 0,
                     // Visual properties
-                    radius: 12 + (betweenness * 30),
+                    radius: 12 + (betweenness * 30), // kept for backward compat
+                    width, height, shortLabel,
                     color: this.closenessToColor(closeness),
-                    glow: this.shouldGlow(pageRank) ? 10 + (pageRank * 50) : 0,
+                    glow: pageRank >= this.pageRankThreshold ? 10 + (pageRank * 50) : 0,
                     isBridge,
                     // Domain grouping
                     domain: nodeData.domain || 'ungrouped'
                 };
             }
 
-            shouldGlow(pageRank) {
-                // Top 20% PageRank nodes get glow (selective glow optimization)
-                // Collect all PageRank values from nodes
+            computePageRankThreshold() {
+                // Cache the 80th percentile threshold once (was O(n²logn) per node)
                 const pageRanks = this.data.nodes
                     .map(n => n.metadata?.metrics?.pageRank || 0)
-                    .filter(pr => pr > 0); // Only nodes with actual PageRank
-                const threshold = this.percentile(pageRanks, 0.8);
-                return pageRank >= threshold;
-            }
-
-            percentile(arr, p) {
-                const sorted = [...arr].sort((a, b) => a - b);
-                const idx = Math.floor(sorted.length * p);
-                return sorted[idx];
+                    .filter(pr => pr > 0);
+                if (pageRanks.length === 0) return Infinity;
+                const sorted = [...pageRanks].sort((a, b) => a - b);
+                return sorted[Math.floor(sorted.length * 0.8)];
             }
 
             closenessToColor(closeness) {
@@ -1305,28 +1494,46 @@
                 const mx = (e.clientX - rect.left - this.transform.x) / this.transform.k;
                 const my = (e.clientY - rect.top - this.transform.y) / this.transform.k;
 
-                // Find hovered node
-                this.hoveredNode = this.nodes.find(n => {
-                    const dx = n.x - mx;
-                    const dy = n.y - my;
-                    return Math.sqrt(dx * dx + dy * dy) < n.radius;
-                });
+                // AABB hit test for rounded rect nodes
+                const prevHovered = this.hoveredNode;
+                this.hoveredNode = null;
+                for (let i = this.nodes.length - 1; i >= 0; i--) {
+                    const n = this.nodes[i];
+                    const hw = n.width / 2;
+                    const hh = n.height / 2;
+                    if (mx >= n.x - hw && mx <= n.x + hw &&
+                        my >= n.y - hh && my <= n.y + hh) {
+                        this.hoveredNode = n;
+                        break;
+                    }
+                }
 
                 this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
+
+                // Tooltip show/hide
+                if (this.hoveredNode && !this.isPanning && !this.isDragging) {
+                    this.showTooltip(this.hoveredNode);
+                } else {
+                    this.hideTooltip();
+                }
 
                 // Handle panning
                 if (this.isPanning) {
                     this.transform.x += e.clientX - this.lastMouse.x;
                     this.transform.y += e.clientY - this.lastMouse.y;
+                    this.hideTooltip();
                 }
 
                 this.lastMouse = { x: e.clientX, y: e.clientY };
 
                 // Announce to screen reader
-                this.announceHover();
+                if (this.hoveredNode && this.hoveredNode !== prevHovered) {
+                    this.announceHover();
+                }
             }
 
             onMouseDown(e) {
+                this.hideTooltip();
                 if (this.hoveredNode) {
                     this.isDragging = true;
                 } else {
@@ -1341,6 +1548,9 @@
 
             onWheel(e) {
                 e.preventDefault();
+                this.hideTooltip();
+                clearTimeout(this._zoomTooltipTimer);
+
                 const zoomFactor = 1.1;
                 const newK = e.deltaY < 0 ? this.transform.k * zoomFactor : this.transform.k / zoomFactor;
 
@@ -1355,6 +1565,13 @@
                 this.transform.x = mx - (mx - this.transform.x) * (clampedK / this.transform.k);
                 this.transform.y = my - (my - this.transform.y) * (clampedK / this.transform.k);
                 this.transform.k = clampedK;
+
+                // Re-show tooltip after zoom settles if still hovering
+                this._zoomTooltipTimer = setTimeout(() => {
+                    if (this.hoveredNode && !this.isPanning) {
+                        this.showTooltip(this.hoveredNode);
+                    }
+                }, 300);
             }
 
             onClick(e) {
@@ -1377,7 +1594,7 @@
 
             expandDomain(domainId) {
                 // Position inheritance: seed class nodes at parent domain position
-                const domainNode = this.nodes.find(n => n.id === domainId || n.domain === domainId);
+                const domainNode = this.nodeMap.get(domainId) || this.nodes.find(n => n.domain === domainId);
                 if (!domainNode) return;
 
                 this.viewLevel = 'CLASS';
@@ -1415,11 +1632,18 @@
                 const dt = timestamp - this.lastTime;
                 this.lastTime = timestamp;
 
-                // Update physics
-                this.simulation.update();
+                // Track fade-in start
+                if (!this._fadeStartTime) this._fadeStartTime = timestamp;
+
+                // Update physics (skip if reduced motion - use static positions)
+                if (!this.reducedMotion) {
+                    this.simulation.update();
+                }
 
                 // Update particles
-                this.updateParticles();
+                if (!this.reducedMotion) {
+                    this.updateParticles();
+                }
 
                 // Clear
                 if (this.canvas.width === 0 || this.canvas.height === 0) {
@@ -1451,13 +1675,16 @@
 
                 this.ctx.restore();
 
+                // Update tooltip position to follow node during physics
+                this.updateTooltip();
+
                 requestAnimationFrame((t) => this.render(t));
             }
 
             drawEdges() {
                 for (const particle of this.particles) {
-                    const source = this.nodes.find(n => n.id === particle.edge.source);
-                    const target = this.nodes.find(n => n.id === particle.edge.target);
+                    const source = this.nodeMap.get(particle.edge.source);
+                    const target = this.nodeMap.get(particle.edge.target);
                     if (!source || !target) continue;
 
                     // Draw edge
@@ -1482,17 +1709,36 @@
             }
 
             drawNodes() {
-                let drawCount = 0;
+                const k = this.transform.k;
+                const isFar = k < 0.5;
+                const isClose = k > 1.5;
+
+                // Fade-in: 500ms from first render
+                const fadeElapsed = this.lastTime - this._fadeStartTime;
+                const fadeIn = this.reducedMotion ? 1 : Math.min(1, fadeElapsed / 500);
+
                 for (const node of this.nodes) {
                     // Skip if not in view
                     if (this.viewLevel === 'CLASS' && node.domain !== this.expandedDomain) {
-                        // Fade other domains
-                        this.ctx.globalAlpha = 0.3;
+                        this.ctx.globalAlpha = 0.3 * fadeIn;
                     } else {
-                        this.ctx.globalAlpha = 1;
+                        this.ctx.globalAlpha = fadeIn;
                     }
 
-                    // Glow (only for top 20% PageRank)
+                    const hw = node.width / 2;
+                    const hh = node.height / 2;
+
+                    // Far zoom: render as 6px dots
+                    if (isFar) {
+                        this.ctx.beginPath();
+                        this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2);
+                        this.ctx.fillStyle = node.color;
+                        this.ctx.fill();
+                        this.ctx.globalAlpha = 1;
+                        continue;
+                    }
+
+                    // Glow (top 20% PageRank)
                     if (node.glow > 0) {
                         this.ctx.shadowBlur = node.glow;
                         this.ctx.shadowColor = node.color;
@@ -1500,12 +1746,23 @@
                         this.ctx.shadowBlur = 0;
                     }
 
-                    // Draw node
-                    this.ctx.beginPath();
-                    this.ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-                    this.ctx.fillStyle = node.color;
+                    // Gradient fill: closeness color to 20% darker
+                    const grad = this.ctx.createLinearGradient(
+                        node.x, node.y - hh,
+                        node.x, node.y + hh
+                    );
+                    grad.addColorStop(0, node.color);
+                    grad.addColorStop(1, this.darkenColor(node.color, 0.2));
+
+                    // Rounded rect
+                    this.drawRoundedRect(node.x - hw, node.y - hh, node.width, node.height, 4);
+                    this.ctx.fillStyle = grad;
                     this.ctx.fill();
-                    drawCount++;
+
+                    // Border
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.10)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.stroke();
 
                     // Bridge indicator (marching ants)
                     if (node.isBridge) {
@@ -1531,22 +1788,52 @@
                         this.ctx.stroke();
                     }
 
-                    // Label (only when zoomed in)
-                    if (node.radius * this.transform.k > 15) {
-                        this.ctx.shadowBlur = 0;
-                        this.ctx.fillStyle = '#fafafa';
-                        this.ctx.font = '11px Geist Mono';
-                        this.ctx.textAlign = 'center';
-                        this.ctx.fillText(node.id, node.x, node.y + node.radius + 12);
+                    // Label (medium and close zoom)
+                    this.ctx.shadowBlur = 0;
+                    this.ctx.fillStyle = '#fafafa';
+                    this.ctx.font = '11px Geist Mono';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(node.shortLabel, node.x, node.y, node.width - 8);
+
+                    // Betweenness bar (close zoom only)
+                    if (isClose) {
+                        const betweenness = node.metadata?.metrics?.betweenness || 0;
+                        const barWidth = node.width * Math.min(1, betweenness);
+                        if (barWidth > 0) {
+                            this.ctx.fillStyle = '#4ade80';
+                            this.ctx.fillRect(node.x - hw, node.y + hh - 2, barWidth, 2);
+                        }
                     }
-                }
 
-                // Log first draw call
-                if (this.lastTime === 0) {
-                    console.log('Drew', drawCount, 'nodes');
+                    this.ctx.globalAlpha = 1;
                 }
+            }
 
-                this.ctx.globalAlpha = 1;
+            drawRoundedRect(x, y, w, h, r) {
+                this.ctx.beginPath();
+                if (this.ctx.roundRect) {
+                    this.ctx.roundRect(x, y, w, h, r);
+                } else {
+                    // Fallback for browsers without roundRect
+                    this.ctx.moveTo(x + r, y);
+                    this.ctx.arcTo(x + w, y, x + w, y + h, r);
+                    this.ctx.arcTo(x + w, y + h, x, y + h, r);
+                    this.ctx.arcTo(x, y + h, x, y, r);
+                    this.ctx.arcTo(x, y, x + w, y, r);
+                    this.ctx.closePath();
+                }
+            }
+
+            darkenColor(rgb, amount) {
+                // Parse rgb(r, g, b) and darken by amount (0-1)
+                if (!rgb.startsWith('rgb(')) return rgb;
+                const match = rgb.match(/\d+/g);
+                if (!match) return rgb;
+                const r = Math.max(0, Math.floor(parseInt(match[0]) * (1 - amount)));
+                const g = Math.max(0, Math.floor(parseInt(match[1]) * (1 - amount)));
+                const b = Math.max(0, Math.floor(parseInt(match[2]) * (1 - amount)));
+                return `rgb(${r}, ${g}, ${b})`;
             }
 
             updateParticles() {
@@ -1556,6 +1843,134 @@
                         particle.progress = 0;
                     }
                 }
+            }
+
+            showTooltip(node) {
+                const tooltip = document.getElementById('nodeTooltip');
+                if (!tooltip) return;
+
+                // Populate content
+                const nameEl = document.getElementById('tooltipName');
+                const packageEl = document.getElementById('tooltipPackage');
+                const iconEl = document.getElementById('tooltipIcon');
+                const prEl = document.getElementById('tooltipPageRank');
+                const betEl = document.getElementById('tooltipBetweenness');
+                const closeEl = document.getElementById('tooltipCloseness');
+                const badgesEl = document.getElementById('tooltipBadges');
+                const badgeSep = document.getElementById('tooltipBadgeSeparator');
+                const fanInEl = document.getElementById('tooltipFanIn');
+                const fanOutEl = document.getElementById('tooltipFanOut');
+
+                const shortLabel = node.shortLabel || node.id;
+                const packagePath = node.id.includes('.') ? node.id.substring(0, node.id.lastIndexOf('.')) : '';
+
+                nameEl.textContent = shortLabel;
+                packageEl.textContent = packagePath;
+                iconEl.textContent = this.getDomainIcon(node.domain);
+
+                // Metrics
+                const metrics = node.metadata?.metrics;
+                if (metrics) {
+                    prEl.textContent = (metrics.pageRank || 0).toFixed(3);
+                    betEl.textContent = (metrics.betweenness || 0).toFixed(3);
+                    closeEl.textContent = (metrics.closeness || 0).toFixed(3);
+                } else {
+                    prEl.textContent = '---';
+                    betEl.textContent = '---';
+                    closeEl.textContent = '---';
+                }
+
+                // Badges
+                const issues = node.metadata?.issues || {};
+                const badges = [];
+                if (issues.hotspot) badges.push('<span class="tooltip-badge hotspot">Hotspot</span>');
+                if (issues.cycle) badges.push('<span class="tooltip-badge cycle">Cycle</span>');
+                if (issues.bridge || node.isBridge) badges.push('<span class="tooltip-badge bridge">Bridge</span>');
+                if (issues.blindspot) badges.push('<span class="tooltip-badge blindspot">Blind Spot</span>');
+
+                if (badges.length > 0) {
+                    badgesEl.innerHTML = badges.join('');
+                    badgesEl.style.display = '';
+                    badgeSep.style.display = '';
+                } else {
+                    badgesEl.innerHTML = '';
+                    badgesEl.style.display = 'none';
+                    badgeSep.style.display = 'none';
+                }
+
+                // Fan-in / fan-out
+                const fanIn = this.edges.filter(e => e.target === node.id).length;
+                const fanOut = this.edges.filter(e => e.source === node.id).length;
+                fanInEl.textContent = `\u2190 ${fanIn} deps`;
+                fanOutEl.textContent = `${fanOut} deps \u2192`;
+
+                // Position tooltip
+                this.updateTooltipPosition(node);
+
+                tooltip.classList.add('visible');
+                tooltip.setAttribute('aria-hidden', 'false');
+                this._tooltipNode = node;
+            }
+
+            hideTooltip() {
+                const tooltip = document.getElementById('nodeTooltip');
+                if (tooltip) {
+                    tooltip.classList.remove('visible');
+                    tooltip.setAttribute('aria-hidden', 'true');
+                }
+                this._tooltipNode = null;
+            }
+
+            updateTooltipPosition(node) {
+                const tooltip = document.getElementById('nodeTooltip');
+                if (!tooltip || !node) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                // Canvas coords to screen coords
+                const screenX = node.x * this.transform.k + this.transform.x + rect.left;
+                const screenY = node.y * this.transform.k + this.transform.y + rect.top;
+
+                const arrow = document.getElementById('tooltipArrow');
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const tw = tooltipRect.width || 280;
+                const th = tooltipRect.height || 200;
+
+                // Default: above node, centered
+                let left = screenX - tw / 2;
+                let top = screenY - node.height / 2 * this.transform.k - th - 16;
+                let arrowClass = 'below'; // arrow at bottom of tooltip, pointing down to node
+
+                // Edge flip: if too close to top, show below node
+                if (top < rect.top + 10) {
+                    top = screenY + node.height / 2 * this.transform.k + 16;
+                    arrowClass = 'above'; // arrow at top of tooltip, pointing up to node
+                }
+
+                // Horizontal clamp
+                left = Math.max(8, Math.min(window.innerWidth - tw - 8, left));
+
+                tooltip.style.transform = `translate(${left}px, ${top}px)`;
+                tooltip.style.left = '0';
+                tooltip.style.top = '0';
+
+                arrow.className = 'node-tooltip-arrow ' + arrowClass;
+            }
+
+            updateTooltip() {
+                // Called each frame to keep tooltip following node during physics
+                if (this._tooltipNode) {
+                    this.updateTooltipPosition(this._tooltipNode);
+                }
+            }
+
+            getDomainIcon(domain) {
+                const icons = {
+                    core: '\u2B21', graph: '\u2B21', viz: '\u25C9',
+                    cli: '\u25B8', plugin: '\u25C6', service: '\u25CF',
+                    analysis: '\u25CE', util: '\u25CB',
+                    ungrouped: '\u25A1'
+                };
+                return icons[domain] || '\u2B21';
             }
 
             announceHover() {
@@ -1605,6 +2020,17 @@
 
             // Hide loading overlay
             document.getElementById('loadingOverlay').style.display = 'none';
+
+            // Handle empty state
+            if (!data.nodes || data.nodes.length === 0) {
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#a1a1aa';
+                ctx.font = '16px Inter, system-ui, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('No dependencies found', canvas.width / 2, canvas.height / 2);
+                return;
+            }
 
             // Initialize canvas with loaded data
             window.graphCanvas = new GraphCanvas('graphCanvas', data);

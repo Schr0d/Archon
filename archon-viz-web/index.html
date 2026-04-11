@@ -1193,18 +1193,19 @@
                 this.nodeCount = nodes.length;
                 this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
 
-                // Physics constants (from design doc)
-                this.REPULSION_STRENGTH = 1000;
-                this.IDEAL_EDGE_LENGTH = 150;
-                this.SPRING_CONSTANT = 0.05;
-                this.DAMPING = 0.9;
-                this.COOLING_RATE = 0.95;
-                this.MIN_TEMPERATURE = 0.01;
+                // Physics constants — Fruchter-Reingold force model
+                const n = nodes.length;
+                this.REPULSION_STRENGTH = Math.max(500, n * n * 0.8);
+                this.IDEAL_EDGE_LENGTH = n > 50 ? 120 : 80;
+                this.SPRING_CONSTANT = 0.6;
+                this.DAMPING = 0.85;
+                this.COOLING_RATE = n > 50 ? 0.997 : 0.95;
+                this.MIN_TEMPERATURE = 0.001;
 
                 this.temperature = 1.0;
                 this.active = true;
                 this.iteration = 0;
-                this.MAX_ITERATIONS = 500;
+                this.MAX_ITERATIONS = n > 50 ? 1500 : 500;
 
                 // Choose algorithm based on node count
                 this.useBarnesHut = this.nodeCount >= 250;
@@ -1241,7 +1242,8 @@
                         const dx = b.x - a.x;
                         const dy = b.y - a.y;
                         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        const force = this.REPULSION_STRENGTH / (dist * dist);
+                        // Fruchter-Reingold: linear repulsion (k^2 / d)
+                        const force = this.REPULSION_STRENGTH / dist;
                         const fx = (dx / dist) * force;
                         const fy = (dy / dist) * force;
                         a.fx -= fx;
@@ -1306,7 +1308,7 @@
             }
 
             applyAttraction() {
-                // O(e) spring attraction
+                // O(e) spring attraction (Fruchter-Reingold: d^2 / k)
                 for (const edge of this.edges) {
                     const source = this.nodeMap.get(edge.source);
                     const target = this.nodeMap.get(edge.target);
@@ -1315,7 +1317,7 @@
                     const dx = target.x - source.x;
                     const dy = target.y - source.y;
                     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const force = (dist - this.IDEAL_EDGE_LENGTH) * this.SPRING_CONSTANT;
+                    const force = (dist * dist) / (this.IDEAL_EDGE_LENGTH * this.IDEAL_EDGE_LENGTH) * this.SPRING_CONSTANT;
                     const fx = (dx / dist) * force;
                     const fy = (dy / dist) * force;
 
@@ -1327,10 +1329,17 @@
             }
 
             applyForces() {
-                // Verlet integration with damping
+                // Verlet integration with temperature-limited displacement
                 for (const node of this.nodes) {
                     node.vx = (node.vx + node.fx) * this.DAMPING;
                     node.vy = (node.vy + node.fy) * this.DAMPING;
+                    // Limit displacement by temperature
+                    const disp = Math.sqrt(node.vx * node.vx + node.vy * node.vy) || 0;
+                    const maxDisp = this.temperature * 100;
+                    if (disp > maxDisp && disp > 0) {
+                        node.vx = (node.vx / disp) * maxDisp;
+                        node.vy = (node.vy / disp) * maxDisp;
+                    }
                     node.x += node.vx;
                     node.y += node.vy;
                 }
@@ -1370,8 +1379,9 @@
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
                 this.data = data;
+                this.resize(); // Size canvas before computing node positions
                 this.pageRankThreshold = this.computePageRankThreshold();
-                this.nodes = data.nodes.map(n => this.initNode(n));
+                this.nodes = data.nodes.map((n, i) => this.initNode(n, i, data.nodes.length));
                 this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
                 this.edges = data.edges;
 
@@ -1398,12 +1408,11 @@
                 // Reduced motion preference
                 this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-                this.resize();
                 window.addEventListener('resize', () => this.resize());
                 this.setupInteraction();
             }
 
-            initNode(nodeData) {
+            initNode(nodeData, index = 0, total = 1) {
                 // Map Tier 3 metrics to visual properties
                 const pageRank = nodeData.metadata?.metrics?.pageRank || 0;
                 const betweenness = nodeData.metadata?.metrics?.betweenness || 0;
@@ -1419,10 +1428,21 @@
                 const width = Math.min(200, Math.max(80, shortLabel.length * 7 + 24));
                 const height = 28;
 
+                // Initial position: circle layout for larger graphs, random for small
+                let x, y;
+                if (total > 20) {
+                    const angle = (2 * Math.PI * index) / total;
+                    const radius = Math.min(this.canvas.width, this.canvas.height) * 0.4;
+                    x = this.canvas.width / 2 + Math.cos(angle) * radius;
+                    y = this.canvas.height / 2 + Math.sin(angle) * radius;
+                } else {
+                    x = Math.random() * this.canvas.width;
+                    y = Math.random() * this.canvas.height;
+                }
+
                 return {
                     ...nodeData,
-                    x: Math.random() * this.canvas.width,
-                    y: Math.random() * this.canvas.height,
+                    x, y,
                     vx: 0, vy: 0,
                     // Visual properties
                     radius: 12 + (betweenness * 30), // kept for backward compat

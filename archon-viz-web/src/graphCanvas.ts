@@ -11,14 +11,14 @@ class ForceSimulation {
     nodeMap: Map<string, any>;
     private nodeCount: number;
 
-    // Physics constants
-    private readonly REPULSION_STRENGTH = 1000;
-    private readonly IDEAL_EDGE_LENGTH = 150;
-    private readonly SPRING_CONSTANT = 0.05;
-    private readonly DAMPING = 0.9;
-    private readonly COOLING_RATE = 0.95;
-    private readonly MIN_TEMPERATURE = 0.01;
-    private readonly MAX_ITERATIONS = 500;
+    // Physics constants — scale with graph size for good layouts
+    private readonly REPULSION_STRENGTH: number;
+    private readonly IDEAL_EDGE_LENGTH: number;
+    private readonly SPRING_CONSTANT = 0.6;
+    private readonly DAMPING = 0.85;
+    private readonly COOLING_RATE: number;
+    private readonly MIN_TEMPERATURE = 0.001;
+    private readonly MAX_ITERATIONS: number;
 
     temperature: number;
     active: boolean;
@@ -28,6 +28,12 @@ class ForceSimulation {
         this.nodes = nodes.map(n => ({ ...n, vx: 0, vy: 0, fx: 0, fy: 0, mass: n.mass || 1 }));
         this.edges = edges;
         this.nodeCount = nodes.length;
+
+        // Scale physics with graph size for good layouts
+        this.REPULSION_STRENGTH = Math.max(500, nodes.length * nodes.length * 0.8);
+        this.IDEAL_EDGE_LENGTH = nodes.length > 50 ? 120 : 80;
+        this.COOLING_RATE = nodes.length > 50 ? 0.997 : 0.95;
+        this.MAX_ITERATIONS = nodes.length > 50 ? 1500 : 500;
         this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
 
         this.temperature = 1.0;
@@ -60,7 +66,7 @@ class ForceSimulation {
                 const dx = b.x - a.x;
                 const dy = b.y - a.y;
                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const force = this.REPULSION_STRENGTH / (dist * dist);
+                const force = this.REPULSION_STRENGTH / dist;
                 const fx = (dx / dist) * force;
                 const fy = (dy / dist) * force;
                 a.fx -= fx;
@@ -80,7 +86,7 @@ class ForceSimulation {
             const dx = target.x - source.x;
             const dy = target.y - source.y;
             const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const force = (dist - this.IDEAL_EDGE_LENGTH) * this.SPRING_CONSTANT;
+            const force = (dist * dist) / (this.IDEAL_EDGE_LENGTH * this.IDEAL_EDGE_LENGTH) * this.SPRING_CONSTANT;
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
 
@@ -160,7 +166,7 @@ export class GraphCanvas {
         this.ctx = this.canvas.getContext('2d')!;
         this.data = data;
         this.pageRankThreshold = this.computePageRankThreshold();
-        this.nodes = data.nodes.map((n: any) => this.initNode(n));
+        this.nodes = data.nodes.map((n: any, i: number) => this.initNode(n, i, data.nodes.length));
         this.nodeMap = new Map(this.nodes.map((n: any) => [n.id, n]));
         this.edges = data.edges;
 
@@ -190,7 +196,7 @@ export class GraphCanvas {
         this.simulation = new ForceSimulation(this.nodes, this.edges);
     }
 
-    initNode(nodeData: any): any {
+    initNode(nodeData: any, index: number = 0, total: number = 1): any {
         const pageRank = nodeData.metadata?.metrics?.pageRank || 0;
         const betweenness = nodeData.metadata?.metrics?.betweenness || 0;
         const closeness = nodeData.metadata?.metrics?.closeness || 0;
@@ -205,10 +211,21 @@ export class GraphCanvas {
         const width = Math.min(200, Math.max(80, shortLabel.length * 7 + 24));
         const height = 28;
 
+        // Initial position: circle layout for larger graphs, random for small
+        let x: number, y: number;
+        if (total > 20) {
+            const angle = (2 * Math.PI * index) / total;
+            const radius = Math.min(this.canvas.width, this.canvas.height) * 0.4;
+            x = this.canvas.width / 2 + Math.cos(angle) * radius;
+            y = this.canvas.height / 2 + Math.sin(angle) * radius;
+        } else {
+            x = Math.random() * this.canvas.width;
+            y = Math.random() * this.canvas.height;
+        }
+
         return {
             ...nodeData,
-            x: Math.random() * this.canvas.width,
-            y: Math.random() * this.canvas.height,
+            x, y,
             vx: 0, vy: 0,
             radius: 12 + (betweenness * 30),
             width, height, shortLabel,
