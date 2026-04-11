@@ -3,465 +3,522 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Archon Dependency Viewer</title>
+    <title>Archon — Dependency Visualization</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #0a0a0a;
-            --surface: #141414;
-            --border: #333333;
-            --text: #ffffff;
-            --text-mid: #aaaaaa;  /* Accessibility: improved from #888888 */
-            --text-dim: #777777;  /* Accessibility: improved from #555555 */
-            --accent: #818cf8;
-            --accent-hover: #a5b4fc;
-            --diff-added: #22c55e;
-            --diff-removed: #ef4444;
-            --diff-changed: #eab308;
-            --transition-speed: 200ms;
-            --mono: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-        }
-
-        [data-theme="light"] {
-            --bg: #ffffff;
-            --surface: #f5f5f5;
-            --border: #e0e0e0;
-            --text: #1a1a1a;
-            --text-mid: #888888;  /* Accessibility: improved from #666666 */
-            --text-dim: #aaaaaa;  /* Accessibility: unchanged, already sufficient */
-        }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        :root {
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --transition: 150ms var(--ease-out);
+        }
+
+        body.theme-dark {
+            --bg-app: #0c0c0e;
+            --bg-surface: #151518;
+            --bg-surface-hover: #1c1c1f;
+            --bg-surface-active: #222225;
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.10);
+            --border-strong: rgba(255, 255, 255, 0.15);
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-tertiary: #71717a;
+            --text-muted: #52525b;
+            --accent-primary: #4ade80;
+            --accent-primary-soft: rgba(74, 222, 128, 0.15);
+            --accent-primary-glow: rgba(74, 222, 128, 0.35);
+            --status-warning: #fbbf24;
+            --status-warning-soft: rgba(251, 191, 36, 0.15);
+            --status-error: #f87171;
+            --status-error-soft: rgba(248, 113, 113, 0.15);
+            --font-display: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'Geist Mono', 'SF Mono', monospace;
+            --glow-strong: 0 0 60px rgba(74, 222, 128, 0.2);
+            --glow-subtle: 0 0 30px rgba(74, 222, 128, 0.1);
+        }
+
+        body.theme-light {
+            --bg-app: #fafafa;
+            --bg-surface: #ffffff;
+            --bg-surface-hover: #f5f5f5;
+            --bg-surface-active: #ebebeb;
+            --border-subtle: rgba(0, 0, 0, 0.06);
+            --border-default: rgba(0, 0, 0, 0.10);
+            --border-strong: rgba(0, 0, 0, 0.14);
+            --text-primary: #1a1a1a;
+            --text-secondary: #737373;
+            --text-tertiary: #a3a3a3;
+            --text-muted: #d4d4d4;
+            --accent-primary: #16a34a;
+            --accent-primary-soft: rgba(22, 163, 74, 0.10);
+            --accent-primary-glow: rgba(22, 163, 74, 0.20);
+            --status-warning: #d97706;
+            --status-warning-soft: rgba(217, 119, 6, 0.10);
+            --status-error: #dc2626;
+            --status-error-soft: rgba(220, 38, 38, 0.10);
+            --font-display: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'Geist Mono', 'SF Mono', monospace;
+            --glow-strong: 0 0 40px rgba(22, 163, 74, 0.12);
+            --glow-subtle: 0 0 20px rgba(22, 163, 74, 0.06);
+        }
+
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            font-family: var(--font-display);
+            background: var(--bg-app);
+            color: var(--text-primary);
+            font-size: 13px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
             overflow: hidden;
-            height: 100vh;
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
-        /* App container - CSS Grid layout */
-        #app-container {
-            display: grid;
-            grid-template-columns: 200px 1fr;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-        }
-
-        /* Canvas area */
-        #canvas-container {
-            position: relative;
-            overflow: hidden;
-            cursor: grab;
-        }
-
-        #canvas-container:active {
-            cursor: grabbing;
-        }
-
-        /* Main content wrapper - spans second grid column after sidebar */
-        #main-content {
-            grid-column: 2;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        svg {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        /* Graph elements */
-        .node-group {
-            transition: opacity var(--transition-speed) ease;
-            cursor: pointer;
-        }
-
-        .node-group:hover .node-rect {
-            stroke: var(--accent);
-            stroke-width: 2.5px;
-        }
-
-        .node-group.fade-out {
-            opacity: 0.2;
-        }
-
-        .node-rect {
-            fill: var(--surface);
-            stroke: var(--border);
-            stroke-width: 2px;
-            transition: all var(--transition-speed) ease;
-        }
-
-        .node-text {
-            fill: var(--text);
-            font-size: 12px;
-            font-family: var(--mono);
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .node-label {
-            fill: var(--text-mid);
-            font-size: 10px;
-            font-family: var(--mono);
-            pointer-events: none;
-            user-select: none;
-        }
-
-        /* Diff states */
-        .node-group.added .node-rect {
-            stroke: var(--diff-added);
-            stroke-width: 2.5px;
-        }
-
-        .node-group.removed .node-rect {
-            stroke: var(--diff-removed);
-            stroke-width: 2.5px;
-            stroke-dasharray: 4;
-        }
-
-        .node-group.changed .node-rect {
-            stroke: var(--diff-changed);
-            stroke-width: 2.5px;
-        }
-
-        /* Edges */
-        .edge-path {
-            fill: none;
-            stroke: var(--text-dim);
-            stroke-width: 2px;
-            transition: stroke var(--transition-speed) ease;
-        }
-
-        .edge-group:hover .edge-path {
-            stroke: var(--accent);
-        }
-
-        .edge-group.HIGH .edge-path {
-            stroke-width: 2px;
-            stroke-opacity: 1;
-        }
-
-        .edge-group.MEDIUM .edge-path {
-            stroke-width: 1.5px;
-            stroke-dasharray: 4;
-            stroke-opacity: 0.7;
-        }
-
-        .edge-group.LOW .edge-path {
-            stroke-width: 1px;
-            stroke-dasharray: 2;
-            stroke-opacity: 0.5;
-        }
-
-        /* Sidebar */
-        #sidebar {
+        body::before {
+            content: '';
             position: fixed;
-            right: -400px;
-            top: 0;
-            width: 400px;
-            height: 100%;
-            background: var(--surface);
-            border-left: 1px solid var(--border);
-            transition: right var(--transition-speed) ease;
-            z-index: 100;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(
+                ellipse at 30% 20%,
+                var(--accent-primary-glow) 0%,
+                transparent 50%
+            );
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 0;
+            animation: ambient-move 20s ease-in-out infinite;
+        }
+
+        @keyframes ambient-move {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(5%, 5%) scale(1.05); }
+            66% { transform: translate(-5%, -5%) scale(0.95); }
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.1) 50%, transparent 100%),
+                radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.08) 50%, transparent 100%),
+                radial-gradient(1px 1px at 50% 50%, rgba(74,222,128,0.1) 50%, transparent 100%),
+                radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.05) 50%, transparent 100%),
+                radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.07) 50%, transparent 100%),
+                radial-gradient(1.5px 1.5px at 40% 80%, rgba(74,222,128,0.15) 50%, transparent 100%),
+                radial-gradient(1px 1px at 10% 90%, rgba(255,255,255,0.06) 50%, transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+            animation: twinkle 8s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px var(--accent-primary-glow),
+                            0 0 40px var(--accent-primary-glow);
+            }
+            50% {
+                box-shadow: 0 0 30px var(--accent-primary-glow),
+                            0 0 60px var(--accent-primary-glow);
+            }
+        }
+
+        .header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-5);
+            height: 52px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-surface);
+            backdrop-filter: blur(20px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .logo-icon {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--accent-primary), #22c55e);
+            border-radius: var(--radius-sm);
+            box-shadow: 0 0 20px var(--accent-primary-glow);
+            animation: logo-pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logo-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px var(--accent-primary-glow); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px var(--accent-primary-glow); }
+        }
+
+        .header-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .action-btn {
+            padding: var(--space-2) var(--space-3);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-surface-active);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .action-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-surface-hover);
+            border-color: var(--border-strong);
+        }
+
+        .theme-toggle {
+            display: flex;
+            background: var(--bg-surface-active);
+            padding: var(--space-1);
+            border-radius: var(--radius-md);
+        }
+
+        .theme-btn {
+            padding: var(--space-1) var(--space-3);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .theme-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .theme-btn.active {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: calc(100vh - 52px);
+            position: relative;
+            z-index: 1;
+        }
+
+        .sidebar {
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-subtle);
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
-            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
         }
 
-        [data-theme="light"] #sidebar {
-            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+        .sidebar-header {
+            padding: var(--space-4) var(--space-4) var(--space-3);
+            border-bottom: 1px solid var(--border-subtle);
         }
 
-        #sidebar.open {
-            right: 0;
-        }
-
-        #sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--border);
+        .sidebar-title-row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-2);
         }
 
-        #sidebar-title {
-            font-size: 18px;
+        .sidebar-title {
+            font-size: 11px;
             font-weight: 600;
-            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
         }
 
-        #sidebar-close {
-            background: none;
-            border: none;
-            color: var(--text-mid);
-            font-size: 24px;
+        .sidebar-stats {
+            display: flex;
+            gap: var(--space-4);
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--text-tertiary);
+        }
+
+        .sidebar-filters {
+            padding: var(--space-3) var(--space-4);
+            display: flex;
+            gap: var(--space-2);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .filter-chip {
+            padding: var(--space-1) var(--space-2);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-surface-active);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
+            transition: var(--transition);
+        }
+
+        .filter-chip:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        .filter-chip.active {
+            color: var(--accent-primary);
+            background: var(--accent-primary-soft);
+            border-color: var(--accent-primary);
+        }
+
+        .domain-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-2);
+        }
+
+        .domain-item {
+            margin-bottom: 1px;
+        }
+
+        .domain-node {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s var(--ease-bouncy);
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .domain-node:hover {
+            background: var(--bg-surface-hover);
+            transform: scale(1.01);
+        }
+
+        .domain-node.active {
+            background: var(--accent-primary-soft);
+            color: var(--accent-primary);
+        }
+
+        .domain-icon {
+            width: 16px;
+            height: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        #sidebar-close:hover {
-            color: var(--text);
-        }
-
-        #sidebar-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .sidebar-section {
-            margin-bottom: 20px;
-        }
-
-        .sidebar-section h3 {
-            font-size: 12px;
-            text-transform: uppercase;
-            color: var(--text-mid);
-            margin-bottom: 10px;
-            letter-spacing: 0.5px;
-        }
-
-        .sidebar-section p {
-            font-size: 14px;
-            color: var(--text);
-            margin-bottom: 8px;
-            line-height: 1.5;
-        }
-
-        .sidebar-section code {
-            background: var(--bg);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: var(--mono);
             font-size: 12px;
         }
 
-        .dependency-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .dependency-list li {
-            padding: 8px 12px;
-            background: var(--bg);
-            margin-bottom: 6px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background var(--transition-speed) ease;
-        }
-
-        .dependency-list li:hover {
-            background: var(--border);
-        }
-
-        /* LEFT SIDEBAR - Domain tree navigation */
-        #nav-sidebar {
-            background: var(--surface);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-
-        #nav-header {
-            padding: 14px 16px;
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text);
-            font-family: var(--mono);
-            border-bottom: 1px solid var(--border);
-        }
-
-        #nav-stats {
-            padding: 8px 16px;
-            font-size: 10px;
-            color: var(--text-dim);
-            border-bottom: 1px solid var(--border);
-        }
-
-        #nav-tree {
+        .domain-name {
             flex: 1;
-            overflow-y: auto;
-            padding: 8px 0;
         }
 
-        .tree-item {
-            display: block;
-        }
-
-        .tree-label {
-            padding: 4px 16px 4px 12px;
-            font-size: 11px;
-            color: var(--text-mid);
-            cursor: pointer;
-            white-space: nowrap;
+        .domain-meta {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: var(--space-2);
         }
 
-        .tree-label:hover {
-            background: rgba(128, 128, 128, 0.1);
-            color: var(--text);
+        .class-count {
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--text-tertiary);
+            background: var(--bg-surface-active);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
         }
 
-        .tree-label.active {
-            background: rgba(129, 140, 248, 0.15);
-            color: var(--accent);
-            font-weight: 600;
+        .health-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
         }
 
-        .tree-domain {
-            font-weight: 600;
-            color: var(--text);
-            padding-left: 12px;
-            margin-top: 4px;
-            font-size: 12px;
-            cursor: pointer;
-        }
+        .health-indicator.healthy { background: var(--accent-primary); }
+        .health-indicator.warning { background: var(--status-warning); }
+        .health-indicator.error { background: var(--status-error); }
 
-        .tree-domain:hover {
-            background: rgba(128, 128, 128, 0.08);
-        }
-
-        .tree-children {
-            margin-left: 14px;
-        }
-
-        .tree-count {
-            font-size: 9px;
-            color: var(--text-dim);
+        .class-health-indicator {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
             margin-left: auto;
         }
 
-        .tree-collapse-hint {
-            font-size: 9px;
-            color: var(--text-dim);
-            margin-left: 4px;
+        .class-health-indicator.healthy { background: var(--accent-primary); }
+        .class-health-indicator.warning { background: var(--status-warning); }
+        .class-health-indicator.error { background: var(--status-error); }
+
+        .chevron {
+            color: var(--text-muted);
+            transition: transform var(--transition);
+            font-size: 10px;
         }
 
-        /* Float controls */
-        #float-controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            display: flex;
-            gap: 8px;
-            z-index: 50;
+        .domain-node.expanded .chevron {
+            transform: rotate(90deg);
         }
 
-        .btn {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 14px;
-            border-radius: 4px;
-            transition: all var(--transition-speed) ease;
-            font-family: inherit;
+        .class-list {
+            margin-left: var(--space-6);
+            display: none;
+        }
+
+        .class-list.visible {
+            display: block;
+        }
+
+        .class-item {
             display: flex;
             align-items: center;
-            justify-content: center;
-            min-width: 40px;
-            min-height: 44px;  /* Accessibility: minimum touch target size */
-        }
-
-        button, [role="button"] {
-            min-height: 44px;  /* Accessibility: minimum touch target for all buttons */
-        }
-
-        .btn:hover {
-            background: var(--border);
-            border-color: var(--text-mid);
-        }
-
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        /* Perspective switcher */
-        #perspective-select {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 8px 12px;
-            border-radius: 4px;
+            gap: var(--space-2);
+            padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+            margin-top: 1px;
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            font-size: 14px;
-            font-family: inherit;
-            transition: all var(--transition-speed) ease;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            transition: all 0.2s var(--ease-bouncy);
         }
 
-        #perspective-select:hover {
-            background: var(--border);
+        .class-item:hover {
+            color: var(--text-primary);
+            background: var(--bg-surface-hover);
         }
 
-        #perspective-select:focus {
-            outline: 2px solid var(--accent);
-            outline-offset: 2px;
+        .class-item.active {
+            color: var(--accent-primary);
+            background: var(--accent-primary-soft);
         }
 
-        /* Search */
-        #search-container {
+        .class-icon {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: var(--bg-app);
+            overflow: hidden;
+        }
+
+        .canvas-container::before {
+            content: '';
             position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .error-banner, .warning-banner {
+            position: fixed;
             top: 60px;
-            right: 10px;
-            z-index: 50;
-        }
-
-        #search {
-            width: 280px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 10px 14px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-family: inherit;
-            transition: all var(--transition-speed) ease;
-        }
-
-        #search::placeholder {
-            color: var(--text-dim);
-        }
-
-        #search:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
-        }
-
-        /* Loading state */
-        #loading {
-            position: absolute;
-            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 18px;
-            color: var(--text-mid);
+            transform: translateX(-50%);
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--radius-md);
+            z-index: 100;
+            display: none;
+        }
+
+        .error-banner {
+            background: var(--status-error-soft);
+            color: var(--status-error);
+            border: 1px solid var(--status-error);
+        }
+
+        .warning-banner {
+            background: var(--status-warning-soft);
+            color: var(--status-warning);
+            border: 1px solid var(--status-warning);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-app);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
+            justify-content: center;
+            z-index: 50;
         }
 
         .spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent);
+            border: 3px solid var(--border-default);
+            border-top-color: var(--accent-primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -470,1352 +527,1366 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Empty state */
-        #empty {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            max-width: 400px;
-        }
-
-        #empty h2 {
-            font-size: 24px;
-            margin-bottom: 12px;
-            color: var(--text);
-        }
-
-        #empty p {
-            color: var(--text-mid);
-            line-height: 1.6;
-        }
-
-        /* Error state */
-        #error {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            max-width: 400px;
-        }
-
-        #error h2 {
-            font-size: 24px;
-            margin-bottom: 12px;
-            color: var(--diff-removed);
-        }
-
-        #error p {
-            color: var(--text-mid);
-            margin-bottom: 16px;
-        }
-
-        #error button {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        #error button:hover {
-            background: var(--accent-hover);
-        }
-
-        /* Breadcrumb */
-        #breadcrumb {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: var(--text-mid);
-            font-size: 13px;
-            z-index: 50;
-            background: var(--surface);
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid var(--border);
-        }
-
-        #breadcrumb span {
-            color: var(--text);
-        }
-
-        /* Diff legend */
-        #diff-legend {
-            display: none;
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 12px;
-            border-radius: 4px;
-            z-index: 50;
-        }
-
-        #diff-legend div {
+        .graph-node {
+            position: relative;
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
+            gap: var(--space-3);
+            padding: var(--space-4);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-lg);
             font-size: 13px;
-            color: var(--text);
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s var(--ease-bouncy);
+            width: 100%;
+            max-width: 500px;
         }
 
-        #diff-legend div:last-child {
-            margin-bottom: 0;
-        }
-
-        .legend-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid;
-        }
-
-        .legend-indicator.added {
-            border-color: var(--diff-added);
-            background: var(--diff-added);
-        }
-
-        .legend-indicator.changed {
-            border-color: var(--diff-changed);
-            background: var(--diff-changed);
-        }
-
-        .legend-indicator.removed {
-            border-color: var(--diff-removed);
-            background: transparent;
-        }
-
-        /* Stats bar */
-        #stats-bar {
+        .graph-node::before {
+            content: '';
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 10px 14px;
-            border-radius: 4px;
-            z-index: 50;
-            display: flex;
-            gap: 20px;
-            font-size: 13px;
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .stat-label {
-            color: var(--text-dim);
-            font-size: 11px;
-            text-transform: uppercase;
-        }
-
-        .stat-value {
-            color: var(--text);
-            font-weight: 600;
-        }
-
-        /* Keyboard shortcuts */
-        #shortcuts {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 10px 14px;
-            border-radius: 4px;
-            z-index: 50;
-            font-size: 12px;
-            color: var(--text-mid);
-            display: none;
-        }
-
-        #shortcuts.visible {
-            display: block;
-        }
-
-        /* Tooltip */
-        #tooltip {
-            position: absolute;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            pointer-events: none;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
             opacity: 0;
-            transition: opacity var(--transition-speed) ease;
-            z-index: 1000;
-            max-width: 300px;
+            transition: opacity 0.3s ease;
         }
 
-        #tooltip.visible {
+        .graph-node:hover::before {
             opacity: 1;
         }
 
-        /* Zoom level indicator */
-        #zoom-indicator {
-            position: absolute;
-            bottom: 60px;
-            right: 10px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 6px 10px;
-            border-radius: 4px;
+        .graph-node:hover {
+            border-color: var(--border-strong);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .graph-node.selected {
+            border-color: var(--accent-primary);
+            box-shadow: var(--glow-strong);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        .node-icon-large {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-surface-active);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .node-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: 2px;
+        }
+
+        .node-title {
+            font-weight: 600;
+        }
+
+        .node-package {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            font-family: var(--font-mono);
+        }
+
+        .node-description {
             font-size: 12px;
-            color: var(--text-mid);
-            z-index: 50;
+            color: var(--text-secondary);
+            line-height: 1.4;
         }
 
-        /* Touch gestures */
+        .node-stats {
+            display: flex;
+            gap: var(--space-3);
+            margin-top: var(--space-2);
+        }
+
+        .node-stat {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        .node-stat-value {
+            font-weight: 600;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+        }
+
+        .node-badge {
+            padding: var(--space-1) var(--space-2);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            border-radius: var(--radius-sm);
+        }
+
+        .node-badge.warning {
+            background: var(--status-warning-soft);
+            color: var(--status-warning);
+        }
+
+        .node-badge.error {
+            background: var(--status-error-soft);
+            color: var(--status-error);
+        }
+
+        .edge-connector {
+            width: 2px;
+            height: 40px;
+            background: var(--text-tertiary);
+            opacity: 0.4;
+        }
+
+        .edge-arrow {
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid var(--text-tertiary);
+            opacity: 0.4;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-4);
+            height: 36px;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-subtle);
+            backdrop-filter: blur(20px);
+            font-size: 12px;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-5);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .status-label {
+            color: var(--text-tertiary);
+        }
+
+        .status-value {
+            font-weight: 500;
+            font-family: var(--font-mono);
+        }
+
+        .status-right {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-badge.warning {
+            background: var(--status-warning-soft);
+            color: var(--status-warning);
+        }
+
+        .status-badge.error {
+            background: var(--status-error-soft);
+            color: var(--status-error);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-default);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-strong);
+        }
+
         @media (max-width: 768px) {
-            #sidebar {
-                width: 100%;
-                right: -100%;
+            .app-container {
+                grid-template-columns: 1fr;
             }
 
-            #float-controls {
-                flex-wrap: wrap;
+            .sidebar {
+                display: none;
             }
 
-            #search {
-                width: 200px;
-            }
-
-            .btn {
-                padding: 6px 10px;
-                font-size: 12px;
+            .sidebar.mobile-visible {
+                display: flex;
+                position: absolute;
+                inset: 0;
+                z-index: 20;
             }
         }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        .node-group {
-            animation: fadeIn var(--transition-speed) ease;
-        }
-
-        /* Accessibility: Motion reduction for users who prefer it */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
             }
         }
-
-        /* Intro hint overlay */
-        #intro-hint {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.95);
-            padding: 16px 24px;
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-            text-align: center;
-            pointer-events: none;
-            transition: opacity 0.3s;
-            z-index: 60;
-            color: #1a1a1a;
-            font-size: 14px;
-        }
-
-        [data-theme="dark"] #intro-hint {
-            background: rgba(20, 20, 20, 0.95);
-            color: #ffffff;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-        }
-
-        #intro-hint.fade-out {
-            opacity: 0;
-        }
     </style>
 </head>
-<body>
-    <div id="app-container">
-        <div id="nav-sidebar">
-            <div id="nav-header">Archon</div>
-            <div id="nav-stats"></div>
-            <div id="nav-tree"></div>
-        </div>
-        <div id="main-content">
-            <div id="loading" data-loading-text="Loading graph...">
-        <div class="spinner"></div>
-        <div>Loading graph...</div>
-    </div>
-
-    <div id="empty">
-        <h2>No dependencies found</h2>
-        <p>Archon analyzed this path and found no dependency relationships to visualize.</p>
-    </div>
-
-    <div id="error" role="alert">
-        <h2>Failed to load graph</h2>
-        <p id="error-message">An error occurred while loading the dependency graph.</p>
-        <button onclick="location.reload()">Retry</button>
-    </div>
-
-    <div id="canvas-container">
-        <svg id="graph">
-            <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                    <polygon points="0 0, 10 3, 0 6" fill="var(--text-dim)" />
-                </marker>
-            </defs>
-            <g id="main-group"></g>
-        </svg>
-
-        <div id="breadcrumb">domains</div>
-
-        <div id="diff-legend">
-            <div><span class="legend-indicator added"></span> Added</div>
-            <div><span class="legend-indicator changed"></span> Changed</div>
-            <div><span class="legend-indicator removed"></span> Removed</div>
-        </div>
-
-        <div id="stats-bar">
-            <div class="stat-item">
-                <span class="stat-label">Nodes</span>
-                <span class="stat-value" id="stat-nodes">0</span>
+<body class="theme-dark">
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <span>Archon</span>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Edges</span>
-                <span class="stat-value" id="stat-edges">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Languages</span>
-                <span class="stat-value" id="stat-languages">0</span>
+            <span class="header-title">Dependency Analysis</span>
+        </div>
+        <div class="header-actions">
+            <button class="action-btn" id="runAnalysis">Run Analysis</button>
+            <button class="action-btn" id="exportBtn">Export</button>
+            <div class="theme-toggle">
+                <button class="theme-btn active" data-theme="dark">Dark</button>
+                <button class="theme-btn" data-theme="light">Light</button>
             </div>
         </div>
+    </header>
 
-        <div id="zoom-indicator">100%</div>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title-row">
+                    <span class="sidebar-title">Modules</span>
+                </div>
+                <div class="sidebar-stats">
+                    <span>-- modules</span>
+                    <span>-- classes</span>
+                </div>
+            </div>
+            <div class="sidebar-filters">
+                <div class="filter-chip active" data-filter="all">All</div>
+                <div class="filter-chip" data-filter="healthy">Healthy</div>
+                <div class="filter-chip" data-filter="warning">Warnings</div>
+                <div class="filter-chip" data-filter="error">Errors</div>
+            </div>
+            <div class="domain-list" id="domainList">
+                <!-- Domains will be populated by JavaScript -->
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="canvas-container" role="region" aria-label="Dependency graph visualization">
+                <canvas id="graphCanvas"></canvas>
+                <div id="canvasAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+            </div>
+
+            <!-- Add error/warning banners (hidden by default) -->
+            <div id="errorBanner" class="error-banner" role="alert"></div>
+            <div id="warningBanner" class="warning-banner" role="alert"></div>
+
+            <!-- Add loading overlay -->
+            <div id="loadingOverlay" class="loading-overlay" data-loading-text="Loading graph...">
+                <div class="spinner"></div>
+                <p>Loading graph...</p>
+            </div>
+            <div class="status-bar">
+                <div class="status-left">
+                    <div class="status-item">
+                        <span class="status-label">Modules</span>
+                        <span class="status-value">--</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Classes</span>
+                        <span class="status-value">--</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Dependencies</span>
+                        <span class="status-value">--</span>
+                    </div>
+                </div>
+                <div class="status-right">
+                    <div class="status-badge warning" id="hotspotBadge" style="display: none;">
+                        <span>⚠️</span>
+                        <span id="hotspotCount">0</span>
+                        <span> Hotspots</span>
+                    </div>
+                    <div class="status-badge error" id="cycleBadge" style="display: none;">
+                        <span>🔴</span>
+                        <span id="cycleCount">0</span>
+                        <span> Cycles</span>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <div id="float-controls">
-        <button id="zoom-in" class="btn" title="Zoom in (+)">+</button>
-        <button id="zoom-out" class="btn" title="Zoom out (-)">−</button>
-        <button id="fit" class="btn" title="Fit to view (F)">Fit</button>
-        <select id="perspective-select" title="Switch perspective">
-            <option value="domain-map">Domain Map</option>
-            <option value="language-map">Language Map</option>
-            <option value="dependency-map">Dependency Map</option>
-        </select>
-        <button id="theme-toggle" class="btn" title="Toggle theme (T)">☀</button>
-        <button id="shortcuts-toggle" class="btn" title="Keyboard shortcuts (?)">?</button>
-    </div>
-
-    <div id="search-container">
-        <input type="text" id="search" placeholder="Search nodes... (Ctrl+K)" />
-    </div>
-
-    <div id="shortcuts">
-        <div><strong>Ctrl+K</strong> - Focus search</div>
-        <div><strong>Esc</strong> - Close sidebar / Clear search</div>
-        <div><strong>+/-</strong> - Zoom in/out</div>
-        <div><strong>F</strong> - Fit to view</div>
-        <div><strong>T</strong> - Toggle theme</div>
-        <div><strong>Drag</strong> - Pan canvas</div>
-        <div><strong>Scroll</strong> - Zoom</div>
-    </div>
-
-    <div id="tooltip"></div>
-
-    <div id="intro-hint">Hover over nodes to see connections. Click to inspect details.</div>
-
-    <div id="sidebar">
-        <div id="sidebar-header">
-            <h2 id="sidebar-title">Node Details</h2>
-            <button id="sidebar-close">&times;</button>
-        </div>
-        <div id="sidebar-content"></div>
-    </div>
-
-    <script src="/lib/dagre.min.js"></script>
     <script>
-        // State management
-        const state = {
-            currentData: null,
-            currentNode: null,
-            currentPerspective: 'domain-map',
-            zoomLevel: 1,
-            targetZoomLevel: 1,
-            panOffset: { x: 0, y: 0 },
-            targetPanOffset: { x: 0, y: 0 },
-            isDragging: false,
-            dragStart: { x: 0, y: 0 },
-            isTransitioning: false,
-            searchQuery: '',
-            theme: 'dark',
-            expandedDomains: new Set(),  // Track which domains are expanded
-            navSidebarOpen: true,         // Track sidebar open state
-            selectedNodeId: null          // Track currently selected node
-        };
+        class DataManager {
+            constructor() {
+                this.data = null;
+                this.schemaVersion = "archon-metadata-v1";
+            }
 
-        // DOM elements
-        const elements = {
-            loading: document.getElementById('loading'),
-            empty: document.getElementById('empty'),
-            error: document.getElementById('error'),
-            errorMessage: document.getElementById('error-message'),
-            canvas: document.getElementById('canvas-container'),
-            svg: document.getElementById('graph'),
-            mainGroup: document.getElementById('main-group'),
-            sidebar: document.getElementById('sidebar'),
-            sidebarTitle: document.getElementById('sidebar-title'),
-            sidebarContent: document.getElementById('sidebar-content'),
-            sidebarClose: document.getElementById('sidebar-close'),
-            search: document.getElementById('search'),
-            perspectiveSelect: document.getElementById('perspective-select'),
-            themeToggle: document.getElementById('theme-toggle'),
-            zoomIn: document.getElementById('zoom-in'),
-            zoomOut: document.getElementById('zoom-out'),
-            fit: document.getElementById('fit'),
-            shortcutsToggle: document.getElementById('shortcuts-toggle'),
-            shortcuts: document.getElementById('shortcuts'),
-            breadcrumb: document.getElementById('breadcrumb'),
-            diffLegend: document.getElementById('diff-legend'),
-            tooltip: document.getElementById('tooltip'),
-            zoomIndicator: document.getElementById('zoom-indicator'),
-            statNodes: document.getElementById('stat-nodes'),
-            statEdges: document.getElementById('stat-edges'),
-            statLanguages: document.getElementById('stat-languages'),
-            navSidebar: document.getElementById('nav-sidebar'),
-            navHeader: document.getElementById('nav-header'),
-            navStats: document.getElementById('nav-stats'),
-            navTree: document.getElementById('nav-tree'),
-            introHint: document.getElementById('intro-hint')
-        };
+            async load() {
+                try {
+                    const rawData = window.GRAPH_DATA || await this.fetchFromServer();
+                    if (typeof rawData !== 'object' || rawData === null) {
+                        throw new Error('Invalid data type: expected object');
+                    }
+                    this.validateSchema(rawData);
+                    this.data = this.processData(rawData);
+                    return this.data;
+                } catch (e) {
+                    this.showError(e.message);
+                    throw e;
+                }
+            }
 
-        // Load graph data
-        async function loadGraph() {
-            try {
+            async fetchFromServer() {
                 const response = await fetch('/api/graph');
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                return await response.json();
+            }
 
-                state.currentData = await response.json();
-                elements.loading.style.display = 'none';
-
-                if (state.currentData.nodes && state.currentData.nodes.length > 0) {
-                    renderGraph(state.currentData);
-                    renderDomainTree(state.currentData);
-                    updateStats();
-                    showIntroHint();
-                } else {
-                    elements.empty.style.display = 'block';
+            validateSchema(data) {
+                if (!data.$schema || !data.$schema.startsWith(this.schemaVersion)) {
+                    throw new Error(`Unsupported schema version: ${data.$schema}`);
                 }
-            } catch (error) {
-                console.error('Failed to load graph:', error);
-                elements.loading.style.display = 'none';
-                elements.errorMessage.textContent = error.message;
-                elements.error.style.display = 'block';
+                if (!data.nodes || !Array.isArray(data.nodes)) {
+                    throw new Error('Missing or invalid "nodes" field');
+                }
+                if (!data.edges || !Array.isArray(data.edges)) {
+                    throw new Error('Missing or invalid "edges" field');
+                }
+            }
+
+            processData(data) {
+                // Check for Tier 3 metrics in node metadata (pageRank, betweenness, closeness)
+                // The fullAnalysis object only contains connectedComponents and bridges
+                const firstNodeWithMetrics = data.nodes.find(n =>
+                    n.metadata?.metrics?.pageRank !== undefined ||
+                    n.metadata?.metrics?.betweenness !== undefined ||
+                    n.metadata?.metrics?.closeness !== undefined
+                );
+                const hasFullAnalysis = !!firstNodeWithMetrics;
+
+                if (!hasFullAnalysis) {
+                    console.warn('Tier 3 metrics unavailable in node metadata, using Tier 1 fallback');
+                }
+                return { ...data, hasFullAnalysis };
+            }
+
+            showError(message) {
+                const banner = document.getElementById('errorBanner');
+                if (!banner) {
+                    console.error('Error banner not found:', message);
+                    return;
+                }
+                banner.textContent = `Error: ${message}`;
+                banner.style.display = 'flex';
+            }
+
+            showWarning(message) {
+                const banner = document.getElementById('warningBanner');
+                if (!banner) {
+                    console.warn('Warning banner not found:', message);
+                    return;
+                }
+                banner.textContent = `Warning: ${message}`;
+                banner.style.display = 'flex';
             }
         }
 
-        // Aggregate class-level edges to domain-level dependencies
-        function aggregateToDomainLevel(data) {
-            // Get unique domains
-            const domains = new Set();
-            data.nodes.forEach(node => {
-                if (node.domain) domains.add(node.domain);
-            });
+        /**
+         * Quadtree node for Barnes-Hut optimization (O(n log n) repulsion)
+         */
+        class QuadTreeNode {
+            constructor(bounds, maxCapacity = 10, maxDepth = 8, depth = 0) {
+                this.bounds = bounds; // {x, y, width, height}
+                this.maxCapacity = maxCapacity;
+                this.maxDepth = maxDepth;
+                this.depth = depth;
+                this.nodes = [];
+                this.children = null; // [nw, ne, sw, se]
+                this.centerOfMass = { x: 0, y: 0, mass: 0 };
+            }
 
-            // Build domain-to-domain edge map
-            const domainEdgeMap = new Map(); // key: "src->dst", value: count
+            insert(node) {
+                if (this.children) {
+                    // Internal node: recurse to appropriate quadrant
+                    this.insertIntoChild(node);
+                    this.updateCenterOfMass(node);
+                    return;
+                }
 
-            data.edges.forEach(edge => {
-                const srcNode = data.nodes.find(n => n.id === edge.source);
-                const dstNode = data.nodes.find(n => n.id === edge.target);
-                if (srcNode && dstNode && srcNode.domain && dstNode.domain) {
-                    if (srcNode.domain !== dstNode.domain) {
-                        const key = `${srcNode.domain}->${dstNode.domain}`;
-                        domainEdgeMap.set(key, (domainEdgeMap.get(key) || 0) + 1);
+                // Leaf node: add until capacity exceeded
+                this.nodes.push(node);
+                this.updateCenterOfMass(node);
+
+                if (this.nodes.length > this.maxCapacity && this.depth < this.maxDepth) {
+                    this.split();
+                }
+            }
+
+            split() {
+                const { x, y, width, height } = this.bounds;
+                const hw = width / 2, hh = height / 2;
+                this.children = [
+                    new QuadTreeNode({ x, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
+                    new QuadTreeNode({ x: x + hw, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
+                    new QuadTreeNode({ x, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
+                    new QuadTreeNode({ x: x + hw, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1)
+                ];
+
+                // Re-insert existing nodes into children
+                for (const node of this.nodes) {
+                    this.insertIntoChild(node);
+                }
+                this.nodes = [];
+            }
+
+            insertIntoChild(node) {
+                for (const child of this.children) {
+                    if (this.contains(child.bounds, node)) {
+                        child.insert(node);
+                        return;
                     }
                 }
-            });
+            }
 
-            // Convert to domain nodes and edges
-            const domainNodes = Array.from(domains).map(domain => ({
-                id: domain,
-                label: domain,
-                domain: domain,
-                isDomain: true
-            }));
+            contains(bounds, node) {
+                return node.x >= bounds.x && node.x < bounds.x + bounds.width &&
+                       node.y >= bounds.y && node.y < bounds.y + bounds.height;
+            }
 
-            const domainEdges = [];
-            domainEdgeMap.forEach((count, key) => {
-                const [source, target] = key.split('->');
-                domainEdges.push({ source, target, weight: count });
-            });
-
-            return { nodes: domainNodes, edges: domainEdges };
+            updateCenterOfMass(node) {
+                const totalMass = this.centerOfMass.mass + node.mass;
+                this.centerOfMass.x = (this.centerOfMass.x * this.centerOfMass.mass + node.x * node.mass) / totalMass;
+                this.centerOfMass.y = (this.centerOfMass.y * this.centerOfMass.mass + node.y * node.mass) / totalMass;
+                this.centerOfMass.mass = totalMass;
+            }
         }
 
-        // Toggle domain expansion
-        function toggleDomain(domainId) {
-            if (state.expandedDomains.has(domainId)) {
-                state.expandedDomains.delete(domainId);
-            } else {
-                state.expandedDomains.add(domainId);
-            }
-            renderGraph(state.currentData);
-        }
+        /**
+         * Force-directed physics simulation with Verlet integration
+         */
+        class ForceSimulation {
+            constructor(nodes, edges) {
+                this.nodes = nodes.map(n => ({ ...n, vx: 0, vy: 0, fx: 0, fy: 0, mass: n.mass || 1 }));
+                this.edges = edges;
+                this.nodeCount = nodes.length;
 
-        // Render graph using dagre with horizontal layout
-        function renderGraph(data) {
-            const svg = elements.svg;
-            const mainGroup = elements.mainGroup;
-            mainGroup.innerHTML = '';
+                // Physics constants (from design doc)
+                this.REPULSION_STRENGTH = 1000;
+                this.IDEAL_EDGE_LENGTH = 150;
+                this.SPRING_CONSTANT = 0.05;
+                this.DAMPING = 0.9;
+                this.COOLING_RATE = 0.95;
+                this.MIN_TEMPERATURE = 0.01;
 
-            // Group nodes by domain
-            const domains = {};
-            data.nodes.forEach(node => {
-                const domain = node.domain || 'general';
-                if (!domains[domain]) domains[domain] = [];
-                domains[domain].push(node);
-            });
+                this.temperature = 1.0;
+                this.active = true;
+                this.iteration = 0;
+                this.MAX_ITERATIONS = 500;
 
-            const sortedDomains = Object.keys(domains).sort();
-
-            // Check if we should show domain-level view or class-level view
-            const showDomainLevel = state.expandedDomains.size === 0;
-
-            let renderData;
-            if (showDomainLevel) {
-                // Domain-level view: aggregate to domain nodes and edges
-                renderData = aggregateToDomainLevel(data);
-            } else {
-                // Class-level view: show all nodes and edges
-                renderData = data;
+                // Choose algorithm based on node count
+                this.useBarnesHut = this.nodeCount >= 250;
             }
 
-            // Simple left-to-right layout without compound nodes
-            const g = new dagre.graphlib.Graph()
-                .setGraph({
-                    rankdir: 'LR',  // Left to Right - horizontal!
-                    nodesep: 50,
-                    ranksep: 60,
-                    edgesep: 20,
-                    marginx: 50,
-                    marginy: 50
-                });
+            update() {
+                if (!this.active) return false;
 
-            // Add all nodes
-            renderData.nodes.forEach(node => {
-                const label = shortId(node.id);
-                // Domain nodes get larger size and special styling
-                const isDomain = node.isDomain || false;
-                g.setNode(node.id, {
-                    label: label,
-                    width: isDomain ? calculateNodeWidth(label) * 1.5 : calculateNodeWidth(label),
-                    height: isDomain ? 50 : 40,
-                    ...node
-                });
-            });
-
-            // Add edges
-            if (renderData.edges) {
-                renderData.edges.forEach(edge => {
-                    g.setEdge(edge.source, edge.target, {
-                        confidence: edge.confidence || 'HIGH'
-                    });
-                });
-            }
-
-            // Layout
-            dagre.layout(g);
-
-            // Calculate domain bounding boxes
-            const domainBounds = {};
-            sortedDomains.forEach(domain => {
-                domainBounds[domain] = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, nodes: [] };
-            });
-
-            g.nodes().forEach(nodeId => {
-                const node = g.node(nodeId);
-                const domain = node.domain || 'general';
-                const bounds = domainBounds[domain];
-                bounds.minX = Math.min(bounds.minX, node.x - node.width / 2);
-                bounds.maxX = Math.max(bounds.maxX, node.x + node.width / 2);
-                bounds.minY = Math.min(bounds.minY, node.y - node.height / 2);
-                bounds.maxY = Math.max(bounds.maxY, node.y + node.height / 2);
-                bounds.nodes.push(nodeId);
-            });
-
-            // Generate domain colors
-            const domainColors = generateDomainColors(sortedDomains);
-
-            // Render domain cluster backgrounds only in class-level view
-            if (!showDomainLevel) {
-                sortedDomains.forEach(domain => {
-                const bounds = domainBounds[domain];
-                const padding = 30;
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', bounds.minX - padding);
-                rect.setAttribute('y', bounds.minY - padding);
-                rect.setAttribute('width', bounds.maxX - bounds.minX + padding * 2);
-                rect.setAttribute('height', bounds.maxY - bounds.minY + padding * 2);
-                rect.setAttribute('fill', domainColors[domain]);
-                rect.setAttribute('fill-opacity', '0.06');
-                rect.setAttribute('stroke', domainColors[domain]);
-                rect.setAttribute('stroke-width', '2');
-                rect.setAttribute('stroke-dasharray', '8,4');
-                rect.setAttribute('rx', '12');
-                mainGroup.appendChild(rect);
-
-                // Domain label
-                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                label.setAttribute('x', bounds.minX - padding + 10);
-                label.setAttribute('y', bounds.minY - padding + 16);
-                label.setAttribute('fill', domainColors[domain]);
-                label.setAttribute('font-size', '12');
-                label.setAttribute('font-weight', '600');
-                label.setAttribute('font-family', 'var(--mono)');
-                label.setAttribute('opacity', '0.9');
-                label.textContent = domain;
-                mainGroup.appendChild(label);
-                });
-            }
-
-            // Render edges with bezier curves (before nodes so they're underneath)
-            const edgeOpacity = 0.4;
-            g.edges().forEach(edgeObj => {
-                const edge = g.edge(edgeObj);
-                const points = edge.points;
-
-                // Create smooth bezier curve through points
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-
-                if (points.length >= 2) {
-                    let d = `M ${points[0].x},${points[0].y}`;
-
-                    if (points.length === 2) {
-                        // Simple straight line
-                        d = `M ${points[0].x},${points[0].y} L ${points[1].x},${points[1].y}`;
-                    } else {
-                        // Bezier curve through intermediate points
-                        for (let i = 1; i < points.length; i++) {
-                            const curr = points[i];
-                            if (i === points.length - 1) {
-                                d += ` L ${curr.x},${curr.y}`;
-                            } else {
-                                // Smooth curve through intermediate point
-                                const prev = points[i - 1];
-                                const midX = (prev.x + curr.x) / 2;
-                                const midY = (prev.y + curr.y) / 2;
-                                d += ` L ${midX},${midY}`;
-                            }
-                        }
-                    }
-
-                    path.setAttribute('d', d);
-                    path.setAttribute('class', 'edge-path');
-                    path.setAttribute('fill', 'none');
-                    path.setAttribute('stroke', edge.confidence === 'HIGH' ? '#666' : '#444');
-                    path.setAttribute('stroke-width', '1.5');
-                    path.setAttribute('opacity', edgeOpacity);
-                    path.setAttribute('stroke-linecap', 'round');
-
-                    // Add arrowhead
-                    path.setAttribute('marker-end', 'url(#arrowhead)');
-
-                    mainGroup.appendChild(path);
+                // Clear forces
+                for (const node of this.nodes) {
+                    node.fx = 0;
+                    node.fy = 0;
                 }
-            });
 
-            // Render nodes on top
-            g.nodes().forEach(nodeId => {
-                const node = g.node(nodeId);
-                const group = createNodeElement(nodeId, node, domainColors[node.domain || 'general']);
-                mainGroup.appendChild(group);
-            });
-
-            // Show diff legend if in diff mode
-            if (data.diffMode) {
-                elements.diffLegend.style.display = 'block';
-            }
-
-            centerView();
-        }
-
-        // Build domain tree from graph data
-        function buildDomainTree(data) {
-            if (!data || !data.nodes) return { domains: {}, totalCount: 0 };
-
-            // Group nodes by domain
-            const domains = {};
-            let totalCount = 0;
-
-            data.nodes.forEach(node => {
-                const domain = node.domain || 'general';
-                if (!domains[domain]) {
-                    domains[domain] = [];
-                }
-                domains[domain].push(node);
-                totalCount++;
-            });
-
-            return { domains, totalCount };
-        }
-
-        // Render the domain tree in the sidebar
-        function renderDomainTree(data) {
-            const { domains, totalCount } = buildDomainTree(data);
-            const navTree = elements.navTree;
-            navTree.innerHTML = '';
-
-            // Update stats
-            const domainCount = Object.keys(domains).length;
-            elements.navStats.textContent = `${totalCount} classes • ${domainCount} domains`;
-
-            // Calculate in-degrees for hotspot detection
-            const inDegrees = {};
-            if (data.edges) {
-                data.edges.forEach(edge => {
-                    inDegrees[edge.target] = (inDegrees[edge.target] || 0) + 1;
-                });
-            }
-
-            // Sort domains by name
-            const sortedDomains = Object.keys(domains).sort();
-
-            sortedDomains.forEach(domain => {
-                const nodes = domains[domain];
-
-                // Create domain item
-                const domainItem = document.createElement('div');
-                domainItem.className = 'tree-item';
-
-                // Domain header (always expanded in this version)
-                const domainLabel = document.createElement('div');
-                domainLabel.className = 'tree-domain';
-                domainLabel.textContent = `${domain} ${nodes.length}`;
-                domainItem.appendChild(domainLabel);
-
-                // Children container
-                const childrenContainer = document.createElement('div');
-                childrenContainer.className = 'tree-children';
-
-                // Sort nodes by name and create leaf items
-                nodes
-                    .sort((a, b) => a.id.localeCompare(b.id))
-                    .forEach(node => {
-                        const leafLabel = document.createElement('div');
-                        leafLabel.className = 'tree-label';
-                        leafLabel.setAttribute('data-id', node.id);
-
-                        const shortName = shortId(node.id);
-                        leafLabel.innerHTML = `<span>→ ${shortName}</span>`;
-
-                        // Add hotspot indicator if high in-degree
-                        const inDegree = inDegrees[node.id] || 0;
-                        if (inDegree >= 5) {
-                            const hint = document.createElement('span');
-                            hint.className = 'tree-count';
-                            hint.textContent = inDegree >= 10 ? '⭐' : inDegree;
-                            hint.title = `in-degree: ${inDegree}`;
-                            leafLabel.appendChild(hint);
-                        }
-
-                        // Click handler
-                        leafLabel.addEventListener('click', () => {
-                            // Clear previous selection
-                            navTree.querySelectorAll('.tree-label.active').forEach(el => {
-                                el.classList.remove('active');
-                            });
-                            leafLabel.classList.add('active');
-
-                            // Focus and highlight node
-                            focusNode(node.id);
-                        });
-
-                        childrenContainer.appendChild(leafLabel);
-                    });
-
-                domainItem.appendChild(childrenContainer);
-                navTree.appendChild(domainItem);
-            });
-        }
-
-        // Show intro hint on load
-        function showIntroHint() {
-            elements.introHint.style.display = 'block';
-
-            // Dismiss on first interaction with canvas
-            const dismissHandler = () => {
-                elements.introHint.classList.add('fade-out');
-                setTimeout(() => {
-                    elements.introHint.style.display = 'none';
-                    elements.introHint.classList.remove('fade-out');
-                }, 300);
-
-                // Remove event listeners after first interaction
-                elements.canvas.removeEventListener('click', dismissHandler);
-                elements.canvas.removeEventListener('keydown', dismissHandler);
-            };
-
-            elements.canvas.addEventListener('click', dismissHandler);
-            elements.canvas.addEventListener('keydown', dismissHandler);
-        }
-
-        function generateDomainColors(domains) {
-            const colors = [
-                '#818cf8', '#22c55e', '#ef4444', '#eab308', '#06b6d4',
-                '#ec4899', '#f97316', '#6366f1', '#14b8a6', '#a855f7'
-            ];
-            const result = {};
-            domains.forEach((d, i) => {
-                result[d] = colors[i % colors.length];
-            });
-            return result;
-        }
-
-        function createNodeElement(nodeId, node, domainColor) {
-            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            group.setAttribute('class', 'node-group');
-            group.setAttribute('data-id', nodeId);
-            group.setAttribute('data-domain', node.domain || 'general');
-            group.setAttribute('transform', `translate(${node.x},${node.y})`);
-            group.setAttribute('tabindex', '0');
-            // Domain nodes get pointer cursor to indicate clickability
-            if (node.isDomain) {
-                group.style.cursor = 'pointer';
-            }
-
-            // Add diff class if applicable
-            if (node.diffStatus) {
-                group.classList.add(node.diffStatus);
-            }
-
-            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('class', 'node-rect');
-            rect.setAttribute('x', -node.width / 2);
-            rect.setAttribute('y', -node.height / 2);
-            rect.setAttribute('width', node.width);
-            rect.setAttribute('height', node.height);
-            rect.setAttribute('rx', node.isDomain ? 8 : 4);
-
-            // Domain nodes get filled background and thicker border
-            if (node.isDomain && domainColor) {
-                rect.style.fill = domainColor;
-                rect.style.fillOpacity = '0.15';
-                rect.style.stroke = domainColor;
-                rect.style.strokeWidth = '3px';
-            } else if (domainColor) {
-                // Class nodes get subtle border
-                rect.style.stroke = domainColor;
-                rect.style.strokeWidth = '1.5px';
-            }
-
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('class', 'node-text');
-            text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('dy', 4);
-            // Domain nodes get larger, bolder text
-            if (node.isDomain) {
-                text.setAttribute('font-size', '14');
-                text.setAttribute('font-weight', '700');
-            }
-            text.textContent = truncateText(node.label, node.width);
-
-            // Domain indicator dot
-            if (domainColor && node.domain) {
-                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                dot.setAttribute('cx', node.width / 2 - 8);
-                dot.setAttribute('cy', -node.height / 2 + 8);
-                dot.setAttribute('r', '4');
-                dot.setAttribute('fill', domainColor);
-                group.appendChild(dot);
-            }
-
-            group.appendChild(rect);
-            group.appendChild(text);
-
-            // Event listeners
-            group.addEventListener('click', () => {
-                // If this is a domain node in domain-level view, toggle expansion
-                if (node.isDomain) {
-                    toggleDomain(nodeId);
+                if (this.useBarnesHut) {
+                    this.applyBarnesHutRepulsion();
                 } else {
-                    showSidebar(nodeId, node);
+                    this.applyDirectRepulsion();
                 }
-            });
-            group.addEventListener('mouseenter', (e) => showTooltip(e, nodeId, node));
-            group.addEventListener('mouseleave', hideTooltip);
-            group.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    if (node.isDomain) {
-                        toggleDomain(nodeId);
-                    } else {
-                        showSidebar(nodeId, node);
+
+                this.applyAttraction();
+                this.applyForces();
+                this.cool();
+
+                return this.active;
+            }
+
+            applyDirectRepulsion() {
+                // O(n²) repulsion for small graphs
+                for (let i = 0; i < this.nodes.length; i++) {
+                    for (let j = i + 1; j < this.nodes.length; j++) {
+                        const a = this.nodes[i];
+                        const b = this.nodes[j];
+                        const dx = b.x - a.x;
+                        const dy = b.y - a.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const force = this.REPULSION_STRENGTH / (dist * dist);
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
+                        a.fx -= fx;
+                        a.fy -= fy;
+                        b.fx += fx;
+                        b.fy += fy;
                     }
                 }
-            });
-
-            return group;
-        }
-
-        function createEdgeElement(edgeObj, edge) {
-            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            group.setAttribute('class', `edge-group ${edge.confidence || 'HIGH'}`);
-
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const points = edge.points;
-            const d = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
-            path.setAttribute('d', d);
-            path.setAttribute('class', 'edge-path');
-            path.setAttribute('marker-end', 'url(#arrowhead)');
-
-            group.appendChild(path);
-
-            group.addEventListener('mouseenter', (e) => {
-                showTooltip(e, `${edgeObj.v} → ${edgeObj.w}`, { type: 'edge' });
-            });
-            group.addEventListener('mouseleave', hideTooltip);
-
-            return group;
-        }
-
-        function calculateNodeWidth(label) {
-            // Approximate width calculation (Monospace font ~7px per character)
-            const minWidth = 80;
-            const charWidth = 7;
-            const padding = 20;
-            return Math.max(minWidth, label.length * charWidth + padding);
-        }
-
-        function truncateText(label, maxWidth) {
-            const maxChars = Math.floor((maxWidth - 20) / 7);
-            if (label.length <= maxChars) return label;
-            return label.substring(0, maxChars - 3) + '...';
-        }
-
-        function shortId(id) {
-            if (id.includes(':')) {
-                const parts = id.split(':');
-                return parts[parts.length - 1];
             }
-            return id;
-        }
 
-        function showSidebar(nodeId, node) {
-            state.currentNode = { id: nodeId, ...node };
-            elements.sidebar.classList.add('open');
-
-            const title = shortId(nodeId);
-            elements.sidebarTitle.textContent = title;
-
-            const dependencies = findDependencies(nodeId);
-            const dependents = findDependents(nodeId);
-
-            elements.sidebarContent.innerHTML = `
-                <div class="sidebar-section">
-                    <h3>Node Information</h3>
-                    <p><strong>ID:</strong> <code>${nodeId}</code></p>
-                    <p><strong>Type:</strong> ${node.type || 'unknown'}</p>
-                    <p><strong>Domain:</strong> ${node.domain || 'general'}</p>
-                    <p><strong>Language:</strong> ${extractLanguage(nodeId)}</p>
-                </div>
-
-                <div class="sidebar-section">
-                    <h3>Metrics</h3>
-                    <p><strong>Dependencies:</strong> ${dependencies.length}</p>
-                    <p><strong>Dependents:</strong> ${dependents.length}</p>
-                </div>
-
-                ${dependencies.length > 0 ? `
-                <div class="sidebar-section">
-                    <h3>Dependencies (${dependencies.length})</h3>
-                    <ul class="dependency-list">
-                        ${dependencies.map(dep => `
-                            <li data-node="${dep}">${shortId(dep)}</li>
-                        `).join('')}
-                    </ul>
-                </div>
-                ` : ''}
-
-                ${dependents.length > 0 ? `
-                <div class="sidebar-section">
-                    <h3>Dependents (${dependents.length})</h3>
-                    <ul class="dependency-list">
-                        ${dependents.map(dep => `
-                            <li data-node="${dep}">${shortId(dep)}</li>
-                        `).join('')}
-                    </ul>
-                </div>
-                ` : ''}
-            `;
-
-            // Add click handlers to dependency items
-            elements.sidebarContent.querySelectorAll('.dependency-list li').forEach(item => {
-                item.addEventListener('click', () => {
-                    const nodeId = item.getAttribute('data-node');
-                    focusNode(nodeId);
-                });
-            });
-        }
-
-        function findDependencies(nodeId) {
-            if (!state.currentData || !state.currentData.edges) return [];
-            return state.currentData.edges
-                .filter(edge => edge.source === nodeId)
-                .map(edge => edge.target);
-        }
-
-        function findDependents(nodeId) {
-            if (!state.currentData || !state.currentData.edges) return [];
-            return state.currentData.edges
-                .filter(edge => edge.target === nodeId)
-                .map(edge => edge.source);
-        }
-
-        function extractLanguage(nodeId) {
-            if (nodeId.startsWith('java:')) return 'Java';
-            if (nodeId.startsWith('js:')) return 'JavaScript/TypeScript';
-            if (nodeId.startsWith('py:')) return 'Python';
-            return 'Unknown';
-        }
-
-        function focusNode(nodeId) {
-            const nodeElement = document.querySelector(`.node-group[data-id="${nodeId}"]`);
-            if (nodeElement) {
-                nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                nodeElement.focus();
-                showSidebar(nodeId, state.currentData.nodes.find(n => n.id === nodeId) || {});
-            }
-        }
-
-        function hideSidebar() {
-            elements.sidebar.classList.remove('open');
-            state.currentNode = null;
-        }
-
-        function centerView() {
-            const bbox = elements.mainGroup.getBBox();
-            const container = elements.canvas;
-            const padding = 40;
-
-            const scaleX = (container.clientWidth - padding * 2) / bbox.width;
-            const scaleY = (container.clientHeight - padding * 2) / bbox.height;
-            const scale = Math.min(scaleX, scaleY, 1.5);
-
-            state.targetZoomLevel = scale;
-            state.targetPanOffset = {
-                x: (container.clientWidth - bbox.width * scale) / 2 - bbox.x * scale,
-                y: (container.clientHeight - bbox.height * scale) / 2 - bbox.y * scale
-            };
-
-            startTransition();
-        }
-
-        function startTransition() {
-            if (state.isTransitioning) return;
-            state.isTransitioning = true;
-            requestAnimationFrame(animateTransition);
-        }
-
-        function animateTransition() {
-            const zoomDiff = state.targetZoomLevel - state.zoomLevel;
-            const panDiffX = state.targetPanOffset.x - state.panOffset.x;
-            const panDiffY = state.targetPanOffset.y - state.panOffset.y;
-
-            // Ease-out interpolation
-            const ease = 0.15;
-            state.zoomLevel += zoomDiff * ease;
-            state.panOffset.x += panDiffX * ease;
-            state.panOffset.y += panDiffY * ease;
-
-            updateTransform();
-            updateZoomIndicator();
-
-            // Check if transition is complete
-            const isClose = Math.abs(zoomDiff) < 0.001 &&
-                           Math.abs(panDiffX) < 0.1 &&
-                           Math.abs(panDiffY) < 0.1;
-
-            if (isClose) {
-                state.zoomLevel = state.targetZoomLevel;
-                state.panOffset = { ...state.targetPanOffset };
-                updateTransform();
-                updateZoomIndicator();
-                state.isTransitioning = false;
-            } else {
-                requestAnimationFrame(animateTransition);
-            }
-        }
-
-        function updateTransform() {
-            elements.mainGroup.setAttribute('transform',
-                `translate(${state.panOffset.x},${state.panOffset.y}) scale(${state.zoomLevel})`
-            );
-        }
-
-        function updateZoomIndicator() {
-            elements.zoomIndicator.textContent = `${Math.round(state.zoomLevel * 100)}%`;
-        }
-
-        function zoomBy(factor) {
-            state.targetZoomLevel = state.zoomLevel * factor;
-            state.targetZoomLevel = Math.max(0.1, Math.min(5, state.targetZoomLevel));
-            startTransition();
-        }
-
-        function toggleTheme() {
-            state.theme = state.theme === 'dark' ? 'light' : 'dark';
-            if (state.theme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-                elements.themeToggle.textContent = '☾';
-            } else {
-                document.documentElement.removeAttribute('data-theme');
-                elements.themeToggle.textContent = '☀';
-            }
-        }
-
-        function updateStats() {
-            if (!state.currentData) return;
-
-            const nodeCount = state.currentData.nodes?.length || 0;
-            const edgeCount = state.currentData.edges?.length || 0;
-            const languages = new Set();
-
-            state.currentData.nodes?.forEach(node => {
-                if (node.id.startsWith('java:')) languages.add('Java');
-                if (node.id.startsWith('js:')) languages.add('JS/TS');
-                if (node.id.startsWith('py:')) languages.add('Python');
-            });
-
-            elements.statNodes.textContent = nodeCount;
-            elements.statEdges.textContent = edgeCount;
-            elements.statLanguages.textContent = languages.size;
-        }
-
-        function filterNodes(query) {
-            state.searchQuery = query.toLowerCase();
-
-            document.querySelectorAll('.node-group').forEach(node => {
-                const nodeId = node.getAttribute('data-id').toLowerCase();
-                const matches = !state.searchQuery || nodeId.includes(state.searchQuery);
-
-                if (matches) {
-                    node.classList.remove('fade-out');
-                } else {
-                    node.classList.add('fade-out');
+            applyBarnesHutRepulsion() {
+                // O(n log n) repulsion using quadtree
+                const bounds = this.computeBounds();
+                const quadtree = new QuadTreeNode(bounds);
+                for (const node of this.nodes) {
+                    quadtree.insert(node);
                 }
-            });
-        }
 
-        function showTooltip(event, text, data) {
-            elements.tooltip.textContent = text;
-            elements.tooltip.classList.add('visible');
+                for (const node of this.nodes) {
+                    this.applyRepulsionFromQuadtree(node, quadtree, bounds);
+                }
+            }
 
-            const rect = elements.canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left + 15;
-            const y = event.clientY - rect.top + 15;
+            applyRepulsionFromQuadtree(node, quadtree, bounds, theta = 0.5) {
+                if (quadtree.nodes.length === 0 && !quadtree.children) return;
 
-            elements.tooltip.style.left = `${x}px`;
-            elements.tooltip.style.top = `${y}px`;
-        }
+                const dx = quadtree.centerOfMass.x - node.x;
+                const dy = quadtree.centerOfMass.y - node.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const width = bounds.width;
 
-        function hideTooltip() {
-            elements.tooltip.classList.remove('visible');
-        }
+                // If far enough or leaf node, treat as single mass
+                if (width / dist < theta || quadtree.nodes.length > 0) {
+                    const force = this.REPULSION_STRENGTH * quadtree.centerOfMass.mass / (dist * dist);
+                    node.fx -= (dx / dist) * force;
+                    node.fy -= (dy / dist) * force;
+                    return;
+                }
 
-        function switchPerspective(perspective) {
-            state.currentPerspective = perspective;
-            elements.breadcrumb.innerHTML = `<span>${perspective}</span>`;
+                // Otherwise, recurse into children
+                if (quadtree.children) {
+                    for (const child of quadtree.children) {
+                        this.applyRepulsionFromQuadtree(node, child, child.bounds, theta);
+                    }
+                }
+            }
 
-            // In a full implementation, this would trigger data re-aggregation
-            // For now, we just update the UI
-            console.log(`Switched to ${perspective} perspective`);
-        }
-
-        // Event listeners
-        elements.zoomIn.addEventListener('click', () => zoomBy(1.2));
-        elements.zoomOut.addEventListener('click', () => zoomBy(1 / 1.2));
-        elements.fit.addEventListener('click', centerView);
-        elements.themeToggle.addEventListener('click', toggleTheme);
-        elements.sidebarClose.addEventListener('click', hideSidebar);
-        elements.shortcutsToggle.addEventListener('click', () => {
-            elements.shortcuts.classList.toggle('visible');
-        });
-
-        elements.perspectiveSelect.addEventListener('change', (e) => {
-            switchPerspective(e.target.value);
-        });
-
-        elements.search.addEventListener('input', (e) => {
-            filterNodes(e.target.value);
-        });
-
-        // Mouse drag panning
-        elements.canvas.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.node-group')) return;
-            state.isDragging = true;
-            state.dragStart = {
-                x: e.clientX - state.panOffset.x,
-                y: e.clientY - state.panOffset.y
-            };
-        });
-
-        elements.canvas.addEventListener('mousemove', (e) => {
-            if (!state.isDragging) return;
-
-            state.panOffset.x = e.clientX - state.dragStart.x;
-            state.panOffset.y = e.clientY - state.dragStart.y;
-            state.targetPanOffset = { ...state.panOffset };
-
-            updateTransform();
-        });
-
-        elements.canvas.addEventListener('mouseup', () => {
-            state.isDragging = false;
-        });
-
-        elements.canvas.addEventListener('mouseleave', () => {
-            state.isDragging = false;
-        });
-
-        // Mouse wheel zooming
-        elements.canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-
-            const rect = elements.canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            // Calculate zoom about mouse position
-            const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-            const newZoom = state.zoomLevel * zoomFactor;
-
-            if (newZoom < 0.1 || newZoom > 5) return;
-
-            // Adjust pan to keep mouse position stable
-            state.targetPanOffset.x = mouseX - (mouseX - state.panOffset.x) * zoomFactor;
-            state.targetPanOffset.y = mouseY - (mouseY - state.panOffset.y) * zoomFactor;
-            state.targetZoomLevel = newZoom;
-
-            startTransition();
-        }, { passive: false });
-
-        // Touch gesture support
-        let touchStartDistance = 0;
-        let touchStartZoom = 1;
-
-        elements.canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                state.isDragging = true;
-                state.dragStart = {
-                    x: e.touches[0].clientX - state.panOffset.x,
-                    y: e.touches[0].clientY - state.panOffset.y
+            computeBounds() {
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                for (const node of this.nodes) {
+                    minX = Math.min(minX, node.x);
+                    minY = Math.min(minY, node.y);
+                    maxX = Math.max(maxX, node.x);
+                    maxY = Math.max(maxY, node.y);
+                }
+                return {
+                    x: minX - 100,
+                    y: minY - 100,
+                    width: (maxX - minX) + 200,
+                    height: (maxY - minY) + 200
                 };
-            } else if (e.touches.length === 2) {
-                touchStartDistance = getTouchDistance(e.touches);
-                touchStartZoom = state.zoomLevel;
             }
-        });
 
-        elements.canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
+            applyAttraction() {
+                // O(e) spring attraction
+                for (const edge of this.edges) {
+                    const source = this.nodes.find(n => n.id === edge.source);
+                    const target = this.nodes.find(n => n.id === edge.target);
+                    if (!source || !target) continue;
 
-            if (e.touches.length === 1 && state.isDragging) {
-                state.panOffset.x = e.touches[0].clientX - state.dragStart.x;
-                state.panOffset.y = e.touches[0].clientY - state.dragStart.y;
-                state.targetPanOffset = { ...state.panOffset };
-                updateTransform();
-            } else if (e.touches.length === 2) {
-                const currentDistance = getTouchDistance(e.touches);
-                const scaleFactor = currentDistance / touchStartDistance;
-                state.targetZoomLevel = Math.max(0.1, Math.min(5, touchStartZoom * scaleFactor));
-                startTransition();
+                    const dx = target.x - source.x;
+                    const dy = target.y - source.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const force = (dist - this.IDEAL_EDGE_LENGTH) * this.SPRING_CONSTANT;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+
+                    source.fx += fx;
+                    source.fy += fy;
+                    target.fx -= fx;
+                    target.fy -= fy;
+                }
             }
-        }, { passive: false });
 
-        elements.canvas.addEventListener('touchend', () => {
-            state.isDragging = false;
-        });
+            applyForces() {
+                // Verlet integration with damping
+                for (const node of this.nodes) {
+                    node.vx = (node.vx + node.fx) * this.DAMPING;
+                    node.vy = (node.vy + node.fy) * this.DAMPING;
+                    node.x += node.vx;
+                    node.y += node.vy;
+                }
+            }
 
-        function getTouchDistance(touches) {
-            const dx = touches[0].clientX - touches[1].clientX;
-            const dy = touches[0].clientY - touches[1].clientY;
-            return Math.sqrt(dx * dx + dy * dy);
+            cool() {
+                this.temperature *= this.COOLING_RATE;
+                this.iteration++;
+
+                if (this.temperature < this.MIN_TEMPERATURE || this.iteration > this.MAX_ITERATIONS) {
+                    this.active = false;
+                }
+            }
+
+            restart() {
+                this.active = true;
+                this.temperature = 1.0;
+                this.iteration = 0;
+            }
+
+            setNodePosition(nodeId, x, y) {
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (node) {
+                    node.x = x;
+                    node.y = y;
+                    node.vx = 0;
+                    node.vy = 0;
+                }
+            }
         }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Ctrl+K to focus search
-            if (e.ctrlKey && e.key === 'k') {
+        /**
+         * GraphCanvas: Canvas-based graph renderer with Tier 3 metrics visualization
+         */
+        class GraphCanvas {
+            constructor(canvasId, data) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.data = data;
+                this.nodes = data.nodes.map(n => this.initNode(n));
+                this.edges = data.edges;
+
+                // View state
+                this.viewLevel = 'DOMAIN'; // 'DOMAIN' or 'CLASS'
+                this.expandedDomain = null;
+                this.selectedNode = null;
+                this.hoveredNode = null;
+
+                // Transform
+                this.transform = { x: 0, y: 0, k: 1 };
+                this.isDragging = false;
+                this.isPanning = false;
+                this.lastMouse = { x: 0, y: 0 };
+
+                // Physics
+                this.simulation = new ForceSimulation(this.nodes, this.edges);
+
+                // Animation
+                this.particles = this.initParticles();
+                this.lastTime = 0;
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.setupInteraction();
+            }
+
+            initNode(nodeData) {
+                // Map Tier 3 metrics to visual properties
+                // Metrics are in node.metadata.metrics (from JsonSerializer)
+                const pageRank = nodeData.metadata?.metrics?.pageRank || 0;
+                const betweenness = nodeData.metadata?.metrics?.betweenness || 0;
+                const closeness = nodeData.metadata?.metrics?.closeness || 0;
+                const isBridge = nodeData.metadata?.issues?.bridge || false;
+
+                return {
+                    ...nodeData,
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    vx: 0, vy: 0,
+                    // Visual properties
+                    radius: 12 + (betweenness * 30),
+                    color: this.closenessToColor(closeness),
+                    glow: this.shouldGlow(pageRank) ? 10 + (pageRank * 50) : 0,
+                    isBridge,
+                    // Domain grouping
+                    domain: nodeData.domain || 'ungrouped'
+                };
+            }
+
+            shouldGlow(pageRank) {
+                // Top 20% PageRank nodes get glow (selective glow optimization)
+                // Collect all PageRank values from nodes
+                const pageRanks = this.data.nodes
+                    .map(n => n.metadata?.metrics?.pageRank || 0)
+                    .filter(pr => pr > 0); // Only nodes with actual PageRank
+                const threshold = this.percentile(pageRanks, 0.8);
+                return pageRank >= threshold;
+            }
+
+            percentile(arr, p) {
+                const sorted = [...arr].sort((a, b) => a - b);
+                const idx = Math.floor(sorted.length * p);
+                return sorted[idx];
+            }
+
+            closenessToColor(closeness) {
+                // Interpolate blue → green based on closeness
+                // Low closeness (0) → blue: rgb(74, 144, 226)
+                // High closeness (1) → green: rgb(74, 222, 128)
+                const r = 74;  // Constant red channel
+                const g = Math.floor(144 + (222 - 144) * closeness);  // 144 → 222
+                const b = Math.floor(226 + (128 - 226) * closeness);  // 226 → 128
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            initParticles() {
+                // Create particles for edge flow animation
+                return this.edges.map(edge => ({
+                    edge,
+                    progress: Math.random(),
+                    speed: 0.005 + Math.random() * 0.01
+                }));
+            }
+
+            resize() {
+                const parent = this.canvas.parentElement;
+                const w = parent.clientWidth;
+                const h = parent.clientHeight;
+                this.canvas.width = w;
+                this.canvas.height = h;
+                console.log('Canvas resized:', { w, h });
+                if (w === 0 || h === 0) {
+                    console.warn('Canvas has zero dimension - will retry after layout');
+                }
+            }
+
+            setupInteraction() {
+                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
+                this.canvas.addEventListener('click', (e) => this.onClick(e));
+
+                // Keyboard
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') this.returnToDomainView();
+                });
+            }
+
+            onMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left - this.transform.x) / this.transform.k;
+                const my = (e.clientY - rect.top - this.transform.y) / this.transform.k;
+
+                // Find hovered node
+                this.hoveredNode = this.nodes.find(n => {
+                    const dx = n.x - mx;
+                    const dy = n.y - my;
+                    return Math.sqrt(dx * dx + dy * dy) < n.radius;
+                });
+
+                this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
+
+                // Handle panning
+                if (this.isPanning) {
+                    this.transform.x += e.clientX - this.lastMouse.x;
+                    this.transform.y += e.clientY - this.lastMouse.y;
+                }
+
+                this.lastMouse = { x: e.clientX, y: e.clientY };
+
+                // Announce to screen reader
+                this.announceHover();
+            }
+
+            onMouseDown(e) {
+                if (this.hoveredNode) {
+                    this.isDragging = true;
+                } else {
+                    this.isPanning = true;
+                }
+            }
+
+            onMouseUp(e) {
+                this.isDragging = false;
+                this.isPanning = false;
+            }
+
+            onWheel(e) {
                 e.preventDefault();
-                elements.search.focus();
+                const zoomFactor = 1.1;
+                const newK = e.deltaY < 0 ? this.transform.k * zoomFactor : this.transform.k / zoomFactor;
+
+                // Clamp zoom
+                const clampedK = Math.max(0.1, Math.min(5, newK));
+
+                // Zoom toward mouse position
+                const rect = this.canvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+
+                this.transform.x = mx - (mx - this.transform.x) * (clampedK / this.transform.k);
+                this.transform.y = my - (my - this.transform.y) * (clampedK / this.transform.k);
+                this.transform.k = clampedK;
             }
 
-            // Escape to close sidebar or clear search
-            if (e.key === 'Escape') {
-                if (elements.sidebar.classList.contains('open')) {
-                    hideSidebar();
-                } else if (document.activeElement === elements.search) {
-                    elements.search.blur();
-                    filterNodes('');
+            onClick(e) {
+                if (this.hoveredNode) {
+                    this.onNodeClick(this.hoveredNode);
+                } else {
+                    this.selectedNode = null;
+                    this.announceSelection();
                 }
             }
 
-            // + or = to zoom in
-            if (e.key === '+' || e.key === '=') {
-                zoomBy(1.2);
-            }
-
-            // - to zoom out
-            if (e.key === '-') {
-                zoomBy(1 / 1.2);
-            }
-
-            // F to fit
-            if (e.key === 'f' || e.key === 'F') {
-                if (document.activeElement !== elements.search) {
-                    centerView();
+            onNodeClick(node) {
+                if (this.viewLevel === 'DOMAIN' && node.domain) {
+                    this.expandDomain(node.domain);
+                } else {
+                    this.selectedNode = node;
+                    this.announceSelection();
                 }
             }
 
-            // T to toggle theme
-            if (e.key === 't' || e.key === 'T') {
-                if (document.activeElement !== elements.search) {
-                    toggleTheme();
+            expandDomain(domainId) {
+                // Position inheritance: seed class nodes at parent domain position
+                const domainNode = this.nodes.find(n => n.id === domainId || n.domain === domainId);
+                if (!domainNode) return;
+
+                this.viewLevel = 'CLASS';
+                this.expandedDomain = domainId;
+
+                // Set class node positions to parent position
+                for (const node of this.nodes) {
+                    if (node.domain === domainId && node.id !== domainId) {
+                        this.simulation.setNodePosition(node.id, domainNode.x, domainNode.y);
+                    }
+                }
+
+                // Restart physics for expansion animation
+                this.simulation.restart();
+
+                // Announce
+                this.announceViewChange(`Now showing classes in ${domainId} domain`);
+            }
+
+            returnToDomainView() {
+                if (this.viewLevel === 'CLASS') {
+                    this.viewLevel = 'DOMAIN';
+                    this.expandedDomain = null;
+                    this.selectedNode = null;
+                    this.simulation.restart();
+                    this.announceViewChange('Returned to domain overview');
                 }
             }
 
-            // ? to show shortcuts
-            if (e.key === '?') {
-                if (document.activeElement !== elements.search) {
-                    elements.shortcuts.classList.toggle('visible');
+            start() {
+                requestAnimationFrame((t) => this.render(t));
+            }
+
+            render(timestamp) {
+                const dt = timestamp - this.lastTime;
+                this.lastTime = timestamp;
+
+                // Update physics
+                this.simulation.update();
+
+                // Update particles
+                this.updateParticles();
+
+                // Clear
+                if (this.canvas.width === 0 || this.canvas.height === 0) {
+                    console.warn('Render: Canvas has zero dimension, skipping render');
+                    requestAnimationFrame((t) => this.render(t));
+                    return;
                 }
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Debug log first render
+                if (this.lastTime === 0) {
+                    console.log('First render:', {
+                        canvasSize: { w: this.canvas.width, h: this.canvas.height },
+                        nodes: this.nodes.length,
+                        edges: this.edges.length
+                    });
+                }
+
+                // Apply transform
+                this.ctx.save();
+                this.ctx.translate(this.transform.x, this.transform.y);
+                this.ctx.scale(this.transform.k, this.transform.k);
+
+                // Draw edges
+                this.drawEdges();
+
+                // Draw nodes
+                this.drawNodes();
+
+                this.ctx.restore();
+
+                requestAnimationFrame((t) => this.render(t));
+            }
+
+            drawEdges() {
+                for (const particle of this.particles) {
+                    const source = this.nodes.find(n => n.id === particle.edge.source);
+                    const target = this.nodes.find(n => n.id === particle.edge.target);
+                    if (!source || !target) continue;
+
+                    // Draw edge
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(source.x, source.y);
+                    this.ctx.lineTo(target.x, target.y);
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.stroke();
+
+                    // Draw particle (if selected or always flowing)
+                    if (!this.selectedNode || this.selectedNode.id === particle.edge.source) {
+                        const px = source.x + (target.x - source.x) * particle.progress;
+                        const py = source.y + (target.y - source.y) * particle.progress;
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(px, py, 2, 0, Math.PI * 2);
+                        this.ctx.fillStyle = this.selectedNode ? '#4ade80' : 'rgba(255, 255, 255, 0.5)';
+                        this.ctx.fill();
+                    }
+                }
+            }
+
+            drawNodes() {
+                let drawCount = 0;
+                for (const node of this.nodes) {
+                    // Skip if not in view
+                    if (this.viewLevel === 'CLASS' && node.domain !== this.expandedDomain) {
+                        // Fade other domains
+                        this.ctx.globalAlpha = 0.3;
+                    } else {
+                        this.ctx.globalAlpha = 1;
+                    }
+
+                    // Glow (only for top 20% PageRank)
+                    if (node.glow > 0) {
+                        this.ctx.shadowBlur = node.glow;
+                        this.ctx.shadowColor = node.color;
+                    } else {
+                        this.ctx.shadowBlur = 0;
+                    }
+
+                    // Draw node
+                    this.ctx.beginPath();
+                    this.ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+                    this.ctx.fillStyle = node.color;
+                    this.ctx.fill();
+                    drawCount++;
+
+                    // Bridge indicator (marching ants)
+                    if (node.isBridge) {
+                        this.ctx.strokeStyle = '#4ade80';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.setLineDash([4, 4]);
+                        this.ctx.lineDashOffset = -Date.now() / 50;
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]);
+                    }
+
+                    // Selection highlight
+                    if (node === this.selectedNode) {
+                        this.ctx.strokeStyle = '#4ade80';
+                        this.ctx.lineWidth = 3;
+                        this.ctx.stroke();
+                    }
+
+                    // Hover highlight
+                    if (node === this.hoveredNode) {
+                        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.stroke();
+                    }
+
+                    // Label (only when zoomed in)
+                    if (node.radius * this.transform.k > 15) {
+                        this.ctx.shadowBlur = 0;
+                        this.ctx.fillStyle = '#fafafa';
+                        this.ctx.font = '11px Geist Mono';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText(node.id, node.x, node.y + node.radius + 12);
+                    }
+                }
+
+                // Log first draw call
+                if (this.lastTime === 0) {
+                    console.log('Drew', drawCount, 'nodes');
+                }
+
+                this.ctx.globalAlpha = 1;
+            }
+
+            updateParticles() {
+                for (const particle of this.particles) {
+                    particle.progress += particle.speed;
+                    if (particle.progress > 1) {
+                        particle.progress = 0;
+                    }
+                }
+            }
+
+            announceHover() {
+                if (this.hoveredNode) {
+                    this.announceToScreenReader(`${this.hoveredNode.id}`);
+                }
+            }
+
+            announceSelection() {
+                if (this.selectedNode) {
+                    const metrics = this.data.fullAnalysis ? 'with Tier 3 metrics' : 'Tier 1 only';
+                    this.announceToScreenReader(`Selected ${this.selectedNode.id}, ${metrics}`);
+                }
+            }
+
+            announceViewChange(message) {
+                this.announceToScreenReader(message);
+            }
+
+            announceToScreenReader(message) {
+                const announcer = document.getElementById('canvasAnnouncer');
+                if (announcer) {
+                    announcer.textContent = message;
+                }
+            }
+        }
+
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check canvas support
+            const canvas = document.getElementById('graphCanvas');
+            if (!canvas.getContext) {
+                showError('Your browser does not support HTML5 Canvas. Please upgrade to a modern browser.');
+                return;
+            }
+
+            // Load data
+            const dataManager = new DataManager();
+            let data;
+            try {
+                data = await dataManager.load();
+            } catch (e) {
+                console.error('Failed to load graph data:', e);
+                return;
+            }
+
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').style.display = 'none';
+
+            // Initialize canvas with loaded data
+            window.graphCanvas = new GraphCanvas('graphCanvas', data);
+
+            // Ensure canvas has proper size before starting
+            // Use requestAnimationFrame to ensure layout is complete
+            requestAnimationFrame(() => {
+                window.graphCanvas.resize();
+                requestAnimationFrame(() => {
+                    window.graphCanvas.start();
+                });
+            });
+
+            // Also resize on window load (final layout)
+            window.addEventListener('load', () => {
+                if (window.graphCanvas) {
+                    window.graphCanvas.resize();
+                }
+            });
+
+            // Populate sidebar (keep existing DOM sidebar for accessibility)
+            try {
+                renderSidebar(data);
+                updateStatusBar(data);
+                updateSidebarStats(data);
+            } catch (e) {
+                console.error('Failed to render sidebar:', e);
+                showError('Failed to render sidebar: ' + e.message);
             }
         });
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            centerView();
+        function updateSidebarStats(data) {
+            // Update sidebar stats
+            const sidebarStats = document.querySelector('.sidebar-stats');
+            if (sidebarStats) {
+                const numModules = new Set(data.nodes.map(n => n.domain || 'ungrouped')).size;
+                const numClasses = data.nodes.length;
+                sidebarStats.innerHTML = `
+                    <span>${numModules} modules</span>
+                    <span>${numClasses} classes</span>
+                `;
+            }
+        }
+
+        function renderSidebar(data) {
+            // Group nodes by domain
+            const domains = {};
+            for (const node of data.nodes) {
+                const domain = node.domain || 'ungrouped';
+                if (!domains[domain]) {
+                    domains[domain] = { name: domain, nodes: [] };
+                }
+                domains[domain].nodes.push(node);
+            }
+
+            // Render domain list
+            const domainList = document.getElementById('domainList');
+            domainList.innerHTML = '';
+
+            for (const [domainId, domain] of Object.entries(domains)) {
+                const domainItem = document.createElement('div');
+                domainItem.className = 'domain-item';
+                domainItem.dataset.health = calculateDomainHealth(domain.nodes, data);
+
+                const health = domainItem.dataset.health;
+
+                // Create domain node using DOM methods (no innerHTML for safety)
+                const domainNode = document.createElement('div');
+                domainNode.className = 'domain-node';
+                domainNode.dataset.domain = domainId;
+
+                const domainIcon = document.createElement('span');
+                domainIcon.className = 'domain-icon';
+                domainIcon.textContent = getDomainIcon(domainId);
+
+                const domainName = document.createElement('span');
+                domainName.className = 'domain-name';
+                domainName.textContent = domainId;
+
+                const domainMeta = document.createElement('div');
+                domainMeta.className = 'domain-meta';
+
+                const classCount = document.createElement('span');
+                classCount.className = 'class-count';
+                classCount.textContent = domain.nodes.length;
+
+                const healthIndicator = document.createElement('span');
+                healthIndicator.className = `health-indicator ${health}`;
+
+                const chevron = document.createElement('span');
+                chevron.className = 'chevron';
+                chevron.textContent = '▶';
+
+                domainMeta.append(classCount, healthIndicator, chevron);
+                domainNode.append(domainIcon, domainName, domainMeta);
+
+                // Create class list using DOM methods
+                const classList = document.createElement('div');
+                classList.className = 'class-list';
+                classList.dataset.domain = domainId;
+
+                for (const node of domain.nodes) {
+                    const classItem = document.createElement('div');
+                    classItem.className = 'class-item';
+                    classItem.dataset.node = node.id;
+
+                    // Calculate individual class health
+                    const isHotspot = node.metadata?.issues?.hotspot;
+                    const isInCycle = node.metadata?.issues?.cycle;
+                    const hasBlindSpots = node.metadata?.issues?.blindSpots?.length > 0;
+                    const riskLevel = node.metadata?.metrics?.riskLevel;
+                    const isBridge = node.metadata?.issues?.bridge;
+
+                    let classHealth = 'healthy';
+                    if (isHotspot || isInCycle) classHealth = 'error';
+                    else if (riskLevel === 'high' || hasBlindSpots || isBridge) classHealth = 'warning';
+
+                    const classIcon = document.createElement('span');
+                    classIcon.className = 'class-icon';
+                    classIcon.textContent = '⬡';
+
+                    const classText = document.createElement('span');
+                    classText.textContent = node.id;
+
+                    const classHealthIndicator = document.createElement('span');
+                    classHealthIndicator.className = `class-health-indicator ${classHealth}`;
+                    classHealthIndicator.title = `${classHealth}: ${isHotspot ? 'hotspot' : isInCycle ? 'cycle' : riskLevel || 'healthy'}`;
+
+                    classItem.append(classIcon, classText, classHealthIndicator);
+                    classList.appendChild(classItem);
+                }
+
+                domainItem.append(domainNode, classList);
+                domainList.appendChild(domainItem);
+
+                // Domain click handler
+                domainNode.addEventListener('click', () => {
+                    const wasExpanded = domainNode.classList.contains('expanded');
+
+                    // Collapse all others
+                    document.querySelectorAll('.domain-node').forEach(n => {
+                        n.classList.remove('expanded', 'active');
+                        n.nextElementSibling.classList.remove('visible');
+                    });
+
+                    // Toggle current
+                    if (!wasExpanded) {
+                        domainNode.classList.add('expanded', 'active');
+                        domainItem.querySelector('.class-list').classList.add('visible');
+
+                        // Trigger canvas domain expansion
+                        if (window.graphCanvas) {
+                            window.graphCanvas.expandDomain(domainId);
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateStatusBar(data) {
+            // Update modules count
+            const numModules = new Set(data.nodes.map(n => n.domain || 'ungrouped')).size;
+            const modulesEl = document.querySelector('.status-left .status-item:nth-child(1) .status-value');
+            if (modulesEl) modulesEl.textContent = numModules;
+
+            // Update classes count
+            const numClasses = data.nodes.length;
+            const classesEl = document.querySelector('.status-left .status-item:nth-child(2) .status-value');
+            if (classesEl) classesEl.textContent = numClasses;
+
+            // Update dependencies count
+            const numDeps = data.edges.length;
+            const depsEl = document.querySelector('.status-left .status-item:nth-child(3) .status-value');
+            if (depsEl) depsEl.textContent = numDeps;
+
+            // Update hotspot count
+            const hotspotBadge = document.getElementById('hotspotBadge');
+            const hotspotCountEl = document.getElementById('hotspotCount');
+            if (hotspotBadge && hotspotCountEl) {
+                const numHotspots = data.hotspots?.length || 0;
+                hotspotCountEl.textContent = numHotspots;
+                if (numHotspots > 0) {
+                    hotspotBadge.style.display = 'flex';
+                }
+            }
+
+            // Update cycle count
+            const cycleBadge = document.getElementById('cycleBadge');
+            const cycleCountEl = document.getElementById('cycleCount');
+            if (cycleBadge && cycleCountEl) {
+                const numCycles = data.cycles?.length || 0;
+                cycleCountEl.textContent = numCycles;
+                if (numCycles > 0) {
+                    cycleBadge.style.display = 'flex';
+                }
+            }
+        }
+
+        function calculateDomainHealth(nodes, data) {
+            // Check against actual hotspots and cycles from backend data
+            const hotspotIds = new Set((data.hotspots || []).map(h => h.id));
+            const cycleNodeIds = new Set();
+            for (const cycle of (data.cycles || [])) {
+                for (const nodeId of cycle) {
+                    cycleNodeIds.add(nodeId);
+                }
+            }
+
+            let hasErrors = false;
+            let hasWarnings = false;
+
+            for (const node of nodes) {
+                const isInHotspot = hotspotIds.has(node.id);
+                const isInCycle = cycleNodeIds.has(node.id);
+                const hasBlindSpots = node.metadata?.issues?.blindSpots?.length > 0;
+                const isBridge = node.metadata?.issues?.bridge;
+                const riskLevel = node.metadata?.metrics?.riskLevel;
+
+                if (isInHotspot || isInCycle) {
+                    hasErrors = true;
+                } else if (riskLevel === 'high' || hasBlindSpots || isBridge) {
+                    hasWarnings = true;
+                }
+            }
+
+            if (hasErrors) return 'error';
+            if (hasWarnings) return 'warning';
+            return 'healthy';
+        }
+
+        function getDomainIcon(domainId) {
+            // Map domain IDs to icons
+            const icons = {
+                'CORE': '📦', 'archon-core': '📦',
+                'archon-java': '☕', 'archon-js': '📜',
+                'archon-python': '🐍', 'archon-cli': '⌨️',
+                'archon-viz': '🎨', 'archon-test': '🧪'
+            };
+            return icons[domainId] || '📁';
+        }
+
+        function showError(message) {
+            const banner = document.getElementById('errorBanner');
+            banner.textContent = message;
+            banner.style.display = 'flex';
+        }
+
+        // Theme toggle
+        const themeBtns = document.querySelectorAll('.theme-btn');
+        const body = document.body;
+
+        themeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.dataset.theme;
+                body.className = `theme-${theme}`;
+                themeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
         });
 
-        // Initialize
-        loadGraph();
+        // Filter chips
+        const filterChips = document.querySelectorAll('.filter-chip');
+        filterChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                filterChips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                const filter = chip.dataset.filter;
+
+                // Apply filter logic
+                const domainItems = document.querySelectorAll('.domain-item');
+                domainItems.forEach(item => {
+                    const health = item.dataset.health || 'healthy';
+                    if (filter === 'all') {
+                        item.style.display = '';
+                    } else if (health === filter) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        });
     </script>
-        </div>
-    </div>
 </body>
 </html>

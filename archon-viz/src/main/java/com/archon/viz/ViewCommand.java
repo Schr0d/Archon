@@ -26,8 +26,8 @@ public class ViewCommand implements Callable<Integer> {
     @Option(names = {"--format"}, description = "Output format: text or json (default: text)")
     String format = "text";
 
-    @Option(names = {"--with-metadata"}, description = "Include metadata field for AI integration (opt-in)")
-    boolean withMetadata = false;
+    @Option(names = {"--with-metadata"}, description = "Include metadata field for AI integration (opt-in, enabled by default for web viewer)")
+    boolean withMetadata = true;
 
     @Option(names = {"--with-full-analysis"}, description = "Include full analysis metrics in metadata (PageRank, betweenness, closeness, etc.)")
     boolean withFullAnalysis = false;
