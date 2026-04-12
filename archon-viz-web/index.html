@@ -6,7 +6,7 @@
     <title>Archon — Dependency Visualization</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -17,37 +17,40 @@
             --space-4: 16px;
             --space-5: 20px;
             --space-6: 24px;
-            --radius-sm: 6px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
             --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-            --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
             --transition: 150ms var(--ease-out);
         }
 
         body.theme-dark {
-            --bg-app: #0c0c0e;
-            --bg-surface: #151518;
+            --bg-app: #0a0a0b;
+            --bg-surface: #141416;
             --bg-surface-hover: #1c1c1f;
             --bg-surface-active: #222225;
+            --bg-boundary: rgba(20, 20, 22, 0.95);
             --border-subtle: rgba(255, 255, 255, 0.06);
             --border-default: rgba(255, 255, 255, 0.10);
             --border-strong: rgba(255, 255, 255, 0.15);
+            --border-boundary: rgba(56, 189, 248, 0.20);
             --text-primary: #fafafa;
             --text-secondary: #a1a1aa;
             --text-tertiary: #71717a;
             --text-muted: #52525b;
-            --accent-primary: #4ade80;
-            --accent-primary-soft: rgba(74, 222, 128, 0.15);
-            --accent-primary-glow: rgba(74, 222, 128, 0.35);
+            --accent: #38bdf8;
+            --accent-soft: rgba(56, 189, 248, 0.12);
+            --accent-dim: rgba(56, 189, 248, 0.50);
             --status-warning: #fbbf24;
             --status-warning-soft: rgba(251, 191, 36, 0.15);
             --status-error: #f87171;
             --status-error-soft: rgba(248, 113, 113, 0.15);
-            --font-display: 'Inter', -apple-system, sans-serif;
+            --status-success: #4ade80;
+            --status-success-soft: rgba(74, 222, 128, 0.15);
+            --hotspot: #f87171;
+            --hotspot-soft: rgba(248, 113, 113, 0.12);
+            --font-display: 'Geist', -apple-system, sans-serif;
             --font-mono: 'Geist Mono', 'SF Mono', monospace;
-            --glow-strong: 0 0 60px rgba(74, 222, 128, 0.2);
-            --glow-subtle: 0 0 30px rgba(74, 222, 128, 0.1);
         }
 
         body.theme-light {
@@ -55,24 +58,28 @@
             --bg-surface: #ffffff;
             --bg-surface-hover: #f5f5f5;
             --bg-surface-active: #ebebeb;
+            --bg-boundary: rgba(255, 255, 255, 0.95);
             --border-subtle: rgba(0, 0, 0, 0.06);
             --border-default: rgba(0, 0, 0, 0.10);
             --border-strong: rgba(0, 0, 0, 0.14);
+            --border-boundary: rgba(14, 165, 233, 0.25);
             --text-primary: #1a1a1a;
             --text-secondary: #737373;
             --text-tertiary: #a3a3a3;
             --text-muted: #d4d4d4;
-            --accent-primary: #16a34a;
-            --accent-primary-soft: rgba(22, 163, 74, 0.10);
-            --accent-primary-glow: rgba(22, 163, 74, 0.20);
+            --accent: #0ea5e9;
+            --accent-soft: rgba(14, 165, 233, 0.10);
+            --accent-dim: rgba(14, 165, 233, 0.50);
             --status-warning: #d97706;
             --status-warning-soft: rgba(217, 119, 6, 0.10);
             --status-error: #dc2626;
             --status-error-soft: rgba(220, 38, 38, 0.10);
-            --font-display: 'Inter', -apple-system, sans-serif;
+            --status-success: #16a34a;
+            --status-success-soft: rgba(22, 163, 74, 0.10);
+            --hotspot: #dc2626;
+            --hotspot-soft: rgba(220, 38, 38, 0.10);
+            --font-display: 'Geist', -apple-system, sans-serif;
             --font-mono: 'Geist Mono', 'SF Mono', monospace;
-            --glow-strong: 0 0 40px rgba(22, 163, 74, 0.12);
-            --glow-subtle: 0 0 20px rgba(22, 163, 74, 0.06);
         }
 
         body {
@@ -83,64 +90,6 @@
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             overflow: hidden;
-            transition: background 0.3s ease, color 0.3s ease;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(
-                ellipse at 30% 20%,
-                var(--accent-primary-glow) 0%,
-                transparent 50%
-            );
-            opacity: 0.3;
-            pointer-events: none;
-            z-index: 0;
-            animation: ambient-move 20s ease-in-out infinite;
-        }
-
-        @keyframes ambient-move {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(5%, 5%) scale(1.05); }
-            66% { transform: translate(-5%, -5%) scale(0.95); }
-        }
-
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image:
-                radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.1) 50%, transparent 100%),
-                radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.08) 50%, transparent 100%),
-                radial-gradient(1px 1px at 50% 50%, rgba(74,222,128,0.1) 50%, transparent 100%),
-                radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.05) 50%, transparent 100%),
-                radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.07) 50%, transparent 100%),
-                radial-gradient(1.5px 1.5px at 40% 80%, rgba(74,222,128,0.15) 50%, transparent 100%),
-                radial-gradient(1px 1px at 10% 90%, rgba(255,255,255,0.06) 50%, transparent 100%);
-            pointer-events: none;
-            z-index: 0;
-            animation: twinkle 8s ease-in-out infinite;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% {
-                box-shadow: 0 0 20px var(--accent-primary-glow),
-                            0 0 40px var(--accent-primary-glow);
-            }
-            50% {
-                box-shadow: 0 0 30px var(--accent-primary-glow),
-                            0 0 60px var(--accent-primary-glow);
-            }
         }
 
         .header {
@@ -173,15 +122,8 @@
         .logo-icon {
             width: 20px;
             height: 20px;
-            background: linear-gradient(135deg, var(--accent-primary), #22c55e);
+            background: var(--accent);
             border-radius: var(--radius-sm);
-            box-shadow: 0 0 20px var(--accent-primary-glow);
-            animation: logo-pulse 3s ease-in-out infinite;
-        }
-
-        @keyframes logo-pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 20px var(--accent-primary-glow); }
-            50% { transform: scale(1.05); box-shadow: 0 0 30px var(--accent-primary-glow); }
         }
 
         .header-title {
@@ -204,7 +146,7 @@
             border: 1px solid var(--border-default);
             border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: var(--transition);
+            transition: border-color var(--transition), color var(--transition);
         }
 
         .action-btn:hover {
@@ -244,7 +186,7 @@
 
         .app-container {
             display: grid;
-            grid-template-columns: 280px 1fr;
+            grid-template-columns: 240px 1fr;
             height: calc(100vh - 52px);
             position: relative;
             z-index: 1;
@@ -310,9 +252,9 @@
         }
 
         .filter-chip.active {
-            color: var(--accent-primary);
-            background: var(--accent-primary-soft);
-            border-color: var(--accent-primary);
+            color: var(--accent);
+            background: var(--accent-soft);
+            border-color: var(--accent);
         }
 
         .domain-list {
@@ -332,19 +274,18 @@
             padding: var(--space-2) var(--space-3);
             border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: all 0.2s var(--ease-bouncy);
+            transition: background var(--transition);
             font-weight: 500;
             font-size: 13px;
         }
 
         .domain-node:hover {
             background: var(--bg-surface-hover);
-            transform: scale(1.01);
         }
 
         .domain-node.active {
-            background: var(--accent-primary-soft);
-            color: var(--accent-primary);
+            background: var(--accent-soft);
+            color: var(--accent);
         }
 
         .domain-icon {
@@ -381,7 +322,7 @@
             border-radius: 50%;
         }
 
-        .health-indicator.healthy { background: var(--accent-primary); }
+        .health-indicator.healthy { background: var(--status-success); }
         .health-indicator.warning { background: var(--status-warning); }
         .health-indicator.error { background: var(--status-error); }
 
@@ -392,7 +333,7 @@
             margin-left: auto;
         }
 
-        .class-health-indicator.healthy { background: var(--accent-primary); }
+        .class-health-indicator.healthy { background: var(--status-success); }
         .class-health-indicator.warning { background: var(--status-warning); }
         .class-health-indicator.error { background: var(--status-error); }
 
@@ -426,7 +367,7 @@
             font-size: 12px;
             color: var(--text-secondary);
             font-family: var(--font-mono);
-            transition: all 0.2s var(--ease-bouncy);
+            transition: background var(--transition), color var(--transition);
         }
 
         .class-item:hover {
@@ -435,8 +376,8 @@
         }
 
         .class-item.active {
-            color: var(--accent-primary);
-            background: var(--accent-primary-soft);
+            color: var(--accent);
+            background: var(--accent-soft);
         }
 
         .class-icon {
@@ -518,59 +459,13 @@
             width: 40px;
             height: 40px;
             border: 3px solid var(--border-default);
-            border-top-color: var(--accent-primary);
+            border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
-        }
-
-        .graph-node {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
-            padding: var(--space-4);
-            background: var(--bg-surface);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-lg);
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s var(--ease-bouncy);
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .graph-node::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .graph-node:hover::before {
-            opacity: 1;
-        }
-
-        .graph-node:hover {
-            border-color: var(--border-strong);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            transform: translateY(-2px);
-        }
-
-        .graph-node.selected {
-            border-color: var(--accent-primary);
-            box-shadow: var(--glow-strong);
-            animation: pulse-glow 2s ease-in-out infinite;
         }
 
         .node-icon-large {
@@ -673,7 +568,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 var(--space-4);
-            height: 36px;
+            height: 32px;
             background: var(--bg-surface);
             border-top: 1px solid var(--border-subtle);
             backdrop-filter: blur(20px);
@@ -761,158 +656,318 @@
             }
         }
 
-        /* Tooltip */
-        .node-tooltip {
-            position: fixed;
-            pointer-events: none;
-            opacity: 0;
-            z-index: 100;
-            max-width: 280px;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-md);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-            transition: opacity 150ms var(--ease-out);
-            font-family: 'Inter', system-ui, sans-serif;
+        /* ── DOM+SVG Architecture: Graph Viewport ── */
+
+        .graph-viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-app);
+            overflow: hidden;
         }
 
-        .node-tooltip.visible {
-            opacity: 1;
-        }
-
-        .node-tooltip-arrow {
+        .graph-viewport::before {
+            content: '';
             position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0; height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
+            inset: 0;
+            background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.5;
+            pointer-events: none;
         }
 
-        .node-tooltip-arrow.below {
-            top: -8px;
-            border-bottom: 8px solid var(--bg-surface);
+        /* ── DOM+SVG Architecture: Boundary Container (Mode 2) ── */
+
+        .boundary-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            border: 1px solid var(--border-boundary);
+            background: var(--bg-boundary);
+            overflow: hidden;
         }
 
-        .node-tooltip-arrow.above {
-            bottom: -8px;
-            border-top: 8px solid var(--bg-surface);
+        .boundary-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
         }
 
-        .tooltip-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px 8px;
-        }
-
-        .tooltip-icon {
-            width: 24px; height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            flex-shrink: 0;
-            background: var(--bg-subtle);
-        }
-
-        .tooltip-name {
+        .boundary-label {
+            position: absolute;
+            top: -10px;
+            left: 16px;
+            padding: 0 8px;
+            background: var(--bg-boundary);
+            color: var(--accent);
+            font-size: 11px;
+            font-family: var(--font-mono);
             font-weight: 600;
-            font-size: 0.8125rem;
-            color: var(--text-primary);
-            line-height: 1.2;
-        }
-
-        .tooltip-package {
-            font-family: 'Geist Mono', 'SF Mono', monospace;
-            font-size: 0.6875rem;
-            color: var(--text-tertiary);
-            margin-top: 1px;
-        }
-
-        .tooltip-separator {
-            height: 1px;
-            background: var(--border-subtle);
-            margin: 0 12px;
-        }
-
-        .tooltip-metrics {
-            display: flex;
-            justify-content: space-around;
-            padding: 8px 12px;
-        }
-
-        .tooltip-metric {
-            text-align: center;
-        }
-
-        .tooltip-metric-label {
-            font-size: 0.625rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            z-index: 2;
+        }
+
+        /* ── DOM+SVG Architecture: Class Nodes (Mode 2) ── */
+
+        .class-node {
+            position: absolute;
+            padding: 6px 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 11px var(--font-mono);
+            color: var(--text-primary);
+            cursor: grab;
+            z-index: 10;
+            user-select: none;
+            transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+        }
+
+        .class-node:hover { border-color: var(--border-strong); }
+        .class-node.dragging { cursor: grabbing; z-index: 20; }
+        .class-node.hotspot {
+            background: var(--hotspot-soft);
+            border-color: rgba(248, 113, 113, 0.3);
+        }
+
+        /* ── DOM+SVG Architecture: Impact Overlay States ── */
+
+        .class-node.impact-selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-soft), 0 0 24px var(--accent-dim);
+            background: var(--accent-soft);
+        }
+        .class-node.impact-p0 { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+        .class-node.impact-p1 { border-color: var(--status-warning); box-shadow: 0 0 0 1px var(--status-warning-soft); }
+        .class-node.impact-p2 { border-color: var(--status-warning); border-style: dashed; opacity: 0.7; }
+        .class-node.impact-dimmed { opacity: 0.15; }
+
+        /* ── DOM+SVG Architecture: Boundary Sockets ── */
+
+        .boundary-socket {
+            position: absolute;
+            padding: 2px 6px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 3px;
+            font: 9px var(--font-mono);
+            color: var(--text-secondary);
+            cursor: grab;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .socket-port {
+            width: 5px; height: 5px; border-radius: 1px;
+        }
+        .socket-port.out { background: var(--status-warning); }
+        .socket-port.in { background: var(--status-success); }
+
+        /* ── DOM+SVG Architecture: SVG Arrow Overlay ── */
+
+        .svg-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        /* ── DOM+SVG Architecture: Floating Detail Panel ── */
+
+        .detail-panel {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 240px;
+            z-index: 30;
+            background: rgba(20, 20, 22, 0.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .detail-panel-close {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: none; border: none;
             color: var(--text-tertiary);
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .detail-panel-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
             margin-bottom: 2px;
         }
 
-        .tooltip-metric-value {
-            font-family: 'Geist Mono', 'SF Mono', monospace;
-            font-size: 0.6875rem;
+        .detail-panel-package {
+            font-size: 10px;
+            color: var(--text-tertiary);
+            margin-bottom: 8px;
+        }
+
+        .detail-metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .detail-metric-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+        }
+
+        .detail-metric-value {
+            font-size: 12px;
             color: var(--text-primary);
         }
 
-        .tooltip-badges {
+        .detail-badges {
             display: flex;
-            gap: 6px;
-            padding: 6px 12px 8px;
-            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
         }
 
-        .tooltip-badge {
-            font-size: 0.625rem;
-            font-weight: 500;
-            padding: 2px 8px;
-            border-radius: 10px;
+        .detail-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+        .detail-badge.hotspot { background: var(--hotspot-soft); color: var(--hotspot); }
+        .detail-badge.bridge { background: var(--status-warning-soft); color: var(--status-warning); }
+
+        .detail-blast-radius {
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 8px;
         }
 
-        .tooltip-badge.hotspot {
-            background: var(--status-error-soft);
-            color: var(--status-error);
+        .detail-blast-title {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            margin-bottom: 4px;
         }
 
-        .tooltip-badge.cycle {
-            background: var(--status-error);
-            color: #fff;
-        }
-
-        .tooltip-badge.bridge {
-            background: var(--status-warning-soft);
-            color: var(--status-warning);
-        }
-
-        .tooltip-badge.blindspot {
-            background: var(--status-warning);
-            color: #fff;
-        }
-
-        .tooltip-footer {
+        .detail-blast-row {
             display: flex;
             justify-content: space-between;
-            padding: 6px 12px 10px;
-            font-family: 'Geist Mono', 'SF Mono', monospace;
-            font-size: 0.6875rem;
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+        .blast-label { color: var(--text-secondary); }
+        .blast-count { color: var(--text-primary); }
+
+        /* ── DOM+SVG Architecture: UML Package Node (Mode 1) ── */
+
+        .uml-package {
+            position: absolute;
+            padding: 8px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 12px var(--font-mono);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 5;
+            transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+        }
+        .uml-package:hover { border-color: var(--border-strong); }
+        .uml-package.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+        .uml-package .health-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+        .uml-package .health-dot.healthy { background: var(--status-success); }
+        .uml-package .health-dot.warning { background: var(--status-warning); }
+        .uml-package .health-dot.error { background: var(--status-error); }
+        .uml-package .package-name { font-weight: 500; }
+        .uml-package .class-count {
+            font-size: 10px;
+            color: var(--text-tertiary);
+        }
+
+        /* ── DOM+SVG Architecture: Back Button + Breadcrumb (Mode 2) ── */
+
+        .mode-back-btn {
+            position: absolute;
+            top: 12px; left: 12px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 11px var(--font-mono);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: border-color 150ms var(--ease-out);
+        }
+        .mode-back-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+        .mode-breadcrumb {
+            position: absolute;
+            top: 12px; left: 100px;
+            z-index: 20;
+            font: 11px var(--font-mono);
+            color: var(--text-tertiary);
+        }
+        .mode-breadcrumb .domain-name { color: var(--accent); }
+
+        /* ── DOM+SVG Architecture: Impact Legend ── */
+
+        .impact-legend {
+            position: absolute;
+            top: 12px; right: 12px;
+            z-index: 20;
+            padding: 8px 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 10px var(--font-mono);
+            display: none;
+        }
+        .impact-legend.visible { display: block; }
+        .impact-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
             color: var(--text-secondary);
         }
+        .legend-swatch {
+            width: 10px; height: 10px; border-radius: 2px;
+        }
+        .legend-swatch.p0 { background: var(--accent); }
+        .legend-swatch.p1 { background: var(--status-warning); }
+        .legend-swatch.p2 { background: var(--status-warning); border-style: dashed; opacity: 0.7; }
+        .legend-swatch.dimmed { background: var(--text-muted); opacity: 0.3; }
 
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
-            }
-
-            .node-tooltip {
-                transition: none;
             }
         }
     </style>
@@ -960,39 +1015,7 @@
 
         <main class="main-content">
             <div class="canvas-container" role="region" aria-label="Dependency graph visualization">
-                <canvas id="graphCanvas"></canvas>
-                <div id="nodeTooltip" class="node-tooltip" role="tooltip" aria-hidden="true">
-                    <div class="node-tooltip-arrow below" id="tooltipArrow"></div>
-                    <div class="tooltip-header">
-                        <div class="tooltip-icon" id="tooltipIcon"></div>
-                        <div>
-                            <div class="tooltip-name" id="tooltipName"></div>
-                            <div class="tooltip-package" id="tooltipPackage"></div>
-                        </div>
-                    </div>
-                    <div class="tooltip-separator"></div>
-                    <div class="tooltip-metrics" id="tooltipMetrics">
-                        <div class="tooltip-metric">
-                            <div class="tooltip-metric-label">PageRank</div>
-                            <div class="tooltip-metric-value" id="tooltipPageRank">---</div>
-                        </div>
-                        <div class="tooltip-metric">
-                            <div class="tooltip-metric-label">Betweenness</div>
-                            <div class="tooltip-metric-value" id="tooltipBetweenness">---</div>
-                        </div>
-                        <div class="tooltip-metric">
-                            <div class="tooltip-metric-label">Closeness</div>
-                            <div class="tooltip-metric-value" id="tooltipCloseness">---</div>
-                        </div>
-                    </div>
-                    <div class="tooltip-separator"></div>
-                    <div class="tooltip-badges" id="tooltipBadges"></div>
-                    <div class="tooltip-separator" id="tooltipBadgeSeparator"></div>
-                    <div class="tooltip-footer">
-                        <span id="tooltipFanIn">&larr; -- deps</span>
-                        <span id="tooltipFanOut">-- deps &rarr;</span>
-                    </div>
-                </div>
+                <div id="graphViewport" class="graph-viewport"></div>
                 <div id="canvasAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
             </div>
 
