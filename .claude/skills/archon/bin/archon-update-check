@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# archon-update-check — Periodic version check for Archon skill.
+#
+# Detects:
+#   1. JAR version mismatch (cached JAR is older than VERSION file)
+#   2. Remote version available on GitHub (newer tag/release)
+#   3. JDK 17 availability changes
+#
+# Output (one line, or nothing):
+#   JUST_UPGRADED <old> <new>         — marker found from recent upgrade
+#   UPGRADE_AVAILABLE <old> <new>     — remote or local VERSION differs
+#   JAR_MISMATCH <expected> <actual>  — cached JAR version doesn't match VERSION
+#   JDK_MISSING                       — previously working JDK no longer available
+#   (nothing)                         — up to date, snoozed, disabled, or check skipped
+#
+# Always exits 0. Never breaks the skill preamble.
+
+set -uo pipefail
+
+# --- Resolve paths ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# State directory (self-contained, no external dependencies)
+STATE_DIR="$HOME/.archon"
+CONFIG_FILE="$STATE_DIR/config.json"
+CACHE_FILE="$STATE_DIR/update-cache"
+MARKER_FILE="$STATE_DIR/just-upgraded"
+SNOOZE_FILE="$STATE_DIR/update-snoozed"
+
+# GitHub remote VERSION file URL
+REMOTE_URL="https://raw.githubusercontent.com/Schr0d/Archon/main/VERSION"
+
+# --- Force flag (busts cache + snooze) ---
+if [ "${1:-}" = "--force" ]; then
+  rm -f "$CACHE_FILE"
+  rm -f "$SNOOZE_FILE"
+fi
+
+# --- Helper: check snooze ---
+# Snooze file format: <version> <level> <epoch>
+# Level durations: 1=24h, 2=48h, 3+=7d
+# New version resets snooze.
+check_snooze() {
+  local remote_ver="$1"
+  if [ ! -f "$SNOOZE_FILE" ]; then
+    return 1
+  fi
+  local snoozed_ver snoozed_level snoozed_epoch
+  snoozed_ver="$(awk '{print $1}' "$SNOOZE_FILE" 2>/dev/null || true)"
+  snoozed_level="$(awk '{print $2}' "$SNOOZE_FILE" 2>/dev/null || true)"
+  snoozed_epoch="$(awk '{print $3}' "$SNOOZE_FILE" 2>/dev/null || true)"
+
+  # Validate fields
+  if [ -z "$snoozed_ver" ] || [ -z "$snoozed_level" ] || [ -z "$snoozed_epoch" ]; then
+    return 1
+  fi
+  case "$snoozed_level" in *[!0-9]*) return 1 ;; esac
+  case "$snoozed_epoch" in *[!0-9]*) return 1 ;; esac
+
+  # New version resets snooze
+  if [ "$snoozed_ver" != "$remote_ver" ]; then
+    return 1
+  fi
+
+  local duration
+  case "$snoozed_level" in
+    1) duration=86400 ;;    # 24 hours
+    2) duration=172800 ;;   # 48 hours
+    *) duration=604800 ;;   # 7 days
+  esac
+
+  local now
+  now="$(date +%s)"
+  if [ "$now" -lt "$(( snoozed_epoch + duration ))" ]; then
+    return 0  # still snoozed
+  fi
+  return 1
+}
+
+# --- Helper: extract version from JAR filename ---
+# archon-0.6.0.0.jar → 0.6.0.0
+jar_version() {
+  local jarpath="$1"
+  local basename
+  basename="$(basename "$jarpath" 2>/dev/null || true)"
+  echo "$basename" | sed 's/^archon-//;s/^archon-cli-//;s/\.jar$//' | tr -d '[:space:]'
+}
+
+# --- Helper: compare versions (returns 0 if v1 >= v2, 1 if v1 < v2) ---
+# Compares dot-separated version numbers numerically per segment
+version_gte() {
+  local v1="$1" v2="$2"
+  # Normalize: strip trailing .0 segments for comparison
+  v1="$(echo "$v1" | sed 's/\.0*$//')"
+  v2="$(echo "$v2" | sed 's/\.0*$//')"
+  [ "$v1" = "$v2" ] && return 0
+
+  local IFS='.'
+  read -ra a <<< "$v1"
+  read -ra b <<< "$v2"
+  local i len
+  len=${#a[@]}
+  [ ${#b[@]} -gt $len ] && len=${#b[@]}
+  for ((i = 0; i < len; i++)); do
+    local sa="${a[$i]:-0}" sb="${b[$i]:-0}"
+    # Strip leading zeros for numeric comparison
+    sa="$((10#${sa}))"
+    sb="$((10#${sb}))"
+    if [ "$sa" -gt "$sb" ]; then return 0; fi
+    if [ "$sa" -lt "$sb" ]; then return 1; fi
+  done
+  return 0
+}
+
+# ================================================================
+# Step 1: Read local VERSION
+# ================================================================
+LOCAL_VER=""
+if [ -f "VERSION" ]; then
+  LOCAL_VER="$(cat VERSION 2>/dev/null | tr -d '[:space:]')"
+fi
+# If not in repo root, try walking up
+if [ -z "$LOCAL_VER" ]; then
+  _DIR="$(pwd)"
+  while [ "$_DIR" != "/" ]; do
+    if [ -f "$_DIR/VERSION" ]; then
+      LOCAL_VER="$(cat "$_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')"
+      break
+    fi
+    _DIR="$(dirname "$_DIR")"
+  done
+fi
+if [ -z "$LOCAL_VER" ]; then
+  exit 0  # No VERSION file found — skip check
+fi
+
+# ================================================================
+# Step 2: Check "just upgraded" marker
+# ================================================================
+if [ -f "$MARKER_FILE" ]; then
+  OLD_VER="$(cat "$MARKER_FILE" 2>/dev/null | tr -d '[:space:]')"
+  rm -f "$MARKER_FILE"
+  rm -f "$SNOOZE_FILE"
+  if [ -n "$OLD_VER" ] && [ "$OLD_VER" != "$LOCAL_VER" ]; then
+    echo "JUST_UPGRADED $OLD_VER $LOCAL_VER"
+  fi
+fi
+
+# ================================================================
+# Step 3: Local checks (always fast, no network)
+# ================================================================
+
+# 3a: Check cached JAR version matches VERSION
+JAR_VER=""
+if [ -f "$CONFIG_FILE" ]; then
+  CACHED_JAR="$(grep -o '"jarPath":"[^"]*"' "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/"jarPath":"//;s/"//')"
+  if [ -n "$CACHED_JAR" ]; then
+    JAR_VER="$(jar_version "$CACHED_JAR")"
+    if [ -n "$JAR_VER" ] && [ "$JAR_VER" != "$LOCAL_VER" ]; then
+      # JAR is stale — clear cached jarPath so archon-run re-discovers
+      if grep -q '"jarPath"' "$CONFIG_FILE" 2>/dev/null; then
+        sed -i 's/, "jarPath":"[^"]*"//' "$CONFIG_FILE" 2>/dev/null || true
+      fi
+      echo "JAR_MISMATCH $LOCAL_VER $JAR_VER"
+      # Don't exit — also check remote
+    fi
+  fi
+fi
+
+# 3b: Check JDK 17 still available
+if [ -f "$CONFIG_FILE" ]; then
+  CACHED_JAVA="$(grep -o '"javaHome":"[^"]*"' "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/"javaHome":"//;s/"//')"
+  if [ -n "$CACHED_JAVA" ]; then
+    if ! [ -x "${CACHED_JAVA}/bin/java" ]; then
+      echo "JDK_MISSING"
+      exit 0
+    fi
+    if ! "${CACHED_JAVA}/bin/java" -version 2>&1 | grep -q '"17\.'; then
+      echo "JDK_MISSING"
+      exit 0
+    fi
+  fi
+fi
+
+# ================================================================
+# Step 4: Check cache freshness (two-phase TTL)
+# ================================================================
+# UP_TO_DATE: 60 min TTL
+# UPGRADE_AVAILABLE: 720 min TTL
+CACHE_HIT=false
+if [ -f "$CACHE_FILE" ]; then
+  CACHED="$(cat "$CACHE_FILE" 2>/dev/null || true)"
+  case "$CACHED" in
+    UP_TO_DATE*)        CACHE_TTL=60 ;;
+    UPGRADE_AVAILABLE*) CACHE_TTL=720 ;;
+    *)                  CACHE_TTL=0 ;;
+  esac
+
+  if [ "$CACHE_TTL" -gt 0 ]; then
+    STALE=$(find "$CACHE_FILE" -mmin +"$CACHE_TTL" 2>/dev/null || true)
+    if [ -z "$STALE" ]; then
+      case "$CACHED" in
+        UP_TO_DATE*)
+          CACHED_VER="$(echo "$CACHED" | awk '{print $2}')"
+          if [ "$CACHED_VER" = "$LOCAL_VER" ]; then
+            exit 0
+          fi
+          ;;
+        UPGRADE_AVAILABLE*)
+          CACHED_OLD="$(echo "$CACHED" | awk '{print $2}')"
+          CACHED_NEW="$(echo "$CACHED" | awk '{print $3}')"
+          if [ "$CACHED_OLD" = "$LOCAL_VER" ]; then
+            if check_snooze "$CACHED_NEW"; then
+              exit 0
+            fi
+            echo "$CACHED"
+            exit 0
+          fi
+          ;;
+      esac
+    fi
+  fi
+fi
+
+# ================================================================
+# Step 5: Slow path — fetch remote version from GitHub
+# ================================================================
+mkdir -p "$STATE_DIR"
+
+REMOTE_VER=""
+REMOTE_VER="$(curl -sf --max-time 5 "$REMOTE_URL" 2>/dev/null || true)"
+REMOTE_VER="$(echo "$REMOTE_VER" | tr -d '[:space:]')"
+
+# Validate: must look like a version number
+if ! echo "$REMOTE_VER" | grep -qE '^[0-9]+\.[0-9.]+$'; then
+  echo "UP_TO_DATE $LOCAL_VER" > "$CACHE_FILE"
+  exit 0
+fi
+
+if [ "$LOCAL_VER" = "$REMOTE_VER" ]; then
+  echo "UP_TO_DATE $LOCAL_VER" > "$CACHE_FILE"
+  exit 0
+fi
+
+# Local is behind remote
+if version_gte "$REMOTE_VER" "$LOCAL_VER"; then
+  echo "UPGRADE_AVAILABLE $LOCAL_VER $REMOTE_VER" > "$CACHE_FILE"
+  if check_snooze "$REMOTE_VER"; then
+    exit 0
+  fi
+  echo "UPGRADE_AVAILABLE $LOCAL_VER $REMOTE_VER"
+else
+  # Local is ahead of remote (dev build) — treat as up to date
+  echo "UP_TO_DATE $LOCAL_VER" > "$CACHE_FILE"
+fi
+
+exit 0
