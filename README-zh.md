@@ -124,6 +124,10 @@ sequenceDiagram
 
 ## 快速开始
 
+### 前提条件
+
+- **Java 17**（OpenJDK 17+，如 [Eclipse Adoptium Temurin](https://adoptium.net/)）
+
 ### 安装
 
 从 [releases](https://github.com/Schr0d/Archon/releases) 下载最新的 shadow JAR：
@@ -139,10 +143,12 @@ sequenceDiagram
 # 交互式 Web 可视化（打开浏览器）
 java -jar archon.jar view /path/to/project
 
-# 使用终端输出分析
-java -jar archon.jar analyze /path/to/project
+# JSON 输出用于 AI 集成（三个层级）
+java -jar archon.jar view . --format json                          # 层级 1: 基础
+java -jar archon.jar view . --format json --with-metadata          # 层级 2: + 指标
+java -jar archon.jar view . --format json --with-metadata --with-full-analysis  # 层级 3: + 中心性
 
-# 导出静态 HTML 图表
+# 导出静态 HTML 图表（离线可用）
 java -jar archon.jar view /path/to/project --export diagram.html
 
 # 使用 Web 查看器进行 diff（红色=删除，绿色=添加，黄色=修改）
@@ -150,10 +156,11 @@ java -jar archon.jar diff main HEAD /path/to/project --view
 
 # 检查修改特定模块的影响
 java -jar archon.jar impact com.example.Service /path/to/project
-
-# 根据架构规则进行验证
-java -jar archon.jar check /path/to/project --ci
 ```
+
+### Claude Code 集成
+
+Archon 内置 Claude Code 技能。在 Claude Code 中输入 `/archon diff` 查看未提交更改的影响范围，或 `/archon analyze` 获取完整依赖图。详见 [skill.md](skill.md)。
 
 ---
 
@@ -231,33 +238,10 @@ $ java -jar archon.jar diff main HEAD . --ci
 ## CLI 命令
 
 ```
-archon view <path> [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
-archon analyze <path> [--json] [--dot <file>] [--mermaid <file>] [--verbose]
+archon view <path> [--format json|text] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
+archon analyze <path> [--verbose]
 archon impact <module> <path> [--depth N]
-archon check <path> [--ci]
-archon diff <base> <head> <path> [--ci] [--depth N] [--view]
-```
-
----
-
-## 配置
-
-在项目根目录创建 `.archon.yml`：
-
-```yaml
-rules:
-  no_cycle: true
-  max_cross_domain: 3
-  max_call_depth: 3
-  forbid_core_entity_leakage: true
-
-critical_paths:
-  - com.example.auth
-  - com.example.payment
-
-domains:
-  com.example.*:
-    - ".*\\.service\\..*"
+archon diff <base> <head> <path> [--view]
 ```
 
 ---

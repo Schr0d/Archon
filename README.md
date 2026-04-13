@@ -70,6 +70,10 @@ Archon is not just a code analyzer. It is a **closed-loop control system for AI-
 
 ## Quick Start
 
+### Prerequisites
+
+- **Java 17** (OpenJDK 17+, e.g. [Eclipse Adoptium Temurin](https://adoptium.net/))
+
 ### Installation
 
 Download the latest shadow JAR from [releases](https://github.com/Schr0d/Archon/releases):
@@ -85,10 +89,12 @@ Download the latest shadow JAR from [releases](https://github.com/Schr0d/Archon/
 # Interactive web visualization (opens browser)
 java -jar archon.jar view /path/to/project
 
-# Analyze with terminal output
-java -jar archon.jar analyze /path/to/project
+# JSON output for AI integration (three tiers)
+java -jar archon.jar view . --format json                          # Tier 1: Basic
+java -jar archon.jar view . --format json --with-metadata          # Tier 2: + metrics
+java -jar archon.jar view . --format json --with-metadata --with-full-analysis  # Tier 3: + centrality
 
-# Export static HTML diagram
+# Export static HTML diagram (works offline)
 java -jar archon.jar view /path/to/project --export diagram.html
 
 # Diff with web viewer (red=removed, green=added, yellow=changed)
@@ -96,16 +102,21 @@ java -jar archon.jar diff main HEAD /path/to/project --view
 
 # Check impact of changing a specific module
 java -jar archon.jar impact com.example.Service /path/to/project
-
-# Validate against architectural rules
-java -jar archon.jar check /path/to/project --ci
 ```
+
+### Claude Code Integration
+
+Archon ships a native Claude Code skill. Type `/archon diff` in Claude Code to see the blast radius of your uncommitted changes, or `/archon analyze` for a full dependency map. See [skill.md](skill.md) for details.
 
 ---
 
 ## AI Agent Workflow
 
-Archon is designed to be called by AI agents during the development loop. Here's how it integrates:
+Archon is designed to be called by AI agents during the development loop.
+
+**Using Claude Code?** Type `/archon diff` or `/archon analyze` for instant impact analysis. The skill auto-detects JDK 17 and handles JAR building. See [skill.md](skill.md) for the full integration guide.
+
+Here's how the manual integration works:
 
 ### Stage 1: Plan — AI Gets Architectural Context
 
@@ -241,9 +252,19 @@ Gate: BLOCKED
 
 ## Migration Guide
 
-### AI Integration (v0.4.0)
+### Claude Code Skill (v0.5.0)
 
-The `archon view` command now supports three-tier JSON output for AI integration:
+Archon now ships a native Claude Code skill at `~/.claude/skills/archon/`. Three commands:
+
+- `/archon diff` — Impact analysis of uncommitted changes
+- `/archon analyze` — Full dependency map with hotspots and cycles
+- `/archon setup` — One-time JDK 17 detection
+
+The skill auto-detects JDK 17, finds or builds the shadow JAR, and pipes structured JSON to Claude for interpretation. See [skill.md](skill.md) for details.
+
+### AI JSON Integration (v0.4.0)
+
+The `archon view` command supports three-tier JSON output for AI integration:
 
 **Tier 1: Basic Output**
 ```bash
@@ -336,33 +357,10 @@ sequenceDiagram
 ## CLI Commands
 
 ```
-archon view <path> [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
-archon analyze <path> [--json] [--dot <file>] [--mermaid <file>] [--verbose]
+archon view <path> [--format json|text] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
+archon analyze <path> [--verbose]
 archon impact <module> <path> [--depth N]
-archon check <path> [--ci]
-archon diff <base> <head> <path> [--ci] [--depth N] [--view]
-```
-
----
-
-## Configuration
-
-Create `.archon.yml` in your project root:
-
-```yaml
-rules:
-  no_cycle: true
-  max_cross_domain: 3
-  max_call_depth: 3
-  forbid_core_entity_leakage: true
-
-critical_paths:
-  - com.example.auth
-  - com.example.payment
-
-domains:
-  com.example.*:
-    - ".*\\.service\\..*"
+archon diff <base> <head> <path> [--view]
 ```
 
 ---
