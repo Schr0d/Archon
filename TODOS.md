@@ -48,10 +48,10 @@
 ## 6. BUG: AnalyzeCommand JSON output not implemented
 - **What:** `AnalyzeCommand` defines `--json`, `--with-metadata`, `--with-full-analysis` flags but doesn't implement JSON output. Flags are parsed but never used.
 - **Why:** User confusion — flags exist in help text but do nothing. Found during integration testing.
-- **Status:** IN PROGRESS — Being fixed in feature/ai-integration-viz-redesign PR
-- **Workaround:** Use `view --format json --with-full-analysis --with-metadata` instead
-- **Fix:** Implement JSON output in AnalyzeCommand using JsonSerializer from archon-viz module
-- **Context:** Blocks canvas visualization testing. Needed for consistent `archon analyze --json` output.
+- **Status:** DEFERRED — Low priority since `view --format json` covers all use cases
+- **Workaround:** Use `view --format json --with-full-analysis --with-metadata` instead (fully functional)
+- **Fix:** Implement JSON output in AnalyzeCommand using JsonSerializer from archon-viz module (~20 LOC)
+- **Context:** The Claude Code skill uses `view --format json`, not `analyze --json`. Not blocking.
 - **File:** `archon-cli/src/main/java/com/archon/cli/AnalyzeCommand.java`
 
 ## 7. Browser automation tests for DOM+SVG visualization
@@ -101,11 +101,13 @@
 
 ## 12. Fix DiffCommand --json flag
 - **What:** Add `--json` and `--quiet` flags to DiffCommand.java. Reuse existing `DiffSerializer.toJson()` and `GraphDiffer` logic. ~15 lines of code.
-- **Why:** DiffCommand has full diff logic but no JSON output mode. The `--json` flag is needed for the Claude Code skill to pipe structured output to Claude for interpretation. Without it, the skill would have to parse human-readable text output.
+- **Why:** DiffCommand has full diff logic but no JSON output mode. The `--json` flag is needed for the Claude Code skill to pipe structured output to Claude for interpretation. Without it, the skill has to parse the full `view --format json` output and compute diff client-side.
 - **Status:** READY — Clear scope, existing code to reuse (`DiffSerializer`, `GraphDiffer`)
-- **Pros:** Enables the entire Archon skill pipeline; minimal code change; leverages existing serialization
+- **Priority:** P1 — Skill currently uses `view --format json` + manual node matching as workaround
+- **Pros:** Enables `/archon diff` to show precise blast radius; minimal code change; leverages existing serialization
 - **Cons:** None meaningful — this is a straightforward flag addition
-- **Context:** CEO review (2026-04-13) identified this as the critical enabler. Outside voice simplified the plan to "fix this first, then wrap the CLI." File: `archon-cli/src/main/java/com/archon/cli/DiffCommand.java`
+- **Context:** The Claude Code skill's `/archon diff` command currently runs `view --format json` and matches changed files to nodes manually. A native `diff --json` would give precise added/removed/changed edges and violations.
+- **File:** `archon-cli/src/main/java/com/archon/cli/DiffCommand.java`
 - **Depends on:** Nothing — all required code exists.
 
 ## 13. GitHub Action for archon diff on PRs
