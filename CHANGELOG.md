@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0.0] - 2026-04-13
+
+### Added
+- **Claude Code Skill** — Archon now ships a native AI agent integration at `~/.claude/skills/archon/`
+  - `/archon diff` — Blast radius analysis of uncommitted changes with P0/P1/P2 impact tiers
+  - `/archon analyze` — Full dependency map with hotspots, cycles, and blind spot reporting
+  - `/archon setup` — One-time JDK 17 detection and shadow JAR bootstrap
+  - Cross-platform JDK 17 auto-detection (Windows/macOS/Linux) with result caching
+  - Auto-build fallback: finds or builds shadow JAR transparently
+  - Structured JSON → Markdown report pipeline for AI consumption
+- **Impact propagation engine** — BFS-based transitive dependency analysis
+  - P0 (direct): files you actually changed
+  - P1 (transitive): modules that depend on what you changed
+  - P2 (domain): same-domain modules that may be affected
+  - Hotspot involvement detection (PageRank, bridge node warnings)
+  - Cross-domain dependency warnings
+- **Blind spot reporting** — Explicit declaration of what Archon cannot detect
+  - Reflection-based calls (Class.forName, method.invoke)
+  - Dynamic imports (import(), importlib)
+  - Spring bean injection (@Autowired)
+  - Event-driven coupling
+
+### Changed
+- **skill.md** rewritten from generic AI agent guide to actual Claude Code skill documentation
+- **README.md** updated: added Java 17 prerequisite, corrected CLI commands to match actual implementation, added Claude Code Integration section
+- **README-zh.md** parallel Chinese updates for Quick Start, CLI commands, and skill integration
+- Removed references to unimplemented features (.archon.yml config, `check --ci` command)
+- TODOS.md: AnalyzeCommand --json officially deferred (view --format json covers all use cases)
+
 ## [0.5.0.0] - 2026-04-13
 
 ### Added
