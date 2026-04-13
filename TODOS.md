@@ -99,7 +99,25 @@
 - **Context:** See design doc `ThinkPad-main-treemap-block-viz-design-20260410.md` section "Documentation Gaps." Includes TROUBLESHOOTING.md with common issues and solutions, ViewServer API documentation (/api/graph, /api/node, etc.), GitHub Actions and GitLab CI examples.
 - **Depends on:** Documentation only; ViewServer.java already implements the API.
 
-## 12. Community Setup (CONTRIBUTING.md + Issue Templates + Discussions)
+## 12. Fix DiffCommand --json flag
+- **What:** Add `--json` and `--quiet` flags to DiffCommand.java. Reuse existing `DiffSerializer.toJson()` and `GraphDiffer` logic. ~15 lines of code.
+- **Why:** DiffCommand has full diff logic but no JSON output mode. The `--json` flag is needed for the Claude Code skill to pipe structured output to Claude for interpretation. Without it, the skill would have to parse human-readable text output.
+- **Status:** READY — Clear scope, existing code to reuse (`DiffSerializer`, `GraphDiffer`)
+- **Pros:** Enables the entire Archon skill pipeline; minimal code change; leverages existing serialization
+- **Cons:** None meaningful — this is a straightforward flag addition
+- **Context:** CEO review (2026-04-13) identified this as the critical enabler. Outside voice simplified the plan to "fix this first, then wrap the CLI." File: `archon-cli/src/main/java/com/archon/cli/DiffCommand.java`
+- **Depends on:** Nothing — all required code exists.
+
+## 13. GitHub Action for archon diff on PRs
+- **What:** Build a GitHub Action that runs `archon diff` on every pull request and posts the impact report as a PR comment.
+- **Why:** The 10x vision is Archon running automatically, not just when invoked manually. A GitHub Action makes dependency analysis part of the code review workflow without any manual step.
+- **Status:** DEFERRED — After dogfooding the Claude Code skill
+- **Pros:** Zero-friction adoption; automatic on every PR; team visibility
+- **Cons:** Docker packaging needed; CI/CD setup; may be slow for large repos
+- **Context:** CEO plan (2026-04-13) deferred to post-dogfooding. Distribution phase 2. The skill must prove useful locally before investing in CI integration.
+- **Depends on:** DiffCommand --json fix (TODO #12)
+
+## 15. Community Setup (CONTRIBUTING.md + Issue Templates + Discussions)
 - **What:** Create CONTRIBUTING.md with development setup, add GitHub issue templates (bug report, feature request), enable GitHub Discussions.
 - **Why:** Platform engineers evaluating tools for enterprise adoption look for project health signals. A professional contribution workflow and active community discussions indicate long-term viability and support.
 - **Status:** Deferred — DX review improvement

@@ -7,18 +7,18 @@
 - **Project type:** CLI tool with web visualization interface
 
 ## Aesthetic Direction
-- **Direction:** Modern SaaS with subtle tech-magic
-- **Decoration level:** Intentional — ambient glow, starfield, pulse animations (alive but not distracting)
-- **Mood:** Professional yet delightful — a tool senior engineers trust and enjoy using
-- **Reference aesthetic:** Linear, Vercel, Raycast — clean, modern, with delightful micro-interactions
+- **Direction:** Industrial/Utilitarian
+- **Decoration level:** Minimal — function-first, no ambient glow, no starfield, no pulse animations. Trust through clarity.
+- **Mood:** Trustworthy, precise, no-nonsense. The tool a senior architect reaches for when they need to understand what breaks.
+- **Reference aesthetic:** Grafana, Datadog, engineering dashboards — dense, readable, purposeful
 
 ## Typography
-- **Display/Headers:** `Inter` — Clean, readable, modern sans-serif
-- **Body/UI:** `Inter` — Consistent with display
+- **Display/Headers:** `Geist` — Geometric, technical, modern. Less rounded than Inter, more engineered.
+- **Body/UI:** `Geist` — Consistent with display
 - **Data/Metrics:** `Geist Mono` — Technical, tabular numbers, code-friendly
 - **Code:** `Geist Mono` — Monospace for all technical content
-- **Fallback:** `SF Mono`, `Monaco`, `Courier New`
-- **Loading:** Google Fonts — `https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap`
+- **Loading:** Google Fonts — `https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600&display=swap`
+- **Fallback:** `-apple-system`, `Segoe UI`, sans-serif
 
 **Scale (rem → px):**
 - Display: 1rem (16px)
@@ -27,250 +27,244 @@
 - Tiny: 0.6875rem (11px)
 
 ## Color
-**Approach:** Restrained with punchy accents
 
 ### Dark Theme (Default)
 ```css
---bg-app: #0c0c0e              /* Deep background, not pure black */
---bg-surface: #151518          /* Cards, panels */
---bg-surface-hover: #1c1c1f     /* Interactive states */
---bg-surface-active: #222225    /* Active/pressed */
+--bg-app: #0a0a0b              /* Near-black, not pure black */
+--bg-surface: #141416          /* Cards, panels, UML packages */
+--bg-surface-hover: #1c1c1f    /* Interactive states */
+--bg-boundary: rgba(20, 20, 22, 0.95)  /* Domain boundary container */
 
---border-subtle: rgba(255,255,255,0.06)    /* Barely visible */
---border-default: rgba(255,255,255,0.10)  /* Standard borders */
---border-strong: rgba(255,255,255,0.15)   /* Emphasized borders */
+--border-subtle: rgba(255,255,255,0.06)
+--border-default: rgba(255,255,255,0.10)
+--border-strong: rgba(255,255,255,0.15)
+--border-boundary: rgba(56, 189, 248, 0.20)  /* UML domain boundary */
 
---text-primary: #fafafa        /* Main content */
---text-secondary: #a1a1aa      /* Labels, descriptions */
---text-tertiary: #71717a       /* Hints, metadata */
---text-muted: #52525b          /* Disabled, decorative */
+--text-primary: #fafafa
+--text-secondary: #a1a1aa
+--text-tertiary: #71717a
+--text-muted: #52525b
 
---accent-primary: #4ade80      /* Success green - brighter than typical */
---accent-primary-soft: rgba(74,222,128,0.15)   /* Background tint */
---accent-primary-glow: rgba(74,222,128,0.35)   /* Glow effects */
+--accent: #38bdf8              /* Sky blue — trustworthy, technical */
+--accent-soft: rgba(56, 189, 248, 0.12)
+--accent-dim: rgba(56, 189, 248, 0.50)
 
---status-warning: #fbbf24      /* Warning amber */
+--status-warning: #fbbf24
 --status-warning-soft: rgba(251,191,36,0.15)
 
---status-error: #f87171        /* Error red (softer) */
+--status-error: #f87171
 --status-error-soft: rgba(248,113,113,0.15)
+
+--status-success: #4ade80
+--status-success-soft: rgba(74,222,128,0.15)
+
+--hotspot: #f87171             /* Hotspot indicator */
+--hotspot-soft: rgba(248,113,113,0.12)
 ```
 
 ### Light Theme
 ```css
---bg-app: #fafafa              /* Off-white */
---bg-surface: #ffffff          /* Pure white cards */
+--bg-app: #fafafa
+--bg-surface: #ffffff
 --bg-surface-hover: #f5f5f5
---bg-surface-active: #ebebeb
+--bg-boundary: rgba(255, 255, 255, 0.95)
 
 --border-subtle: rgba(0,0,0,0.06)
 --border-default: rgba(0,0,0,0.10)
 --border-strong: rgba(0,0,0,0.14)
+--border-boundary: rgba(14, 165, 233, 0.25)
 
 --text-primary: #1a1a1a
 --text-secondary: #737373
 --text-tertiary: #a3a3a3
 --text-muted: #d4d4d4
 
---accent-primary: #16a34a      /* Slightly darker for light mode */
---accent-primary-soft: rgba(22,163,74,0.10)
---accent-primary-glow: rgba(22,163,74,0.20)
+--accent: #0ea5e9
+--accent-soft: rgba(14,165,233,0.10)
+--accent-dim: rgba(14,165,233,0.50)
 
 --status-warning: #d97706
 --status-error: #dc2626
+--status-success: #16a34a
 ```
 
 ### Semantic Color Usage
-- **Healthy:** `--accent-primary` — Green for good state
-- **Warning:** `--status-warning` — Amber for caution
-- **Error:** `--status-error` — Red for problems
+- **Accent (sky blue):** Internal dependency arrows, selected states, interactive highlights, P0 impact
+- **Warning (amber):** Cross-boundary arrows, bridge nodes, P1/P2 impact levels, coupling signals
+- **Hotspot (red):** Hotspot badges, high-coupling warnings
+- **Success (green):** Socket "in" ports, healthy metrics, low-risk indicators
 
 ## Spacing
 - **Base unit:** 4px
-- **Density:** Comfortable — room for information to breathe
+- **Density:** Compact — maximize information per viewport
 - **Scale:** 4px, 8px, 12px, 16px, 20px, 24px
 
 ## Layout
-- **Approach:** Grid-disciplined with creative interactions
+- **Approach:** Grid-disciplined with canvas-based graph areas
 - **App container:** `display: grid; grid-template-columns: 240px 1fr;`
-- **Sidebar:** 240px fixed width (expanded from 200px for comfort)
-- **Max content width:** None — full viewport usage
-- **Border radius scale:**
-  - `--radius-sm: 6px`
-  - `--radius-md: 8px`
-  - `--radius-lg: 12px`
-  - `--radius-xl: 16px`
+- **Sidebar:** 240px fixed width
+- **Border radius:** `sm: 4px`, `md: 6px`, `lg: 8px`
 
 ## Motion
-- **Approach:** Intentional — animations that feel responsive and delightful
-- **Easing (bouncy):** `cubic-bezier(0.34, 1.56, 0.64, 1)` — For playful interactions (hover, icon animations)
-- **Easing (smooth):** `cubic-bezier(0.16, 1, 0.3, 1)` — For standard transitions
-- **Duration:**
-  - Micro: 150ms — Hover states, button interactions
-  - Short: 200ms — Theme transitions
-  - Medium: 300ms — Page loads, fade-ins
-  - Long: 600ms — Complex animations
+- **Approach:** Minimal-functional
+- **No ambient animations.** No glow pulses. No starfield.
+- **Transitions only:** 150ms ease-out for state changes (hover, select, expand/collapse)
+- **Reduced motion:** `prefers-reduced-motion: reduce` → instant transitions only
 
-**Transition tokens:**
-```css
---ease-out: cubic-bezier(0.16, 1, 0.3, 1);
---transition: 150ms var(--ease-out);
-```
+## Two-Mode Progressive Disclosure
 
-### Key Animations
-- **Fade in:** `fadeIn` — 0.6s ease-out with subtle translateY
-- **Pulse glow:** `pulse-glow` — 2s ease-in-out infinite for selected nodes
-- **Ambient move:** `ambient-move` — 20s ease-in-out infinite for background
-- **Logo pulse:** `logo-pulse` — 3s ease-in-out infinite
-- **Tooltip in:** `tooltip-in` — 0.3s with scale and translateY
+There are two modes, not three. Mode 2 handles both browsing and detail via hover/click interactions.
+
+### Mode 1: Domain Overview (UML Canvas)
+- **Purpose:** High-level architectural overview showing all domains and inter-domain dependencies
+- **Layout:** Canvas with UML package notation, dot grid background
+- **Domain nodes:** Rounded rect boxes with name, class count, health dot. Explicit widths, positioned on a 3-row grid.
+- **Edges:** L-shape SVG polylines between domain boxes, accent dashed
+- **Background:** Dot grid (`radial-gradient` 1px dots, 24px spacing)
+- **Interaction:** Click domain to drill into Mode 2
+- **Arrow routing:** Start/end on box edge centers. L-shape: `|dx| >= |dy|` → horizontal first, else vertical first.
+
+### Mode 2: Module Drill-down (Boundary Container)
+- **Purpose:** All classes within a domain, their relationships, cross-boundary dependencies, and impact analysis. This is the primary working view.
+- **Layout:** Boundary container (large rounded-rect) with positioned class nodes and SVG arrow overlay
+- **Class nodes:** Draggable within boundary. Positioned absolutely, constrained to boundary interior.
+- **Boundary sockets:** Box cards on domain edges representing cross-boundary connections. Draggable along their edge only (left/right edge = vertical, top/bottom edge = horizontal).
+- **Arrow routing:** L-shape polylines. Start/end on node edge centers, determined by relative position of source/target.
+
+#### Arrow Color Semantics
+- **Internal deps:** Accent sky blue (`var(--accent)`) — solid, opacity 0.6. Primary content inside a boundary.
+- **Cross-boundary deps:** Warning amber (`var(--status-warning)`) — dashed `4 3`, opacity 0.45. Coupling signal to external domains.
+- **Arrowheads:** `<marker>` definitions, filled to match line color.
+
+#### Interaction: Hover (Impact Analysis)
+- **Trigger:** Hover over any class node
+- **Effect:** Impact propagation overlay on the boundary canvas
+  - **Selected node:** Accent border + glow + accent-soft background
+  - **P0 direct:** Accent border, 1px ring
+  - **P1 transitive:** Warning amber border, 1px ring
+  - **P2 deep:** Warning amber dashed border, opacity 0.7
+  - **Not impacted:** Dimmed to 15% opacity
+- **SVG lines:** Colored by propagation level (P0=accent thick, P1=warning medium, P2=warning dashed thin, dimmed=invisible)
+- **Legend:** "Blast radius" box in top-right corner
+- **Dismiss:** Mouse leave, or Esc
+
+#### Interaction: Click (Floating Detail Panel)
+- **Trigger:** Click on any class node
+- **Effect:** Floating panel appears in bottom-right corner of boundary
+- **Panel style:** Glassmorphism (`backdrop-filter: blur(16px)`, semi-transparent bg), 240px wide
+- **Panel content:**
+  - Class name + package path
+  - Metrics grid: PageRank, Betweenness, Closeness, Fan-in, Fan-out
+  - Badges: Hotspot, Bridge
+  - Blast radius: P0/P1/P2 counts, affected ratio
+- **Dismiss:** Close button, click-away, or Esc
+
+#### Socket System
+- **Purpose:** Represent cross-boundary connections as box cards on domain edges
+- **Layout:** Positioned on boundary edges. Right/bottom = outgoing, left/top = incoming.
+- **Components:** Label (class/domain name) + port indicator (`.out` amber square, `.in` green square)
+- **Drag:** Constrained to their edge axis only
+- **SVG connection:** L-shape polyline from internal class node edge center to socket position
 
 ## Visual Effects
-
-### Ambient Glow
-```css
-/* Moving radial gradient background */
-background: radial-gradient(
-  ellipse at 30% 20%,
-  var(--accent-primary-glow) 0%,
-  transparent 50%
-);
-animation: ambient-move 20s ease-in-out infinite;
-```
-
-### Starfield
-```css
-/* Multiple radial gradients creating subtle star points */
-background-image:
-  radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.1) 50%, transparent 100%),
-  radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.08) 50%, transparent 100%),
-  radial-gradient(1px 1px at 50% 50%, rgba(74,222,128,0.1) 50%, transparent 100%),
-  radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.05) 50%, transparent 100%),
-  radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.07) 50%, transparent 100%),
-  radial-gradient(1.5px 1.5px at 40% 80%, rgba(74,222,128,0.15) 50%, transparent 100%),
-  radial-gradient(1px 1px at 10% 90%, rgba(255,255,255,0.06) 50%, transparent 100%);
-animation: twinkle 8s ease-in-out infinite;
-```
-
-### Canvas Grid
-```css
-/* Subtle dot grid for spatial reference */
-background-image:
-  radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
-background-size: 24px 24px;
-opacity: 0.5;
-```
-
-### Scrollbar
-```css
-/* Minimal custom scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--border-default);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
-```
-
-### Glassmorphism
-- Applied to header and status bar
-- `backdrop-filter: blur(20px)`
-- Subtle but functional depth
-
-### Glow Effects
-- Selected nodes: `--glow-strong: 0 0 60px rgba(74,222,128,0.2)`
-- Hover states: `--glow-subtle: 0 0 30px rgba(74,222,128,0.1)`
-- Logo: Continuous pulse animation
+- **None.** No ambient glow. No starfield. No pulse animations.
+- Dot grid background for spatial reference only
+- Subtle edge glow zones on boundary edges where cross-boundary arrows exit (gradient fade)
 
 ## Components
 
-### Node (Graph)
-- Card-style with icon + content + optional badge
-- Border radius: `12px`
-- Padding: `12px 16px`
-- Shadow: `0 2px 8px rgba(0,0,0,0.1)`
-- **Top accent:** Gradient line on hover (`::before` pseudo-element with `linear-gradient(90deg, transparent, var(--accent-primary), transparent)`)
-- Hover: `transform: translateY(-2px) scale(1.01)` + icon scale 1.1 + rotate 5deg
-- Selected: Pulsing glow effect + accent border
-- Warning/Error states: Colored borders + glows
+### UML Package Node (Mode 1)
+- Rounded rect: `border-radius: 4px`, `padding: 8px 14px`
+- Border: `1px solid var(--border-default)`
+- Fill: `var(--bg-surface)`
+- Content: health dot + name + class count, `display: flex; gap: 8px`
+- Font: `12px Geist Mono`
+- Explicit widths per package (varies by name length)
+- Selected: accent border + shadow
 
-### Edge Connectors
-- Width: `2px`
-- Height: `32px`
-- Color: `var(--text-tertiary)` with `opacity: 0.6`
-- Arrow: 5px borders (transparent left/right, solid top)
+### Boundary Container (Mode 2)
+- Large rounded rect: `border-radius: 6px`
+- Border: `1px solid var(--border-boundary)`
+- Background: `var(--bg-boundary)` + dot grid
+- Label: Domain name positioned at top edge, accent color
+- Fixed dimensions to align SVG overlay with positioned DOM elements
+- SVG overlay: `position: absolute; inset: 0; z-index: 4; pointer-events: none;`
+
+### Class Node (Mode 2)
+- Small rounded rect: `border-radius: 4px`, `padding: 6px 10px`
+- Background: `var(--bg-surface)`
+- Border: `1px solid var(--border-default)`
+- Font: `11px Geist Mono`
+- Cursor: `grab` (draggable)
+- Hotspot variant: warning border tint, `var(--hotspot-soft)` background
+
+### Boundary Socket (Mode 2)
+- Box card on boundary edge: `border-radius: 3px`, `padding: 2px 6px`
+- Background: `var(--bg-surface)`, border: `1px solid var(--border-default)`
+- Font: `9px Geist Mono` label + 5px port square
+- Port `.out`: amber background, Port `.in`: green background
+- Draggable along edge axis only
+
+### Arrow (SVG, L-shape polyline)
+- **Internal:** `stroke: var(--accent); stroke-width: 1; fill: none; opacity: 0.6;`
+- **Cross-boundary:** `stroke: var(--status-warning); stroke-width: 1; stroke-dasharray: 4 3; fill: none; opacity: 0.45;`
+- **Arrowheads:** `<marker>` definitions, filled to match line color
+- **Routing:** Single-bend L-shape. Exit/enter edge determined by relative source/target position. Point = center of that edge.
+
+### Floating Detail Panel (Mode 2, on click)
+- Position: `absolute; bottom: 12px; right: 12px;`
+- Width: 240px, z-index: 30
+- Glassmorphism: `backdrop-filter: blur(16px); background: rgba(20, 20, 22, 0.92);`
+- Close button: top-right corner
+- Content: class name, package path, metrics grid (2-col), badges, blast radius section
+
+### Impact Overlay States (Mode 2, on hover)
+- `.impact-selected`: accent border + 2px ring + 24px glow + accent-soft bg
+- `.impact-p0`: accent border + 1px ring
+- `.impact-p1`: warning border + 1px ring
+- `.impact-p2`: warning dashed border, opacity 0.7
+- `.impact-dimmed`: opacity 0.15
 
 ### Sidebar Tree
-- Domain nodes: 14px font, expandable with chevron
-- Class nodes: 12px monospace, indented
+- Domain nodes: 13px Geist, expandable with chevron
+- Class nodes: 11px Geist Mono, indented
 - Health indicator: 6px colored dot
-- Active state: Soft background tint
+- Active state: accent background tint
 
 ### Status Bar
-- 36px height, fixed at bottom
+- 32px height, fixed at bottom
 - Glassmorphism: `backdrop-filter: blur(20px)`
-- Metrics: Monospace numbers
-- Badges: Soft background + colored text
+- Metrics: Geist Mono numbers
 
-### Tooltip
-- 220px width
-- Glassmorphism background
-- Animation: Scale + fade in
-- Info rows with labels and monospace values
+## Connection Point Logic
+Nodes are positioned with absolute left/top coordinates. Each node has a known width and height (~28px for class nodes, ~34px for packages).
 
-## Two-Level View Hierarchy
+1. **Determine exit/enter edge:** Based on relative position of source and target. Target is to the right → source exits right edge, target enters left edge.
+2. **Calculate edge center:** The midpoint of the relevant edge (e.g., right edge center = left + width, top + height/2).
+3. **Route L-shape:** `|dx| >= |dy|` → horizontal segment first (`M x1,cy L x2,cy L x2,y2`). Otherwise vertical first (`M cx,y1 L cx,y2 L x2,y2`).
 
-### Domain Level (Overview)
-- **Purpose:** High-level architectural overview
-- **Content:** Domain nodes, inter-domain dependencies, domain-level metrics
-- **Cognitive limit:** 7-9 domains visible at once
-- **Layout:** Left-to-right flow, grouped by layer
+Box dimension estimation: `width ≈ chars × 7px + 22px padding/border`, `height ≈ 28px` (class) or `34px` (package).
 
-### Class Level (Detail)
-- **Purpose:** Fine-grained dependency inspection
-- **Content:** Individual classes, inter-class dependencies, external deps
-- **Navigation:** Click domain to expand, breadcrumb back
-- **Layout:** Compact cluster view
-
-## Interactions
-
-### Hover States
-- Scale: `1.01-1.02`
-- Y-translate: `-1px to -2px`
-- Border: `--border-strong`
-- Shadow: Enhanced
-- Icon: Rotate 5deg, scale 1.1
-
-### Click/Selection
-- Immediate border color change to accent
-- Pulsing glow animation starts
-- Tooltip appears with animation
-
-### Theme Switch
-- Smooth transition: `0.3s ease`
-- All color variables update via CSS custom properties
-- No flash, seamless experience
-
-## Accessibility
-- WCAG AA contrast ratios (all text combinations tested)
-- Focus indicators on all interactive elements
-- Keyboard navigation support
-- Reduced motion query support (can add `@media (prefers-reduced-motion)`)
-
-## Export Formats
-For AI workflow integration:
-- **SVG:** Vector export with styling preserved
-- **PNG:** Raster export with current theme
-- **JSON:** Structured data for programmatic analysis
-- **HTML:** Self-contained with inline styles
+## Drag Behavior
+- **Class nodes:** Free drag within boundary, constrained to interior with 4px margin.
+- **Boundary sockets:** Constrained to their edge axis. Left/right edge sockets move vertically only. Top/bottom edge sockets move horizontally only.
+- **On drag start:** Convert `right`/`bottom` CSS to `left`/`top` for consistent coordinate math.
+- **Z-index:** Dragged element gets z-index 20 during drag.
 
 ## Decisions Log
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-04-09 | Initial design system created via /design-consultation | Based on modern SaaS aesthetics (Linear, Vercel, Raycast) with added delight for long work sessions |
-| 2026-04-09 | Dark theme uses #0c0c0e, not pure black | Pure black is too harsh for extended use; slight gray is more comfortable |
-| 2026-04-09 | Accent green is #4ade80, not #22c55e | Brighter, more vibrant; feels more "active" and modern |
-| 2026-04-09 | Ambient glow + starfield effects | Adds "wow factor" without distracting from data; makes tool feel alive |
-| 2026-04-09 | Geist Mono for all technical content | Excellent tabular numbers, modern feel, better than JetBrains Mono for UI |
-| 2026-04-09 | Bouncy easing (cubic-bezier(0.34,1.56,0.64,1)) | Makes interactions feel playful and responsive; encourages exploration |
-| 2026-04-09 | Design system updated from archon-viz-design-preview.html sketch | Aligned DESIGN.md with implemented HTML preview; added smooth easing, canvas grid, scrollbar styles, edge connectors |
+| 2026-04-09 | Initial design system created via /design-consultation | Modern SaaS aesthetic with green accent |
+| 2026-04-12 | Complete redesign to Industrial/Utilitarian | Information density > visual delight. Previous direction prioritized aesthetics over the core use case (understanding dependency impact at a glance) |
+| 2026-04-12 | Sky blue accent (#38bdf8) replaces green (#4ade80) | Blue reads as trustworthy/technical. Green implies "healthy/good" which is misleading for a tool that surfaces problems. |
+| 2026-04-12 | Removed all ambient animations | Glow, starfield, and pulse effects add visual noise that competes with the actual data. A dependency graph IS the visual interest. |
+| 2026-04-12 | UML canvas with package notation (Mode 1) | Engineers already read UML. Reusing a familiar notation reduces learning curve. Rounded rects are more space-efficient than card grids for showing relationships. |
+| 2026-04-12 | SVG arrow overlay on positioned DOM (Mode 2) | SVG gives precise arrow routing. DOM gives crisp text rendering. Mixing both gives the best of each. Fixed container dimensions keep SVG and DOM coordinates aligned. |
+| 2026-04-12 | Two-mode model replaces three-mode | Mode 3 was artificial separation. Hover shows impact, click shows detail, both within Mode 2. Reduces navigation depth and keeps context. |
+| 2026-04-12 | L-shape polyline routing | Bezier curves felt too soft/unengineered. Orthogonal L-shapes are deterministic, easy to compute, and match the industrial aesthetic. Single bend per line. |
+| 2026-04-12 | Internal = accent, cross-boundary = amber | Inside a boundary, internal deps are the primary content (accent). Cross-boundary deps are coupling signals (amber warning). Previous gray was invisible in dark mode and semantically wrong (it IS dependency data). |
+| 2026-04-12 | Boundary sockets as box cards on edges | Sockets make cross-boundary connections explicit and tangible. Box cards with port indicators (`.out` amber, `.in` green) are more readable than bare line endpoints. |
+| 2026-04-12 | Impact analysis as hover state, not separate mode | Impact overlay on hover keeps spatial context. User sees blast radius without losing their place. Click-away or Esc dismisses. No mode switching required. |
+| 2026-04-12 | Floating detail panel on click | Bottom-right glassmorphism panel shows class metrics + blast radius without replacing the boundary view. Stays in context. |
+| 2026-04-12 | Draggable nodes, edge-constrained sockets | Users need to rearrange nodes for readability. Sockets constrained to boundary edges because that is their semantic meaning (edge connection points). |
+| 2026-04-12 | Mode 1 arrows connect to box edge centers | Previous arrows floated in space with guessed coordinates. Now calculated from actual box positions + dimensions. Documented edge center coordinates for each domain. |

@@ -6,7 +6,7 @@
     <title>Archon — Dependency Visualization</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -17,37 +17,40 @@
             --space-4: 16px;
             --space-5: 20px;
             --space-6: 24px;
-            --radius-sm: 6px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
             --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-            --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
             --transition: 150ms var(--ease-out);
         }
 
         body.theme-dark {
-            --bg-app: #0c0c0e;
-            --bg-surface: #151518;
+            --bg-app: #0a0a0b;
+            --bg-surface: #141416;
             --bg-surface-hover: #1c1c1f;
             --bg-surface-active: #222225;
+            --bg-boundary: rgba(20, 20, 22, 0.95);
             --border-subtle: rgba(255, 255, 255, 0.06);
             --border-default: rgba(255, 255, 255, 0.10);
             --border-strong: rgba(255, 255, 255, 0.15);
+            --border-boundary: rgba(56, 189, 248, 0.20);
             --text-primary: #fafafa;
             --text-secondary: #a1a1aa;
             --text-tertiary: #71717a;
             --text-muted: #52525b;
-            --accent-primary: #4ade80;
-            --accent-primary-soft: rgba(74, 222, 128, 0.15);
-            --accent-primary-glow: rgba(74, 222, 128, 0.35);
+            --accent: #38bdf8;
+            --accent-soft: rgba(56, 189, 248, 0.12);
+            --accent-dim: rgba(56, 189, 248, 0.50);
             --status-warning: #fbbf24;
             --status-warning-soft: rgba(251, 191, 36, 0.15);
             --status-error: #f87171;
             --status-error-soft: rgba(248, 113, 113, 0.15);
-            --font-display: 'Inter', -apple-system, sans-serif;
+            --status-success: #4ade80;
+            --status-success-soft: rgba(74, 222, 128, 0.15);
+            --hotspot: #f87171;
+            --hotspot-soft: rgba(248, 113, 113, 0.12);
+            --font-display: 'Geist', -apple-system, sans-serif;
             --font-mono: 'Geist Mono', 'SF Mono', monospace;
-            --glow-strong: 0 0 60px rgba(74, 222, 128, 0.2);
-            --glow-subtle: 0 0 30px rgba(74, 222, 128, 0.1);
         }
 
         body.theme-light {
@@ -55,24 +58,28 @@
             --bg-surface: #ffffff;
             --bg-surface-hover: #f5f5f5;
             --bg-surface-active: #ebebeb;
+            --bg-boundary: rgba(255, 255, 255, 0.95);
             --border-subtle: rgba(0, 0, 0, 0.06);
             --border-default: rgba(0, 0, 0, 0.10);
             --border-strong: rgba(0, 0, 0, 0.14);
+            --border-boundary: rgba(14, 165, 233, 0.25);
             --text-primary: #1a1a1a;
             --text-secondary: #737373;
             --text-tertiary: #a3a3a3;
             --text-muted: #d4d4d4;
-            --accent-primary: #16a34a;
-            --accent-primary-soft: rgba(22, 163, 74, 0.10);
-            --accent-primary-glow: rgba(22, 163, 74, 0.20);
+            --accent: #0ea5e9;
+            --accent-soft: rgba(14, 165, 233, 0.10);
+            --accent-dim: rgba(14, 165, 233, 0.50);
             --status-warning: #d97706;
             --status-warning-soft: rgba(217, 119, 6, 0.10);
             --status-error: #dc2626;
             --status-error-soft: rgba(220, 38, 38, 0.10);
-            --font-display: 'Inter', -apple-system, sans-serif;
+            --status-success: #16a34a;
+            --status-success-soft: rgba(22, 163, 74, 0.10);
+            --hotspot: #dc2626;
+            --hotspot-soft: rgba(220, 38, 38, 0.10);
+            --font-display: 'Geist', -apple-system, sans-serif;
             --font-mono: 'Geist Mono', 'SF Mono', monospace;
-            --glow-strong: 0 0 40px rgba(22, 163, 74, 0.12);
-            --glow-subtle: 0 0 20px rgba(22, 163, 74, 0.06);
         }
 
         body {
@@ -83,64 +90,6 @@
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             overflow: hidden;
-            transition: background 0.3s ease, color 0.3s ease;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(
-                ellipse at 30% 20%,
-                var(--accent-primary-glow) 0%,
-                transparent 50%
-            );
-            opacity: 0.3;
-            pointer-events: none;
-            z-index: 0;
-            animation: ambient-move 20s ease-in-out infinite;
-        }
-
-        @keyframes ambient-move {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(5%, 5%) scale(1.05); }
-            66% { transform: translate(-5%, -5%) scale(0.95); }
-        }
-
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image:
-                radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.1) 50%, transparent 100%),
-                radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.08) 50%, transparent 100%),
-                radial-gradient(1px 1px at 50% 50%, rgba(74,222,128,0.1) 50%, transparent 100%),
-                radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.05) 50%, transparent 100%),
-                radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.07) 50%, transparent 100%),
-                radial-gradient(1.5px 1.5px at 40% 80%, rgba(74,222,128,0.15) 50%, transparent 100%),
-                radial-gradient(1px 1px at 10% 90%, rgba(255,255,255,0.06) 50%, transparent 100%);
-            pointer-events: none;
-            z-index: 0;
-            animation: twinkle 8s ease-in-out infinite;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% {
-                box-shadow: 0 0 20px var(--accent-primary-glow),
-                            0 0 40px var(--accent-primary-glow);
-            }
-            50% {
-                box-shadow: 0 0 30px var(--accent-primary-glow),
-                            0 0 60px var(--accent-primary-glow);
-            }
         }
 
         .header {
@@ -173,15 +122,8 @@
         .logo-icon {
             width: 20px;
             height: 20px;
-            background: linear-gradient(135deg, var(--accent-primary), #22c55e);
+            background: var(--accent);
             border-radius: var(--radius-sm);
-            box-shadow: 0 0 20px var(--accent-primary-glow);
-            animation: logo-pulse 3s ease-in-out infinite;
-        }
-
-        @keyframes logo-pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 20px var(--accent-primary-glow); }
-            50% { transform: scale(1.05); box-shadow: 0 0 30px var(--accent-primary-glow); }
         }
 
         .header-title {
@@ -204,7 +146,7 @@
             border: 1px solid var(--border-default);
             border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: var(--transition);
+            transition: border-color var(--transition), color var(--transition);
         }
 
         .action-btn:hover {
@@ -244,7 +186,7 @@
 
         .app-container {
             display: grid;
-            grid-template-columns: 280px 1fr;
+            grid-template-columns: 240px 1fr;
             height: calc(100vh - 52px);
             position: relative;
             z-index: 1;
@@ -310,9 +252,9 @@
         }
 
         .filter-chip.active {
-            color: var(--accent-primary);
-            background: var(--accent-primary-soft);
-            border-color: var(--accent-primary);
+            color: var(--accent);
+            background: var(--accent-soft);
+            border-color: var(--accent);
         }
 
         .domain-list {
@@ -332,19 +274,18 @@
             padding: var(--space-2) var(--space-3);
             border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: all 0.2s var(--ease-bouncy);
+            transition: background var(--transition);
             font-weight: 500;
             font-size: 13px;
         }
 
         .domain-node:hover {
             background: var(--bg-surface-hover);
-            transform: scale(1.01);
         }
 
         .domain-node.active {
-            background: var(--accent-primary-soft);
-            color: var(--accent-primary);
+            background: var(--accent-soft);
+            color: var(--accent);
         }
 
         .domain-icon {
@@ -381,7 +322,7 @@
             border-radius: 50%;
         }
 
-        .health-indicator.healthy { background: var(--accent-primary); }
+        .health-indicator.healthy { background: var(--status-success); }
         .health-indicator.warning { background: var(--status-warning); }
         .health-indicator.error { background: var(--status-error); }
 
@@ -392,7 +333,7 @@
             margin-left: auto;
         }
 
-        .class-health-indicator.healthy { background: var(--accent-primary); }
+        .class-health-indicator.healthy { background: var(--status-success); }
         .class-health-indicator.warning { background: var(--status-warning); }
         .class-health-indicator.error { background: var(--status-error); }
 
@@ -426,7 +367,7 @@
             font-size: 12px;
             color: var(--text-secondary);
             font-family: var(--font-mono);
-            transition: all 0.2s var(--ease-bouncy);
+            transition: background var(--transition), color var(--transition);
         }
 
         .class-item:hover {
@@ -435,8 +376,8 @@
         }
 
         .class-item.active {
-            color: var(--accent-primary);
-            background: var(--accent-primary-soft);
+            color: var(--accent);
+            background: var(--accent-soft);
         }
 
         .class-icon {
@@ -518,59 +459,13 @@
             width: 40px;
             height: 40px;
             border: 3px solid var(--border-default);
-            border-top-color: var(--accent-primary);
+            border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
-        }
-
-        .graph-node {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
-            padding: var(--space-4);
-            background: var(--bg-surface);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-lg);
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s var(--ease-bouncy);
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .graph-node::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .graph-node:hover::before {
-            opacity: 1;
-        }
-
-        .graph-node:hover {
-            border-color: var(--border-strong);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            transform: translateY(-2px);
-        }
-
-        .graph-node.selected {
-            border-color: var(--accent-primary);
-            box-shadow: var(--glow-strong);
-            animation: pulse-glow 2s ease-in-out infinite;
         }
 
         .node-icon-large {
@@ -673,7 +568,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 var(--space-4);
-            height: 36px;
+            height: 32px;
             background: var(--bg-surface);
             border-top: 1px solid var(--border-subtle);
             backdrop-filter: blur(20px);
@@ -761,158 +656,318 @@
             }
         }
 
-        /* Tooltip */
-        .node-tooltip {
-            position: fixed;
-            pointer-events: none;
-            opacity: 0;
-            z-index: 100;
-            max-width: 280px;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-md);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-            transition: opacity 150ms var(--ease-out);
-            font-family: 'Inter', system-ui, sans-serif;
+        /* ── DOM+SVG Architecture: Graph Viewport ── */
+
+        .graph-viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-app);
+            overflow: hidden;
         }
 
-        .node-tooltip.visible {
-            opacity: 1;
-        }
-
-        .node-tooltip-arrow {
+        .graph-viewport::before {
+            content: '';
             position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0; height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
+            inset: 0;
+            background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.5;
+            pointer-events: none;
         }
 
-        .node-tooltip-arrow.below {
-            top: -8px;
-            border-bottom: 8px solid var(--bg-surface);
+        /* ── DOM+SVG Architecture: Boundary Container (Mode 2) ── */
+
+        .boundary-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            border: 1px solid var(--border-boundary);
+            background: var(--bg-boundary);
+            overflow: hidden;
         }
 
-        .node-tooltip-arrow.above {
-            bottom: -8px;
-            border-top: 8px solid var(--bg-surface);
+        .boundary-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
         }
 
-        .tooltip-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px 8px;
-        }
-
-        .tooltip-icon {
-            width: 24px; height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            flex-shrink: 0;
-            background: var(--bg-subtle);
-        }
-
-        .tooltip-name {
+        .boundary-label {
+            position: absolute;
+            top: -10px;
+            left: 16px;
+            padding: 0 8px;
+            background: var(--bg-boundary);
+            color: var(--accent);
+            font-size: 11px;
+            font-family: var(--font-mono);
             font-weight: 600;
-            font-size: 0.8125rem;
-            color: var(--text-primary);
-            line-height: 1.2;
-        }
-
-        .tooltip-package {
-            font-family: 'Geist Mono', 'SF Mono', monospace;
-            font-size: 0.6875rem;
-            color: var(--text-tertiary);
-            margin-top: 1px;
-        }
-
-        .tooltip-separator {
-            height: 1px;
-            background: var(--border-subtle);
-            margin: 0 12px;
-        }
-
-        .tooltip-metrics {
-            display: flex;
-            justify-content: space-around;
-            padding: 8px 12px;
-        }
-
-        .tooltip-metric {
-            text-align: center;
-        }
-
-        .tooltip-metric-label {
-            font-size: 0.625rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            z-index: 2;
+        }
+
+        /* ── DOM+SVG Architecture: Class Nodes (Mode 2) ── */
+
+        .class-node {
+            position: absolute;
+            padding: 6px 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 11px var(--font-mono);
+            color: var(--text-primary);
+            cursor: grab;
+            z-index: 10;
+            user-select: none;
+            transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+        }
+
+        .class-node:hover { border-color: var(--border-strong); }
+        .class-node.dragging { cursor: grabbing; z-index: 20; }
+        .class-node.hotspot {
+            background: var(--hotspot-soft);
+            border-color: rgba(248, 113, 113, 0.3);
+        }
+
+        /* ── DOM+SVG Architecture: Impact Overlay States ── */
+
+        .class-node.impact-selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-soft), 0 0 24px var(--accent-dim);
+            background: var(--accent-soft);
+        }
+        .class-node.impact-p0 { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+        .class-node.impact-p1 { border-color: var(--status-warning); box-shadow: 0 0 0 1px var(--status-warning-soft); }
+        .class-node.impact-p2 { border-color: var(--status-warning); border-style: dashed; opacity: 0.7; }
+        .class-node.impact-dimmed { opacity: 0.15; }
+
+        /* ── DOM+SVG Architecture: Boundary Sockets ── */
+
+        .boundary-socket {
+            position: absolute;
+            padding: 2px 6px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 3px;
+            font: 9px var(--font-mono);
+            color: var(--text-secondary);
+            cursor: grab;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .socket-port {
+            width: 5px; height: 5px; border-radius: 1px;
+        }
+        .socket-port.out { background: var(--status-warning); }
+        .socket-port.in { background: var(--status-success); }
+
+        /* ── DOM+SVG Architecture: SVG Arrow Overlay ── */
+
+        .svg-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        /* ── DOM+SVG Architecture: Floating Detail Panel ── */
+
+        .detail-panel {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 240px;
+            z-index: 30;
+            background: rgba(20, 20, 22, 0.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .detail-panel-close {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: none; border: none;
             color: var(--text-tertiary);
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .detail-panel-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
             margin-bottom: 2px;
         }
 
-        .tooltip-metric-value {
-            font-family: 'Geist Mono', 'SF Mono', monospace;
-            font-size: 0.6875rem;
+        .detail-panel-package {
+            font-size: 10px;
+            color: var(--text-tertiary);
+            margin-bottom: 8px;
+        }
+
+        .detail-metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .detail-metric-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+        }
+
+        .detail-metric-value {
+            font-size: 12px;
             color: var(--text-primary);
         }
 
-        .tooltip-badges {
+        .detail-badges {
             display: flex;
-            gap: 6px;
-            padding: 6px 12px 8px;
-            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
         }
 
-        .tooltip-badge {
-            font-size: 0.625rem;
-            font-weight: 500;
-            padding: 2px 8px;
-            border-radius: 10px;
+        .detail-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+        .detail-badge.hotspot { background: var(--hotspot-soft); color: var(--hotspot); }
+        .detail-badge.bridge { background: var(--status-warning-soft); color: var(--status-warning); }
+
+        .detail-blast-radius {
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 8px;
         }
 
-        .tooltip-badge.hotspot {
-            background: var(--status-error-soft);
-            color: var(--status-error);
+        .detail-blast-title {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            margin-bottom: 4px;
         }
 
-        .tooltip-badge.cycle {
-            background: var(--status-error);
-            color: #fff;
-        }
-
-        .tooltip-badge.bridge {
-            background: var(--status-warning-soft);
-            color: var(--status-warning);
-        }
-
-        .tooltip-badge.blindspot {
-            background: var(--status-warning);
-            color: #fff;
-        }
-
-        .tooltip-footer {
+        .detail-blast-row {
             display: flex;
             justify-content: space-between;
-            padding: 6px 12px 10px;
-            font-family: 'Geist Mono', 'SF Mono', monospace;
-            font-size: 0.6875rem;
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+        .blast-label { color: var(--text-secondary); }
+        .blast-count { color: var(--text-primary); }
+
+        /* ── DOM+SVG Architecture: UML Package Node (Mode 1) ── */
+
+        .uml-package {
+            position: absolute;
+            padding: 8px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 12px var(--font-mono);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 5;
+            transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+        }
+        .uml-package:hover { border-color: var(--border-strong); }
+        .uml-package.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+        .uml-package .health-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+        .uml-package .health-dot.healthy { background: var(--status-success); }
+        .uml-package .health-dot.warning { background: var(--status-warning); }
+        .uml-package .health-dot.error { background: var(--status-error); }
+        .uml-package .package-name { font-weight: 500; }
+        .uml-package .class-count {
+            font-size: 10px;
+            color: var(--text-tertiary);
+        }
+
+        /* ── DOM+SVG Architecture: Back Button + Breadcrumb (Mode 2) ── */
+
+        .mode-back-btn {
+            position: absolute;
+            top: 12px; left: 12px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 11px var(--font-mono);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: border-color 150ms var(--ease-out);
+        }
+        .mode-back-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+        .mode-breadcrumb {
+            position: absolute;
+            top: 12px; left: 100px;
+            z-index: 20;
+            font: 11px var(--font-mono);
+            color: var(--text-tertiary);
+        }
+        .mode-breadcrumb .domain-name { color: var(--accent); }
+
+        /* ── DOM+SVG Architecture: Impact Legend ── */
+
+        .impact-legend {
+            position: absolute;
+            top: 12px; right: 12px;
+            z-index: 20;
+            padding: 8px 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 4px;
+            font: 10px var(--font-mono);
+            display: none;
+        }
+        .impact-legend.visible { display: block; }
+        .impact-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
             color: var(--text-secondary);
         }
+        .legend-swatch {
+            width: 10px; height: 10px; border-radius: 2px;
+        }
+        .legend-swatch.p0 { background: var(--accent); }
+        .legend-swatch.p1 { background: var(--status-warning); }
+        .legend-swatch.p2 { background: var(--status-warning); border-style: dashed; opacity: 0.7; }
+        .legend-swatch.dimmed { background: var(--text-muted); opacity: 0.3; }
 
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
-            }
-
-            .node-tooltip {
-                transition: none;
             }
         }
     </style>
@@ -960,39 +1015,7 @@
 
         <main class="main-content">
             <div class="canvas-container" role="region" aria-label="Dependency graph visualization">
-                <canvas id="graphCanvas"></canvas>
-                <div id="nodeTooltip" class="node-tooltip" role="tooltip" aria-hidden="true">
-                    <div class="node-tooltip-arrow below" id="tooltipArrow"></div>
-                    <div class="tooltip-header">
-                        <div class="tooltip-icon" id="tooltipIcon"></div>
-                        <div>
-                            <div class="tooltip-name" id="tooltipName"></div>
-                            <div class="tooltip-package" id="tooltipPackage"></div>
-                        </div>
-                    </div>
-                    <div class="tooltip-separator"></div>
-                    <div class="tooltip-metrics" id="tooltipMetrics">
-                        <div class="tooltip-metric">
-                            <div class="tooltip-metric-label">PageRank</div>
-                            <div class="tooltip-metric-value" id="tooltipPageRank">---</div>
-                        </div>
-                        <div class="tooltip-metric">
-                            <div class="tooltip-metric-label">Betweenness</div>
-                            <div class="tooltip-metric-value" id="tooltipBetweenness">---</div>
-                        </div>
-                        <div class="tooltip-metric">
-                            <div class="tooltip-metric-label">Closeness</div>
-                            <div class="tooltip-metric-value" id="tooltipCloseness">---</div>
-                        </div>
-                    </div>
-                    <div class="tooltip-separator"></div>
-                    <div class="tooltip-badges" id="tooltipBadges"></div>
-                    <div class="tooltip-separator" id="tooltipBadgeSeparator"></div>
-                    <div class="tooltip-footer">
-                        <span id="tooltipFanIn">&larr; -- deps</span>
-                        <span id="tooltipFanOut">-- deps &rarr;</span>
-                    </div>
-                </div>
+                <div id="graphViewport" class="graph-viewport"></div>
                 <div id="canvasAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
             </div>
 
@@ -1036,1201 +1059,24 @@
         </main>
     </div>
 
-    <script>
-        class DataManager {
-            constructor() {
-                this.data = null;
-                this.schemaVersion = "archon-metadata-v1";
-            }
-
-            async load() {
-                try {
-                    const rawData = window.GRAPH_DATA || await this.fetchFromServer();
-                    if (typeof rawData !== 'object' || rawData === null) {
-                        throw new Error('Invalid data type: expected object');
-                    }
-                    this.validateSchema(rawData);
-                    this.data = this.processData(rawData);
-                    return this.data;
-                } catch (e) {
-                    this.showError(e.message);
-                    throw e;
-                }
-            }
-
-            async fetchFromServer() {
-                const response = await fetch('/api/graph');
-                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                return await response.json();
-            }
-
-            validateSchema(data) {
-                if (!data.$schema || !data.$schema.startsWith(this.schemaVersion)) {
-                    throw new Error(`Unsupported schema version: ${data.$schema}`);
-                }
-                if (!data.nodes || !Array.isArray(data.nodes)) {
-                    throw new Error('Missing or invalid "nodes" field');
-                }
-                if (!data.edges || !Array.isArray(data.edges)) {
-                    throw new Error('Missing or invalid "edges" field');
-                }
-            }
-
-            processData(data) {
-                // Check for Tier 3 metrics in node metadata (pageRank, betweenness, closeness)
-                // The fullAnalysis object only contains connectedComponents and bridges
-                const firstNodeWithMetrics = data.nodes.find(n =>
-                    n.metadata?.metrics?.pageRank !== undefined ||
-                    n.metadata?.metrics?.betweenness !== undefined ||
-                    n.metadata?.metrics?.closeness !== undefined
-                );
-                const hasFullAnalysis = !!firstNodeWithMetrics;
-
-                if (!hasFullAnalysis) {
-                    console.warn('Tier 3 metrics unavailable in node metadata, using Tier 1 fallback');
-                }
-                return { ...data, hasFullAnalysis };
-            }
-
-            showError(message) {
-                const banner = document.getElementById('errorBanner');
-                if (!banner) {
-                    console.error('Error banner not found:', message);
-                    return;
-                }
-                banner.textContent = `Error: ${message}`;
-                banner.style.display = 'flex';
-            }
-
-            showWarning(message) {
-                const banner = document.getElementById('warningBanner');
-                if (!banner) {
-                    console.warn('Warning banner not found:', message);
-                    return;
-                }
-                banner.textContent = `Warning: ${message}`;
-                banner.style.display = 'flex';
-            }
-        }
-
-        /**
-         * Quadtree node for Barnes-Hut optimization (O(n log n) repulsion)
-         */
-        class QuadTreeNode {
-            constructor(bounds, maxCapacity = 10, maxDepth = 8, depth = 0) {
-                this.bounds = bounds; // {x, y, width, height}
-                this.maxCapacity = maxCapacity;
-                this.maxDepth = maxDepth;
-                this.depth = depth;
-                this.nodes = [];
-                this.children = null; // [nw, ne, sw, se]
-                this.centerOfMass = { x: 0, y: 0, mass: 0 };
-            }
-
-            insert(node) {
-                if (this.children) {
-                    // Internal node: recurse to appropriate quadrant
-                    this.insertIntoChild(node);
-                    this.updateCenterOfMass(node);
-                    return;
-                }
-
-                // Leaf node: add until capacity exceeded
-                this.nodes.push(node);
-                this.updateCenterOfMass(node);
-
-                if (this.nodes.length > this.maxCapacity && this.depth < this.maxDepth) {
-                    this.split();
-                }
-            }
-
-            split() {
-                const { x, y, width, height } = this.bounds;
-                const hw = width / 2, hh = height / 2;
-                this.children = [
-                    new QuadTreeNode({ x, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
-                    new QuadTreeNode({ x: x + hw, y, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
-                    new QuadTreeNode({ x, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1),
-                    new QuadTreeNode({ x: x + hw, y: y + hh, width: hw, height: hh }, this.maxCapacity, this.maxDepth, this.depth + 1)
-                ];
-
-                // Re-insert existing nodes into children
-                for (const node of this.nodes) {
-                    this.insertIntoChild(node);
-                }
-                this.nodes = [];
-            }
-
-            insertIntoChild(node) {
-                for (const child of this.children) {
-                    if (this.contains(child.bounds, node)) {
-                        child.insert(node);
-                        return;
-                    }
-                }
-            }
-
-            contains(bounds, node) {
-                return node.x >= bounds.x && node.x < bounds.x + bounds.width &&
-                       node.y >= bounds.y && node.y < bounds.y + bounds.height;
-            }
-
-            updateCenterOfMass(node) {
-                const totalMass = this.centerOfMass.mass + node.mass;
-                this.centerOfMass.x = (this.centerOfMass.x * this.centerOfMass.mass + node.x * node.mass) / totalMass;
-                this.centerOfMass.y = (this.centerOfMass.y * this.centerOfMass.mass + node.y * node.mass) / totalMass;
-                this.centerOfMass.mass = totalMass;
-            }
-        }
-
-        /**
-         * Force-directed physics simulation with Verlet integration
-         */
-        class ForceSimulation {
-            constructor(nodes, edges) {
-                this.nodes = nodes.map(n => ({ ...n, vx: 0, vy: 0, fx: 0, fy: 0, mass: n.mass || 1 }));
-                this.edges = edges;
-                this.nodeCount = nodes.length;
-                this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
-
-                // Physics constants (from design doc)
-                this.REPULSION_STRENGTH = 1000;
-                this.IDEAL_EDGE_LENGTH = 150;
-                this.SPRING_CONSTANT = 0.05;
-                this.DAMPING = 0.9;
-                this.COOLING_RATE = 0.95;
-                this.MIN_TEMPERATURE = 0.01;
-
-                this.temperature = 1.0;
-                this.active = true;
-                this.iteration = 0;
-                this.MAX_ITERATIONS = 500;
-
-                // Choose algorithm based on node count
-                this.useBarnesHut = this.nodeCount >= 250;
-            }
-
-            update() {
-                if (!this.active) return false;
-
-                // Clear forces
-                for (const node of this.nodes) {
-                    node.fx = 0;
-                    node.fy = 0;
-                }
-
-                if (this.useBarnesHut) {
-                    this.applyBarnesHutRepulsion();
-                } else {
-                    this.applyDirectRepulsion();
-                }
-
-                this.applyAttraction();
-                this.applyForces();
-                this.cool();
-
-                return this.active;
-            }
-
-            applyDirectRepulsion() {
-                // O(n²) repulsion for small graphs
-                for (let i = 0; i < this.nodes.length; i++) {
-                    for (let j = i + 1; j < this.nodes.length; j++) {
-                        const a = this.nodes[i];
-                        const b = this.nodes[j];
-                        const dx = b.x - a.x;
-                        const dy = b.y - a.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        const force = this.REPULSION_STRENGTH / (dist * dist);
-                        const fx = (dx / dist) * force;
-                        const fy = (dy / dist) * force;
-                        a.fx -= fx;
-                        a.fy -= fy;
-                        b.fx += fx;
-                        b.fy += fy;
-                    }
-                }
-            }
-
-            applyBarnesHutRepulsion() {
-                // O(n log n) repulsion using quadtree
-                const bounds = this.computeBounds();
-                const quadtree = new QuadTreeNode(bounds);
-                for (const node of this.nodes) {
-                    quadtree.insert(node);
-                }
-
-                for (const node of this.nodes) {
-                    this.applyRepulsionFromQuadtree(node, quadtree, bounds);
-                }
-            }
-
-            applyRepulsionFromQuadtree(node, quadtree, bounds, theta = 0.5) {
-                if (quadtree.nodes.length === 0 && !quadtree.children) return;
-
-                const dx = quadtree.centerOfMass.x - node.x;
-                const dy = quadtree.centerOfMass.y - node.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const width = bounds.width;
-
-                // If far enough or leaf node, treat as single mass
-                if (width / dist < theta || quadtree.nodes.length > 0) {
-                    const force = this.REPULSION_STRENGTH * quadtree.centerOfMass.mass / (dist * dist);
-                    node.fx -= (dx / dist) * force;
-                    node.fy -= (dy / dist) * force;
-                    return;
-                }
-
-                // Otherwise, recurse into children
-                if (quadtree.children) {
-                    for (const child of quadtree.children) {
-                        this.applyRepulsionFromQuadtree(node, child, child.bounds, theta);
-                    }
-                }
-            }
-
-            computeBounds() {
-                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                for (const node of this.nodes) {
-                    minX = Math.min(minX, node.x);
-                    minY = Math.min(minY, node.y);
-                    maxX = Math.max(maxX, node.x);
-                    maxY = Math.max(maxY, node.y);
-                }
-                return {
-                    x: minX - 100,
-                    y: minY - 100,
-                    width: (maxX - minX) + 200,
-                    height: (maxY - minY) + 200
-                };
-            }
-
-            applyAttraction() {
-                // O(e) spring attraction
-                for (const edge of this.edges) {
-                    const source = this.nodeMap.get(edge.source);
-                    const target = this.nodeMap.get(edge.target);
-                    if (!source || !target) continue;
-
-                    const dx = target.x - source.x;
-                    const dy = target.y - source.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const force = (dist - this.IDEAL_EDGE_LENGTH) * this.SPRING_CONSTANT;
-                    const fx = (dx / dist) * force;
-                    const fy = (dy / dist) * force;
-
-                    source.fx += fx;
-                    source.fy += fy;
-                    target.fx -= fx;
-                    target.fy -= fy;
-                }
-            }
-
-            applyForces() {
-                // Verlet integration with damping
-                for (const node of this.nodes) {
-                    node.vx = (node.vx + node.fx) * this.DAMPING;
-                    node.vy = (node.vy + node.fy) * this.DAMPING;
-                    node.x += node.vx;
-                    node.y += node.vy;
-                }
-            }
-
-            cool() {
-                this.temperature *= this.COOLING_RATE;
-                this.iteration++;
-
-                if (this.temperature < this.MIN_TEMPERATURE || this.iteration > this.MAX_ITERATIONS) {
-                    this.active = false;
-                }
-            }
-
-            restart() {
-                this.active = true;
-                this.temperature = 1.0;
-                this.iteration = 0;
-            }
-
-            setNodePosition(nodeId, x, y) {
-                const node = this.nodeMap.get(nodeId);
-                if (node) {
-                    node.x = x;
-                    node.y = y;
-                    node.vx = 0;
-                    node.vy = 0;
-                }
-            }
-        }
-
-        /**
-         * GraphCanvas: Canvas-based graph renderer with Tier 3 metrics visualization
-         */
-        class GraphCanvas {
-            constructor(canvasId, data) {
-                this.canvas = document.getElementById(canvasId);
-                this.ctx = this.canvas.getContext('2d');
-                this.data = data;
-                this.pageRankThreshold = this.computePageRankThreshold();
-                this.nodes = data.nodes.map(n => this.initNode(n));
-                this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
-                this.edges = data.edges;
-
-                // View state
-                this.viewLevel = 'DOMAIN'; // 'DOMAIN' or 'CLASS'
-                this.expandedDomain = null;
-                this.selectedNode = null;
-                this.hoveredNode = null;
-
-                // Transform
-                this.transform = { x: 0, y: 0, k: 1 };
-                this.isDragging = false;
-                this.isPanning = false;
-                this.lastMouse = { x: 0, y: 0 };
-
-                // Physics
-                this.simulation = new ForceSimulation(this.nodes, this.edges);
-
-                // Animation
-                this.particles = this.initParticles();
-                this.lastTime = 0;
-                this._fadeStartTime = 0; // for node fade-in
-
-                // Reduced motion preference
-                this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-                this.resize();
-                window.addEventListener('resize', () => this.resize());
-                this.setupInteraction();
-            }
-
-            initNode(nodeData) {
-                // Map Tier 3 metrics to visual properties
-                const pageRank = nodeData.metadata?.metrics?.pageRank || 0;
-                const betweenness = nodeData.metadata?.metrics?.betweenness || 0;
-                const closeness = nodeData.metadata?.metrics?.closeness || 0;
-                const isBridge = nodeData.metadata?.issues?.bridge || false;
-
-                // Short label: class name after last dot
-                const shortLabel = nodeData.id.includes('.')
-                    ? nodeData.id.substring(nodeData.id.lastIndexOf('.') + 1)
-                    : nodeData.id;
-
-                // Node dimensions (capped at 200px for long names)
-                const width = Math.min(200, Math.max(80, shortLabel.length * 7 + 24));
-                const height = 28;
-
-                return {
-                    ...nodeData,
-                    x: Math.random() * this.canvas.width,
-                    y: Math.random() * this.canvas.height,
-                    vx: 0, vy: 0,
-                    // Visual properties
-                    radius: 12 + (betweenness * 30), // kept for backward compat
-                    width, height, shortLabel,
-                    color: this.closenessToColor(closeness),
-                    glow: pageRank >= this.pageRankThreshold ? 10 + (pageRank * 50) : 0,
-                    isBridge,
-                    // Domain grouping
-                    domain: nodeData.domain || 'ungrouped'
-                };
-            }
-
-            computePageRankThreshold() {
-                // Cache the 80th percentile threshold once (was O(n²logn) per node)
-                const pageRanks = this.data.nodes
-                    .map(n => n.metadata?.metrics?.pageRank || 0)
-                    .filter(pr => pr > 0);
-                if (pageRanks.length === 0) return Infinity;
-                const sorted = [...pageRanks].sort((a, b) => a - b);
-                return sorted[Math.floor(sorted.length * 0.8)];
-            }
-
-            closenessToColor(closeness) {
-                // Interpolate blue → green based on closeness
-                // Low closeness (0) → blue: rgb(74, 144, 226)
-                // High closeness (1) → green: rgb(74, 222, 128)
-                const r = 74;  // Constant red channel
-                const g = Math.floor(144 + (222 - 144) * closeness);  // 144 → 222
-                const b = Math.floor(226 + (128 - 226) * closeness);  // 226 → 128
-                return `rgb(${r}, ${g}, ${b})`;
-            }
-
-            initParticles() {
-                // Create particles for edge flow animation
-                return this.edges.map(edge => ({
-                    edge,
-                    progress: Math.random(),
-                    speed: 0.005 + Math.random() * 0.01
-                }));
-            }
-
-            resize() {
-                const parent = this.canvas.parentElement;
-                const w = parent.clientWidth;
-                const h = parent.clientHeight;
-                this.canvas.width = w;
-                this.canvas.height = h;
-                console.log('Canvas resized:', { w, h });
-                if (w === 0 || h === 0) {
-                    console.warn('Canvas has zero dimension - will retry after layout');
-                }
-            }
-
-            setupInteraction() {
-                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
-                this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
-                this.canvas.addEventListener('click', (e) => this.onClick(e));
-
-                // Keyboard
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') this.returnToDomainView();
-                });
-            }
-
-            onMouseMove(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const mx = (e.clientX - rect.left - this.transform.x) / this.transform.k;
-                const my = (e.clientY - rect.top - this.transform.y) / this.transform.k;
-
-                // AABB hit test for rounded rect nodes
-                const prevHovered = this.hoveredNode;
-                this.hoveredNode = null;
-                for (let i = this.nodes.length - 1; i >= 0; i--) {
-                    const n = this.nodes[i];
-                    const hw = n.width / 2;
-                    const hh = n.height / 2;
-                    if (mx >= n.x - hw && mx <= n.x + hw &&
-                        my >= n.y - hh && my <= n.y + hh) {
-                        this.hoveredNode = n;
-                        break;
-                    }
-                }
-
-                this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
-
-                // Tooltip show/hide
-                if (this.hoveredNode && !this.isPanning && !this.isDragging) {
-                    this.showTooltip(this.hoveredNode);
-                } else {
-                    this.hideTooltip();
-                }
-
-                // Handle panning
-                if (this.isPanning) {
-                    this.transform.x += e.clientX - this.lastMouse.x;
-                    this.transform.y += e.clientY - this.lastMouse.y;
-                    this.hideTooltip();
-                }
-
-                this.lastMouse = { x: e.clientX, y: e.clientY };
-
-                // Announce to screen reader
-                if (this.hoveredNode && this.hoveredNode !== prevHovered) {
-                    this.announceHover();
-                }
-            }
-
-            onMouseDown(e) {
-                this.hideTooltip();
-                if (this.hoveredNode) {
-                    this.isDragging = true;
-                } else {
-                    this.isPanning = true;
-                }
-            }
-
-            onMouseUp(e) {
-                this.isDragging = false;
-                this.isPanning = false;
-            }
-
-            onWheel(e) {
-                e.preventDefault();
-                this.hideTooltip();
-                clearTimeout(this._zoomTooltipTimer);
-
-                const zoomFactor = 1.1;
-                const newK = e.deltaY < 0 ? this.transform.k * zoomFactor : this.transform.k / zoomFactor;
-
-                // Clamp zoom
-                const clampedK = Math.max(0.1, Math.min(5, newK));
-
-                // Zoom toward mouse position
-                const rect = this.canvas.getBoundingClientRect();
-                const mx = e.clientX - rect.left;
-                const my = e.clientY - rect.top;
-
-                this.transform.x = mx - (mx - this.transform.x) * (clampedK / this.transform.k);
-                this.transform.y = my - (my - this.transform.y) * (clampedK / this.transform.k);
-                this.transform.k = clampedK;
-
-                // Re-show tooltip after zoom settles if still hovering
-                this._zoomTooltipTimer = setTimeout(() => {
-                    if (this.hoveredNode && !this.isPanning) {
-                        this.showTooltip(this.hoveredNode);
-                    }
-                }, 300);
-            }
-
-            onClick(e) {
-                if (this.hoveredNode) {
-                    this.onNodeClick(this.hoveredNode);
-                } else {
-                    this.selectedNode = null;
-                    this.announceSelection();
-                }
-            }
-
-            onNodeClick(node) {
-                if (this.viewLevel === 'DOMAIN' && node.domain) {
-                    this.expandDomain(node.domain);
-                } else {
-                    this.selectedNode = node;
-                    this.announceSelection();
-                }
-            }
-
-            expandDomain(domainId) {
-                // Position inheritance: seed class nodes at parent domain position
-                const domainNode = this.nodeMap.get(domainId) || this.nodes.find(n => n.domain === domainId);
-                if (!domainNode) return;
-
-                this.viewLevel = 'CLASS';
-                this.expandedDomain = domainId;
-
-                // Set class node positions to parent position
-                for (const node of this.nodes) {
-                    if (node.domain === domainId && node.id !== domainId) {
-                        this.simulation.setNodePosition(node.id, domainNode.x, domainNode.y);
-                    }
-                }
-
-                // Restart physics for expansion animation
-                this.simulation.restart();
-
-                // Announce
-                this.announceViewChange(`Now showing classes in ${domainId} domain`);
-            }
-
-            returnToDomainView() {
-                if (this.viewLevel === 'CLASS') {
-                    this.viewLevel = 'DOMAIN';
-                    this.expandedDomain = null;
-                    this.selectedNode = null;
-                    this.simulation.restart();
-                    this.announceViewChange('Returned to domain overview');
-                }
-            }
-
-            start() {
-                requestAnimationFrame((t) => this.render(t));
-            }
-
-            render(timestamp) {
-                const dt = timestamp - this.lastTime;
-                this.lastTime = timestamp;
-
-                // Track fade-in start
-                if (!this._fadeStartTime) this._fadeStartTime = timestamp;
-
-                // Update physics (skip if reduced motion - use static positions)
-                if (!this.reducedMotion) {
-                    this.simulation.update();
-                }
-
-                // Update particles
-                if (!this.reducedMotion) {
-                    this.updateParticles();
-                }
-
-                // Clear
-                if (this.canvas.width === 0 || this.canvas.height === 0) {
-                    console.warn('Render: Canvas has zero dimension, skipping render');
-                    requestAnimationFrame((t) => this.render(t));
-                    return;
-                }
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-                // Debug log first render
-                if (this.lastTime === 0) {
-                    console.log('First render:', {
-                        canvasSize: { w: this.canvas.width, h: this.canvas.height },
-                        nodes: this.nodes.length,
-                        edges: this.edges.length
-                    });
-                }
-
-                // Apply transform
-                this.ctx.save();
-                this.ctx.translate(this.transform.x, this.transform.y);
-                this.ctx.scale(this.transform.k, this.transform.k);
-
-                // Draw edges
-                this.drawEdges();
-
-                // Draw nodes
-                this.drawNodes();
-
-                this.ctx.restore();
-
-                // Update tooltip position to follow node during physics
-                this.updateTooltip();
-
-                requestAnimationFrame((t) => this.render(t));
-            }
-
-            drawEdges() {
-                for (const particle of this.particles) {
-                    const source = this.nodeMap.get(particle.edge.source);
-                    const target = this.nodeMap.get(particle.edge.target);
-                    if (!source || !target) continue;
-
-                    // Draw edge
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(source.x, source.y);
-                    this.ctx.lineTo(target.x, target.y);
-                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.stroke();
-
-                    // Draw particle (if selected or always flowing)
-                    if (!this.selectedNode || this.selectedNode.id === particle.edge.source) {
-                        const px = source.x + (target.x - source.x) * particle.progress;
-                        const py = source.y + (target.y - source.y) * particle.progress;
-
-                        this.ctx.beginPath();
-                        this.ctx.arc(px, py, 2, 0, Math.PI * 2);
-                        this.ctx.fillStyle = this.selectedNode ? '#4ade80' : 'rgba(255, 255, 255, 0.5)';
-                        this.ctx.fill();
-                    }
-                }
-            }
-
-            drawNodes() {
-                const k = this.transform.k;
-                const isFar = k < 0.5;
-                const isClose = k > 1.5;
-
-                // Fade-in: 500ms from first render
-                const fadeElapsed = this.lastTime - this._fadeStartTime;
-                const fadeIn = this.reducedMotion ? 1 : Math.min(1, fadeElapsed / 500);
-
-                for (const node of this.nodes) {
-                    // Skip if not in view
-                    if (this.viewLevel === 'CLASS' && node.domain !== this.expandedDomain) {
-                        this.ctx.globalAlpha = 0.3 * fadeIn;
-                    } else {
-                        this.ctx.globalAlpha = fadeIn;
-                    }
-
-                    const hw = node.width / 2;
-                    const hh = node.height / 2;
-
-                    // Far zoom: render as 6px dots
-                    if (isFar) {
-                        this.ctx.beginPath();
-                        this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2);
-                        this.ctx.fillStyle = node.color;
-                        this.ctx.fill();
-                        this.ctx.globalAlpha = 1;
-                        continue;
-                    }
-
-                    // Glow (top 20% PageRank)
-                    if (node.glow > 0) {
-                        this.ctx.shadowBlur = node.glow;
-                        this.ctx.shadowColor = node.color;
-                    } else {
-                        this.ctx.shadowBlur = 0;
-                    }
-
-                    // Gradient fill: closeness color to 20% darker
-                    const grad = this.ctx.createLinearGradient(
-                        node.x, node.y - hh,
-                        node.x, node.y + hh
-                    );
-                    grad.addColorStop(0, node.color);
-                    grad.addColorStop(1, this.darkenColor(node.color, 0.2));
-
-                    // Rounded rect
-                    this.drawRoundedRect(node.x - hw, node.y - hh, node.width, node.height, 4);
-                    this.ctx.fillStyle = grad;
-                    this.ctx.fill();
-
-                    // Border
-                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.10)';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.stroke();
-
-                    // Bridge indicator (marching ants)
-                    if (node.isBridge) {
-                        this.ctx.strokeStyle = '#4ade80';
-                        this.ctx.lineWidth = 2;
-                        this.ctx.setLineDash([4, 4]);
-                        this.ctx.lineDashOffset = -Date.now() / 50;
-                        this.ctx.stroke();
-                        this.ctx.setLineDash([]);
-                    }
-
-                    // Selection highlight
-                    if (node === this.selectedNode) {
-                        this.ctx.strokeStyle = '#4ade80';
-                        this.ctx.lineWidth = 3;
-                        this.ctx.stroke();
-                    }
-
-                    // Hover highlight
-                    if (node === this.hoveredNode) {
-                        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                        this.ctx.lineWidth = 2;
-                        this.ctx.stroke();
-                    }
-
-                    // Label (medium and close zoom)
-                    this.ctx.shadowBlur = 0;
-                    this.ctx.fillStyle = '#fafafa';
-                    this.ctx.font = '11px Geist Mono';
-                    this.ctx.textAlign = 'center';
-                    this.ctx.textBaseline = 'middle';
-                    this.ctx.fillText(node.shortLabel, node.x, node.y, node.width - 8);
-
-                    // Betweenness bar (close zoom only)
-                    if (isClose) {
-                        const betweenness = node.metadata?.metrics?.betweenness || 0;
-                        const barWidth = node.width * Math.min(1, betweenness);
-                        if (barWidth > 0) {
-                            this.ctx.fillStyle = '#4ade80';
-                            this.ctx.fillRect(node.x - hw, node.y + hh - 2, barWidth, 2);
-                        }
-                    }
-
-                    this.ctx.globalAlpha = 1;
-                }
-            }
-
-            drawRoundedRect(x, y, w, h, r) {
-                this.ctx.beginPath();
-                if (this.ctx.roundRect) {
-                    this.ctx.roundRect(x, y, w, h, r);
-                } else {
-                    // Fallback for browsers without roundRect
-                    this.ctx.moveTo(x + r, y);
-                    this.ctx.arcTo(x + w, y, x + w, y + h, r);
-                    this.ctx.arcTo(x + w, y + h, x, y + h, r);
-                    this.ctx.arcTo(x, y + h, x, y, r);
-                    this.ctx.arcTo(x, y, x + w, y, r);
-                    this.ctx.closePath();
-                }
-            }
-
-            darkenColor(rgb, amount) {
-                // Parse rgb(r, g, b) and darken by amount (0-1)
-                if (!rgb.startsWith('rgb(')) return rgb;
-                const match = rgb.match(/\d+/g);
-                if (!match) return rgb;
-                const r = Math.max(0, Math.floor(parseInt(match[0]) * (1 - amount)));
-                const g = Math.max(0, Math.floor(parseInt(match[1]) * (1 - amount)));
-                const b = Math.max(0, Math.floor(parseInt(match[2]) * (1 - amount)));
-                return `rgb(${r}, ${g}, ${b})`;
-            }
-
-            updateParticles() {
-                for (const particle of this.particles) {
-                    particle.progress += particle.speed;
-                    if (particle.progress > 1) {
-                        particle.progress = 0;
-                    }
-                }
-            }
-
-            showTooltip(node) {
-                const tooltip = document.getElementById('nodeTooltip');
-                if (!tooltip) return;
-
-                // Populate content
-                const nameEl = document.getElementById('tooltipName');
-                const packageEl = document.getElementById('tooltipPackage');
-                const iconEl = document.getElementById('tooltipIcon');
-                const prEl = document.getElementById('tooltipPageRank');
-                const betEl = document.getElementById('tooltipBetweenness');
-                const closeEl = document.getElementById('tooltipCloseness');
-                const badgesEl = document.getElementById('tooltipBadges');
-                const badgeSep = document.getElementById('tooltipBadgeSeparator');
-                const fanInEl = document.getElementById('tooltipFanIn');
-                const fanOutEl = document.getElementById('tooltipFanOut');
-
-                const shortLabel = node.shortLabel || node.id;
-                const packagePath = node.id.includes('.') ? node.id.substring(0, node.id.lastIndexOf('.')) : '';
-
-                nameEl.textContent = shortLabel;
-                packageEl.textContent = packagePath;
-                iconEl.textContent = this.getDomainIcon(node.domain);
-
-                // Metrics
-                const metrics = node.metadata?.metrics;
-                if (metrics) {
-                    prEl.textContent = (metrics.pageRank || 0).toFixed(3);
-                    betEl.textContent = (metrics.betweenness || 0).toFixed(3);
-                    closeEl.textContent = (metrics.closeness || 0).toFixed(3);
-                } else {
-                    prEl.textContent = '---';
-                    betEl.textContent = '---';
-                    closeEl.textContent = '---';
-                }
-
-                // Badges
-                const issues = node.metadata?.issues || {};
-                const badges = [];
-                if (issues.hotspot) badges.push('<span class="tooltip-badge hotspot">Hotspot</span>');
-                if (issues.cycle) badges.push('<span class="tooltip-badge cycle">Cycle</span>');
-                if (issues.bridge || node.isBridge) badges.push('<span class="tooltip-badge bridge">Bridge</span>');
-                if (issues.blindspot) badges.push('<span class="tooltip-badge blindspot">Blind Spot</span>');
-
-                if (badges.length > 0) {
-                    badgesEl.innerHTML = badges.join('');
-                    badgesEl.style.display = '';
-                    badgeSep.style.display = '';
-                } else {
-                    badgesEl.innerHTML = '';
-                    badgesEl.style.display = 'none';
-                    badgeSep.style.display = 'none';
-                }
-
-                // Fan-in / fan-out
-                const fanIn = this.edges.filter(e => e.target === node.id).length;
-                const fanOut = this.edges.filter(e => e.source === node.id).length;
-                fanInEl.textContent = `\u2190 ${fanIn} deps`;
-                fanOutEl.textContent = `${fanOut} deps \u2192`;
-
-                // Position tooltip
-                this.updateTooltipPosition(node);
-
-                tooltip.classList.add('visible');
-                tooltip.setAttribute('aria-hidden', 'false');
-                this._tooltipNode = node;
-            }
-
-            hideTooltip() {
-                const tooltip = document.getElementById('nodeTooltip');
-                if (tooltip) {
-                    tooltip.classList.remove('visible');
-                    tooltip.setAttribute('aria-hidden', 'true');
-                }
-                this._tooltipNode = null;
-            }
-
-            updateTooltipPosition(node) {
-                const tooltip = document.getElementById('nodeTooltip');
-                if (!tooltip || !node) return;
-
-                const rect = this.canvas.getBoundingClientRect();
-                // Canvas coords to screen coords
-                const screenX = node.x * this.transform.k + this.transform.x + rect.left;
-                const screenY = node.y * this.transform.k + this.transform.y + rect.top;
-
-                const arrow = document.getElementById('tooltipArrow');
-                const tooltipRect = tooltip.getBoundingClientRect();
-                const tw = tooltipRect.width || 280;
-                const th = tooltipRect.height || 200;
-
-                // Default: above node, centered
-                let left = screenX - tw / 2;
-                let top = screenY - node.height / 2 * this.transform.k - th - 16;
-                let arrowClass = 'below'; // arrow at bottom of tooltip, pointing down to node
-
-                // Edge flip: if too close to top, show below node
-                if (top < rect.top + 10) {
-                    top = screenY + node.height / 2 * this.transform.k + 16;
-                    arrowClass = 'above'; // arrow at top of tooltip, pointing up to node
-                }
-
-                // Horizontal clamp
-                left = Math.max(8, Math.min(window.innerWidth - tw - 8, left));
-
-                tooltip.style.transform = `translate(${left}px, ${top}px)`;
-                tooltip.style.left = '0';
-                tooltip.style.top = '0';
-
-                arrow.className = 'node-tooltip-arrow ' + arrowClass;
-            }
-
-            updateTooltip() {
-                // Called each frame to keep tooltip following node during physics
-                if (this._tooltipNode) {
-                    this.updateTooltipPosition(this._tooltipNode);
-                }
-            }
-
-            getDomainIcon(domain) {
-                const icons = {
-                    core: '\u2B21', graph: '\u2B21', viz: '\u25C9',
-                    cli: '\u25B8', plugin: '\u25C6', service: '\u25CF',
-                    analysis: '\u25CE', util: '\u25CB',
-                    ungrouped: '\u25A1'
-                };
-                return icons[domain] || '\u2B21';
-            }
-
-            announceHover() {
-                if (this.hoveredNode) {
-                    this.announceToScreenReader(`${this.hoveredNode.id}`);
-                }
-            }
-
-            announceSelection() {
-                if (this.selectedNode) {
-                    const metrics = this.data.fullAnalysis ? 'with Tier 3 metrics' : 'Tier 1 only';
-                    this.announceToScreenReader(`Selected ${this.selectedNode.id}, ${metrics}`);
-                }
-            }
-
-            announceViewChange(message) {
-                this.announceToScreenReader(message);
-            }
-
-            announceToScreenReader(message) {
-                const announcer = document.getElementById('canvasAnnouncer');
-                if (announcer) {
-                    announcer.textContent = message;
-                }
-            }
-        }
-
-
-        // Initialize when DOM is ready
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Check canvas support
-            const canvas = document.getElementById('graphCanvas');
-            if (!canvas.getContext) {
-                showError('Your browser does not support HTML5 Canvas. Please upgrade to a modern browser.');
-                return;
-            }
-
-            // Load data
-            const dataManager = new DataManager();
-            let data;
-            try {
-                data = await dataManager.load();
-            } catch (e) {
-                console.error('Failed to load graph data:', e);
-                return;
-            }
-
-            // Hide loading overlay
-            document.getElementById('loadingOverlay').style.display = 'none';
-
-            // Handle empty state
-            if (!data.nodes || data.nodes.length === 0) {
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#a1a1aa';
-                ctx.font = '16px Inter, system-ui, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('No dependencies found', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-
-            // Initialize canvas with loaded data
-            window.graphCanvas = new GraphCanvas('graphCanvas', data);
-
-            // Ensure canvas has proper size before starting
-            // Use requestAnimationFrame to ensure layout is complete
-            requestAnimationFrame(() => {
-                window.graphCanvas.resize();
-                requestAnimationFrame(() => {
-                    window.graphCanvas.start();
-                });
-            });
-
-            // Also resize on window load (final layout)
-            window.addEventListener('load', () => {
-                if (window.graphCanvas) {
-                    window.graphCanvas.resize();
-                }
-            });
-
-            // Populate sidebar (keep existing DOM sidebar for accessibility)
-            try {
-                renderSidebar(data);
-                updateStatusBar(data);
-                updateSidebarStats(data);
-            } catch (e) {
-                console.error('Failed to render sidebar:', e);
-                showError('Failed to render sidebar: ' + e.message);
-            }
-        });
-
-        function updateSidebarStats(data) {
-            // Update sidebar stats
-            const sidebarStats = document.querySelector('.sidebar-stats');
-            if (sidebarStats) {
-                const numModules = new Set(data.nodes.map(n => n.domain || 'ungrouped')).size;
-                const numClasses = data.nodes.length;
-                sidebarStats.innerHTML = `
-                    <span>${numModules} modules</span>
-                    <span>${numClasses} classes</span>
-                `;
-            }
-        }
-
-        function renderSidebar(data) {
-            // Group nodes by domain
-            const domains = {};
-            for (const node of data.nodes) {
-                const domain = node.domain || 'ungrouped';
-                if (!domains[domain]) {
-                    domains[domain] = { name: domain, nodes: [] };
-                }
-                domains[domain].nodes.push(node);
-            }
-
-            // Render domain list
-            const domainList = document.getElementById('domainList');
-            domainList.innerHTML = '';
-
-            for (const [domainId, domain] of Object.entries(domains)) {
-                const domainItem = document.createElement('div');
-                domainItem.className = 'domain-item';
-                domainItem.dataset.health = calculateDomainHealth(domain.nodes, data);
-
-                const health = domainItem.dataset.health;
-
-                // Create domain node using DOM methods (no innerHTML for safety)
-                const domainNode = document.createElement('div');
-                domainNode.className = 'domain-node';
-                domainNode.dataset.domain = domainId;
-
-                const domainIcon = document.createElement('span');
-                domainIcon.className = 'domain-icon';
-                domainIcon.textContent = getDomainIcon(domainId);
-
-                const domainName = document.createElement('span');
-                domainName.className = 'domain-name';
-                domainName.textContent = domainId;
-
-                const domainMeta = document.createElement('div');
-                domainMeta.className = 'domain-meta';
-
-                const classCount = document.createElement('span');
-                classCount.className = 'class-count';
-                classCount.textContent = domain.nodes.length;
-
-                const healthIndicator = document.createElement('span');
-                healthIndicator.className = `health-indicator ${health}`;
-
-                const chevron = document.createElement('span');
-                chevron.className = 'chevron';
-                chevron.textContent = '▶';
-
-                domainMeta.append(classCount, healthIndicator, chevron);
-                domainNode.append(domainIcon, domainName, domainMeta);
-
-                // Create class list using DOM methods
-                const classList = document.createElement('div');
-                classList.className = 'class-list';
-                classList.dataset.domain = domainId;
-
-                for (const node of domain.nodes) {
-                    const classItem = document.createElement('div');
-                    classItem.className = 'class-item';
-                    classItem.dataset.node = node.id;
-
-                    // Calculate individual class health
-                    const isHotspot = node.metadata?.issues?.hotspot;
-                    const isInCycle = node.metadata?.issues?.cycle;
-                    const hasBlindSpots = node.metadata?.issues?.blindSpots?.length > 0;
-                    const riskLevel = node.metadata?.metrics?.riskLevel;
-                    const isBridge = node.metadata?.issues?.bridge;
-
-                    let classHealth = 'healthy';
-                    if (isHotspot || isInCycle) classHealth = 'error';
-                    else if (riskLevel === 'high' || hasBlindSpots || isBridge) classHealth = 'warning';
-
-                    const classIcon = document.createElement('span');
-                    classIcon.className = 'class-icon';
-                    classIcon.textContent = '⬡';
-
-                    const classText = document.createElement('span');
-                    classText.textContent = node.id;
-
-                    const classHealthIndicator = document.createElement('span');
-                    classHealthIndicator.className = `class-health-indicator ${classHealth}`;
-                    classHealthIndicator.title = `${classHealth}: ${isHotspot ? 'hotspot' : isInCycle ? 'cycle' : riskLevel || 'healthy'}`;
-
-                    classItem.append(classIcon, classText, classHealthIndicator);
-                    classList.appendChild(classItem);
-                }
-
-                domainItem.append(domainNode, classList);
-                domainList.appendChild(domainItem);
-
-                // Domain click handler
-                domainNode.addEventListener('click', () => {
-                    const wasExpanded = domainNode.classList.contains('expanded');
-
-                    // Collapse all others
-                    document.querySelectorAll('.domain-node').forEach(n => {
-                        n.classList.remove('expanded', 'active');
-                        n.nextElementSibling.classList.remove('visible');
-                    });
-
-                    // Toggle current
-                    if (!wasExpanded) {
-                        domainNode.classList.add('expanded', 'active');
-                        domainItem.querySelector('.class-list').classList.add('visible');
-
-                        // Trigger canvas domain expansion
-                        if (window.graphCanvas) {
-                            window.graphCanvas.expandDomain(domainId);
-                        }
-                    }
-                });
-            }
-        }
-
-        function updateStatusBar(data) {
-            // Update modules count
-            const numModules = new Set(data.nodes.map(n => n.domain || 'ungrouped')).size;
-            const modulesEl = document.querySelector('.status-left .status-item:nth-child(1) .status-value');
-            if (modulesEl) modulesEl.textContent = numModules;
-
-            // Update classes count
-            const numClasses = data.nodes.length;
-            const classesEl = document.querySelector('.status-left .status-item:nth-child(2) .status-value');
-            if (classesEl) classesEl.textContent = numClasses;
-
-            // Update dependencies count
-            const numDeps = data.edges.length;
-            const depsEl = document.querySelector('.status-left .status-item:nth-child(3) .status-value');
-            if (depsEl) depsEl.textContent = numDeps;
-
-            // Update hotspot count
-            const hotspotBadge = document.getElementById('hotspotBadge');
-            const hotspotCountEl = document.getElementById('hotspotCount');
-            if (hotspotBadge && hotspotCountEl) {
-                const numHotspots = data.hotspots?.length || 0;
-                hotspotCountEl.textContent = numHotspots;
-                if (numHotspots > 0) {
-                    hotspotBadge.style.display = 'flex';
-                }
-            }
-
-            // Update cycle count
-            const cycleBadge = document.getElementById('cycleBadge');
-            const cycleCountEl = document.getElementById('cycleCount');
-            if (cycleBadge && cycleCountEl) {
-                const numCycles = data.cycles?.length || 0;
-                cycleCountEl.textContent = numCycles;
-                if (numCycles > 0) {
-                    cycleBadge.style.display = 'flex';
-                }
-            }
+    <script src="archon-self-data.js"></script>
+    <script type="module">
+        import { GraphController } from '/src/graphController.ts';
+        import { DataManager } from '/src/dataManager.ts';
+
+        // ── Helpers ──────────────────────────────────────────────────────
+
+        function getDomainIcon(domainId) {
+            const icons = {
+                'CORE': '\u{1F4E6}', 'archon-core': '\u{1F4E6}',
+                'archon-java': '\u2615', 'archon-js': '\u{1F4DC}',
+                'archon-python': '\u{1F40D}', 'archon-cli': '\u2328\uFE0F',
+                'archon-viz': '\u{1F3A8}', 'archon-test': '\u{1F9EA}'
+            };
+            return icons[domainId] || '\u{1F4C1}';
         }
 
         function calculateDomainHealth(nodes, data) {
-            // Check against actual hotspots and cycles from backend data
             const hotspotIds = new Set((data.hotspots || []).map(h => h.id));
             const cycleNodeIds = new Set();
             for (const cycle of (data.cycles || [])) {
@@ -2261,57 +1107,195 @@
             return 'healthy';
         }
 
-        function getDomainIcon(domainId) {
-            // Map domain IDs to icons
-            const icons = {
-                'CORE': '📦', 'archon-core': '📦',
-                'archon-java': '☕', 'archon-js': '📜',
-                'archon-python': '🐍', 'archon-cli': '⌨️',
-                'archon-viz': '🎨', 'archon-test': '🧪'
-            };
-            return icons[domainId] || '📁';
-        }
-
         function showError(message) {
             const banner = document.getElementById('errorBanner');
-            banner.textContent = message;
-            banner.style.display = 'flex';
+            if (banner) {
+                banner.textContent = message;
+                banner.style.display = 'flex';
+            }
         }
 
-        // Theme toggle
-        const themeBtns = document.querySelectorAll('.theme-btn');
-        const body = document.body;
+        // ── Sidebar rendering (safe DOM APIs, no innerHTML) ─────────────
 
+        function renderSidebar(data) {
+            const domains = {};
+            for (const node of data.nodes) {
+                const domain = node.domain || 'ungrouped';
+                if (!domains[domain]) {
+                    domains[domain] = { name: domain, nodes: [] };
+                }
+                domains[domain].nodes.push(node);
+            }
+
+            const domainList = document.getElementById('domainList');
+            while (domainList.firstChild) {
+                domainList.removeChild(domainList.firstChild);
+            }
+
+            for (const [domainId, domain] of Object.entries(domains)) {
+                const domainItem = document.createElement('div');
+                domainItem.className = 'domain-item';
+                domainItem.dataset.health = calculateDomainHealth(domain.nodes, data);
+
+                const health = domainItem.dataset.health;
+
+                const domainNode = document.createElement('div');
+                domainNode.className = 'domain-node';
+                domainNode.dataset.domain = domainId;
+
+                const domainIcon = document.createElement('span');
+                domainIcon.className = 'domain-icon';
+                domainIcon.textContent = getDomainIcon(domainId);
+
+                const domainName = document.createElement('span');
+                domainName.className = 'domain-name';
+                domainName.textContent = domainId;
+
+                const domainMeta = document.createElement('div');
+                domainMeta.className = 'domain-meta';
+
+                const classCount = document.createElement('span');
+                classCount.className = 'class-count';
+                classCount.textContent = domain.nodes.length;
+
+                const healthIndicator = document.createElement('span');
+                healthIndicator.className = `health-indicator ${health}`;
+
+                const chevron = document.createElement('span');
+                chevron.className = 'chevron';
+                chevron.textContent = '\u25B6';
+
+                domainMeta.append(classCount, healthIndicator, chevron);
+                domainNode.append(domainIcon, domainName, domainMeta);
+
+                const classList = document.createElement('div');
+                classList.className = 'class-list';
+                classList.dataset.domain = domainId;
+
+                for (const node of domain.nodes) {
+                    const classItem = document.createElement('div');
+                    classItem.className = 'class-item';
+                    classItem.dataset.node = node.id;
+
+                    const isHotspot = node.metadata?.issues?.hotspot;
+                    const isInCycle = node.metadata?.issues?.cycle;
+                    const hasBlindSpots = node.metadata?.issues?.blindSpots?.length > 0;
+                    const riskLevel = node.metadata?.metrics?.riskLevel;
+                    const isBridge = node.metadata?.issues?.bridge;
+
+                    let classHealth = 'healthy';
+                    if (isHotspot || isInCycle) classHealth = 'error';
+                    else if (riskLevel === 'high' || hasBlindSpots || isBridge) classHealth = 'warning';
+
+                    const classIcon = document.createElement('span');
+                    classIcon.className = 'class-icon';
+                    classIcon.textContent = '\u2B21';
+
+                    const classText = document.createElement('span');
+                    classText.textContent = node.id;
+
+                    const classHealthIndicator = document.createElement('span');
+                    classHealthIndicator.className = `class-health-indicator ${classHealth}`;
+                    classHealthIndicator.title = `${classHealth}: ${isHotspot ? 'hotspot' : isInCycle ? 'cycle' : riskLevel || 'healthy'}`;
+
+                    classItem.append(classIcon, classText, classHealthIndicator);
+                    classList.appendChild(classItem);
+                }
+
+                domainItem.append(domainNode, classList);
+                domainList.appendChild(domainItem);
+            }
+        }
+
+        function updateSidebarStats(data) {
+            const sidebarStats = document.querySelector('.sidebar-stats');
+            if (!sidebarStats) return;
+
+            const numModules = new Set(data.nodes.map(n => n.domain || 'ungrouped')).size;
+            const numClasses = data.nodes.length;
+
+            // Safe DOM construction -- no innerHTML
+            while (sidebarStats.firstChild) {
+                sidebarStats.removeChild(sidebarStats.firstChild);
+            }
+            const modulesSpan = document.createElement('span');
+            modulesSpan.textContent = `${numModules} modules`;
+            const classesSpan = document.createElement('span');
+            classesSpan.textContent = `${numClasses} classes`;
+            sidebarStats.append(modulesSpan, classesSpan);
+        }
+
+        // ── Theme toggle ────────────────────────────────────────────────
+
+        const themeBtns = document.querySelectorAll('.theme-btn');
         themeBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                const theme = btn.dataset.theme;
-                body.className = `theme-${theme}`;
+                document.body.className = `theme-${btn.dataset.theme}`;
                 themeBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             });
         });
 
-        // Filter chips
+        // ── Filter chips ────────────────────────────────────────────────
+
         const filterChips = document.querySelectorAll('.filter-chip');
         filterChips.forEach(chip => {
             chip.addEventListener('click', () => {
                 filterChips.forEach(c => c.classList.remove('active'));
                 chip.classList.add('active');
                 const filter = chip.dataset.filter;
-
-                // Apply filter logic
-                const domainItems = document.querySelectorAll('.domain-item');
-                domainItems.forEach(item => {
+                document.querySelectorAll('.domain-item').forEach(item => {
                     const health = item.dataset.health || 'healthy';
-                    if (filter === 'all') {
-                        item.style.display = '';
-                    } else if (health === filter) {
-                        item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
-                    }
+                    item.style.display = (filter === 'all' || health === filter) ? '' : 'none';
                 });
             });
+        });
+
+        // ── Initialize ──────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const viewport = document.getElementById('graphViewport');
+            const sidebar = document.getElementById('domainList');
+            if (!viewport || !sidebar) {
+                console.error('Missing viewport or sidebar element');
+                return;
+            }
+
+            // Load data via module DataManager
+            const dataManager = new DataManager();
+            let data;
+            try {
+                data = await dataManager.load();
+            } catch (e) {
+                console.error('Failed to load graph data:', e);
+                return;
+            }
+
+            // Hide loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+
+            // Handle empty state
+            if (!data.nodes || data.nodes.length === 0) {
+                viewport.textContent = 'No dependencies found';
+                viewport.style.display = 'flex';
+                viewport.style.alignItems = 'center';
+                viewport.style.justifyContent = 'center';
+                viewport.style.color = 'var(--text-secondary)';
+                viewport.style.font = '16px Geist, system-ui, sans-serif';
+                return;
+            }
+
+            // Populate sidebar
+            renderSidebar(data);
+            updateSidebarStats(data);
+
+            // Start graph controller (replaces old canvas-based GraphCanvas)
+            const controller = new GraphController(viewport, sidebar, data);
+            controller.start();
+
+            // Expose for debugging
+            window.graphController = controller;
         });
     </script>
 </body>
