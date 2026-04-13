@@ -1,9 +1,11 @@
 package com.archon.cli;
 
+import com.archon.core.analysis.CentralityService;
 import com.archon.core.analysis.CouplingAnalyzer;
 import com.archon.core.analysis.CycleDetector;
 import com.archon.core.analysis.DomainDetector;
 import com.archon.core.analysis.DomainResult;
+import com.archon.core.analysis.FullAnalysisData;
 import com.archon.core.analysis.ThresholdCalculator;
 import com.archon.core.analysis.Thresholds;
 import com.archon.core.config.ArchonConfig;
@@ -17,6 +19,7 @@ import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
 import com.archon.core.viz.DotExporter;
 import com.archon.java.ModuleDetector;
+import com.archon.viz.JsonSerializer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
@@ -37,20 +40,29 @@ import java.util.stream.Collectors;
     mixinStandardHelpOptions = true
 )
 public class AnalyzeCommand implements Callable<Integer> {
-    @Parameters(index = "0", description = "Path to the project root")
-    private String projectPath;
+        @Parameters(index = "0", description = "Path to the project root")
+    String projectPath;
 
     @Option(names = "--json", description = "Output machine-readable JSON")
-    private boolean json;
+    boolean json;
 
     @Option(names = "--dot", description = "Export Graphviz DOT to file")
-    private String dotFile;
+    String dotFile;
 
     @Option(names = "--mermaid", description = "Export Mermaid flowchart to file")
-    private String mermaidFile;
+    String mermaidFile;
 
     @Option(names = "--verbose", description = "Show detailed parsing logs")
-    private boolean verbose;
+    boolean verbose;
+
+    @Option(names = "--quiet", description = "Suppress progress messages (errors still shown)")
+    boolean quiet;
+
+    @Option(names = "--with-metadata", description = "Include metadata field in JSON output for AI integration")
+    boolean withMetadata;
+
+    @Option(names = "--with-full-analysis", description = "Include full analysis (centrality metrics, bridges, components) in JSON output")
+    boolean withFullAnalysis;
 
     @Override
     public Integer call() {
@@ -183,6 +195,32 @@ public class AnalyzeCommand implements Callable<Integer> {
                 System.err.println("Failed to write Mermaid file: " + e.getMessage());
             }
             System.out.println("\nMermaid exported to: " + mermaidFile);
+        }
+
+        // JSON output format (must come before summary to avoid mixing output)
+        if (json) {
+            JsonSerializer serializer = new JsonSerializer();
+            String jsonOutput;
+
+            // Check if full analysis is requested
+            FullAnalysisData fullAnalysis = null;
+            if (withFullAnalysis) {
+                CentralityService centralityService = new CentralityService(graph);
+                fullAnalysis = centralityService.computeFullAnalysis();
+            }
+
+            jsonOutput = serializer.toJson(
+                graph,
+                domainMap,
+                cycles,
+                hotspots,
+                blindSpots,
+                withMetadata,
+                fullAnalysis
+            );
+
+            System.out.println(jsonOutput);
+            return 0;
         }
 
         // Summary

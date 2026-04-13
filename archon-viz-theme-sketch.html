@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archon Viz - Theme Sketch</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0a0a0a;
+            color: #fff;
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid #222;
+        }
+
+        .header h1 {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 2000px;
+            margin: 30px auto;
+        }
+
+        .theme-panel {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .theme-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .theme-header .tag {
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .theme-content {
+            padding: 25px;
+        }
+
+        /* ===== NOC Dark Theme ===== */
+        .theme-noc {
+            background: #000000;
+            border: 1px solid #1a1a1a;
+        }
+
+        .theme-noc .theme-header {
+            background: #0a0a0a;
+            border-bottom: 1px solid #1a1a1a;
+            color: #00FF41;
+        }
+
+        .theme-noc .tag {
+            background: #00FF41;
+            color: #000;
+        }
+
+        .noc-container {
+            background: #000000;
+            position: relative;
+        }
+
+        .noc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #0a0a0a;
+            margin-bottom: 20px;
+        }
+
+        .noc-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: #00FF41;
+            letter-spacing: 2px;
+        }
+
+        .noc-stats {
+            display: flex;
+            gap: 25px;
+        }
+
+        .noc-stat {
+            text-align: center;
+        }
+
+        .noc-stat-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            color: #00FF41;
+        }
+
+        .noc-stat-label {
+            font-size: 9px;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 3px;
+        }
+
+        .noc-layout {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 1px;
+            background: #0a0a0a;
+            min-height: 400px;
+        }
+
+        .noc-sidebar {
+            background: #000000;
+            padding: 15px;
+            border-right: 1px solid #0a0a0a;
+        }
+
+        .noc-tree-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #00FF41;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #1a1a1a;
+        }
+
+        .noc-domain-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            border: 1px solid #1a1a1a;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .noc-domain-item:hover {
+            border-color: #00FF41;
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .noc-domain-item.active {
+            border-color: #00FF41;
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .noc-domain-name {
+            font-size: 12px;
+            color: #fff;
+        }
+
+        .noc-domain-count {
+            margin-left: auto;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .noc-domain-item.health .noc-domain-count { color: #00FF41; }
+        .noc-domain-item.warning .noc-domain-count { color: #FF6B00; }
+
+        .noc-canvas {
+            background: #000000;
+            padding: 20px;
+            position: relative;
+            min-height: 370px;
+        }
+
+        .noc-canvas::before {
+            content: '';
+            position: absolute;
+            inset: 20px;
+            background-image:
+                linear-gradient(rgba(0, 255, 65, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        .noc-graph {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            padding: 40px;
+        }
+
+        .noc-domain-node {
+            border: 2px solid;
+            padding: 15px 25px;
+            border-radius: 4px;
+            text-align: center;
+            position: relative;
+            background: #000000;
+        }
+
+        .noc-domain-node.health {
+            border-color: #00FF41;
+        }
+
+        .noc-domain-node.warning {
+            border-color: #FF6B00;
+        }
+
+        .noc-domain-node.focused {
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .noc-domain-node-name {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .noc-domain-node-count {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
+        .noc-domain-node.health .noc-domain-node-count { color: #00FF41; }
+        .noc-domain-node.warning .noc-domain-node-count { color: #FF6B00; }
+
+        .noc-edge {
+            width: 60px;
+            height: 2px;
+            background: #333;
+            position: relative;
+        }
+
+        .noc-edge::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: -3px;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #333;
+        }
+
+        .noc-edge.highlight {
+            background: #00FF41;
+        }
+
+        .noc-edge.highlight::after {
+            border-top-color: #00FF41;
+        }
+
+        .noc-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #0a0a0a;
+        }
+
+        .noc-btn {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            color: #00FF41;
+            padding: 8px 16px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 150ms ease;
+        }
+
+        .noc-btn:hover {
+            border-color: #00FF41;
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        /* ===== Blueprint Light Theme ===== */
+        .theme-blueprint {
+            background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%);
+            border: 1px solid #cbd5e1;
+        }
+
+        .theme-blueprint .theme-header {
+            background: #ffffff;
+            border-bottom: 1px solid #cbd5e1;
+            color: #0066CC;
+        }
+
+        .theme-blueprint .tag {
+            background: #0066CC;
+            color: #fff;
+        }
+
+        .blueprint-container {
+            background: #ffffff;
+        }
+
+        .blueprint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 2px solid #0066CC;
+            margin-bottom: 20px;
+        }
+
+        .blueprint-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0066CC;
+            letter-spacing: 2px;
+        }
+
+        .blueprint-subtitle {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .blueprint-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .blueprint-stat {
+            text-align: center;
+        }
+
+        .blueprint-stat-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 22px;
+            font-weight: 700;
+            color: #0066CC;
+        }
+
+        .blueprint-stat-label {
+            font-size: 9px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 3px;
+        }
+
+        .blueprint-layout {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 2px;
+            background: #e2e8f0;
+            min-height: 400px;
+        }
+
+        .blueprint-sidebar {
+            background: #ffffff;
+            padding: 15px;
+            border-right: 2px solid #0066CC;
+        }
+
+        .blueprint-tree-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: #0066CC;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed #cbd5e1;
+        }
+
+        .blueprint-domain-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            border: 2px solid #cbd5e1;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 150ms ease;
+            background: #fff;
+        }
+
+        .blueprint-domain-item:hover {
+            border-color: #0066CC;
+            box-shadow: 0 2px 4px rgba(0, 102, 204, 0.1);
+        }
+
+        .blueprint-domain-item.active {
+            border-color: #0066CC;
+            background: #f0f9ff;
+        }
+
+        .blueprint-domain-item.warning {
+            border-color: #f59e0b;
+        }
+
+        .blueprint-domain-item.warning.active {
+            background: #fffbeb;
+        }
+
+        .blueprint-domain-name {
+            font-size: 12px;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        .blueprint-domain-count {
+            margin-left: auto;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0066CC;
+        }
+
+        .blueprint-domain-item.warning .blueprint-domain-count {
+            color: #f59e0b;
+        }
+
+        .blueprint-canvas {
+            background: #ffffff;
+            padding: 20px;
+            position: relative;
+            min-height: 370px;
+        }
+
+        .blueprint-canvas::before {
+            content: '';
+            position: absolute;
+            inset: 20px;
+            background-image:
+                linear-gradient(rgba(0, 102, 204, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 102, 204, 0.03) 1px, transparent 1px);
+            background-size: 15px 15px;
+            pointer-events: none;
+        }
+
+        .blueprint-graph {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 50px;
+            padding: 40px;
+        }
+
+        .blueprint-domain-node {
+            border: 3px solid;
+            padding: 20px 30px;
+            background: #ffffff;
+            box-shadow: 3px 3px 0 rgba(0, 102, 204, 0.1);
+            text-align: center;
+            position: relative;
+        }
+
+        .blueprint-domain-node.health {
+            border-color: #0066CC;
+        }
+
+        .blueprint-domain-node.warning {
+            border-color: #f59e0b;
+            box-shadow: 3px 3px 0 rgba(245, 158, 11, 0.1);
+        }
+
+        .blueprint-domain-node.focused {
+            box-shadow: 0 0 25px rgba(0, 102, 204, 0.2);
+        }
+
+        .blueprint-domain-node-name {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: #0066CC;
+        }
+
+        .blueprint-domain-node.warning .blueprint-domain-node-name {
+            color: #f59e0b;
+        }
+
+        .blueprint-domain-node-count {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 8px;
+        }
+
+        .blueprint-edge {
+            width: 70px;
+            height: 2px;
+            background: #94a3b8;
+            position: relative;
+        }
+
+        .blueprint-edge::after {
+            content: '';
+            position: absolute;
+            right: -5px;
+            top: -4px;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 7px solid #94a3b8;
+        }
+
+        .blueprint-edge.highlight {
+            background: #0066CC;
+        }
+
+        .blueprint-edge.highlight::after {
+            border-top-color: #0066CC;
+        }
+
+        .blueprint-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .blueprint-btn {
+            background: #ffffff;
+            border: 2px solid #0066CC;
+            color: #0066CC;
+            padding: 8px 16px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 150ms ease;
+        }
+
+        .blueprint-btn:hover {
+            background: #0066CC;
+            color: #fff;
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 20px;
+            padding: 15px 20px;
+            border-top: 1px solid #222;
+        }
+
+        .legend-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .legend-items {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border: 2px solid;
+            border-radius: 2px;
+        }
+
+        .theme-noc .legend-color.success {
+            background: #00FF41;
+            border-color: #00FF41;
+        }
+
+        .theme-noc .legend-color.warning {
+            background: #FF6B00;
+            border-color: #FF6B00;
+        }
+
+        .theme-noc .legend-color.error {
+            background: transparent;
+            border-color: #FF0000;
+        }
+
+        .theme-blueprint .legend-color.success {
+            background: #0066CC;
+            border-color: #0066CC;
+        }
+
+        .theme-blueprint .legend-color.warning {
+            background: #f59e0b;
+            border-color: #f59e0b;
+        }
+
+        .theme-blueprint .legend-color.error {
+            background: transparent;
+            border-color: #dc2626;
+        }
+
+        .theme-blueprint .legend-label {
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ARCHON VIZ — THEME SKETCH</h1>
+        <p style="color: #666; font-size: 14px;">Dark: NOC Monitoring Room | Light: Technical Blueprint</p>
+    </div>
+
+    <div class="comparison">
+        <!-- NOC Dark Theme -->
+        <div class="theme-panel theme-noc">
+            <div class="theme-header">
+                <span>NOC 监控室风格 (暗色)</span>
+                <span class="tag">Dark Mode</span>
+            </div>
+            <div class="theme-content">
+                <div class="noc-container">
+                    <div class="noc-header">
+                        <div class="noc-title">ARCHON VIEW</div>
+                        <div class="noc-stats">
+                            <div class="noc-stat">
+                                <div class="noc-stat-value">7</div>
+                                <div class="noc-stat-label">Domains</div>
+                            </div>
+                            <div class="noc-stat">
+                                <div class="noc-stat-value">80</div>
+                                <div class="noc-stat-label">Classes</div>
+                            </div>
+                            <div class="noc-stat">
+                                <div class="noc-stat-value">124</div>
+                                <div class="noc-stat-label">Edges</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="noc-layout">
+                        <div class="noc-sidebar">
+                            <div class="noc-tree-title">Domains</div>
+                            <div class="noc-domain-item health active">
+                                <span class="noc-domain-name">CORE</span>
+                                <span class="noc-domain-count">45</span>
+                            </div>
+                            <div class="noc-domain-item health">
+                                <span class="noc-domain-name">JAVA</span>
+                                <span class="noc-domain-count">12</span>
+                            </div>
+                            <div class="noc-domain-item warning">
+                                <span class="noc-domain-name">VIZ</span>
+                                <span class="noc-domain-count">8</span>
+                            </div>
+                            <div class="noc-domain-item health">
+                                <span class="noc-domain-name">CLI</span>
+                                <span class="noc-domain-count">6</span>
+                            </div>
+                            <div class="noc-domain-item health">
+                                <span class="noc-domain-name">JS</span>
+                                <span class="noc-domain-count">4</span>
+                            </div>
+                            <div class="noc-domain-item health">
+                                <span class="noc-domain-name">PYTHON</span>
+                                <span class="noc-domain-count">5</span>
+                            </div>
+                        </div>
+
+                        <div class="noc-canvas">
+                            <div class="noc-graph">
+                                <div class="noc-domain-node warning">
+                                    <div class="noc-domain-node-name">VIZ</div>
+                                    <div class="noc-domain-node-count">8</div>
+                                </div>
+                                <div class="noc-edge"></div>
+                                <div class="noc-domain-node health">
+                                    <div class="noc-domain-node-name">CORE</div>
+                                    <div class="noc-domain-node-count">45</div>
+                                </div>
+                                <div class="noc-edge highlight"></div>
+                                <div class="noc-domain-node health">
+                                    <div class="noc-domain-node-name">CLI</div>
+                                    <div class="noc-domain-node-count">6</div>
+                                </div>
+                                <div class="noc-edge"></div>
+                                <div class="noc-domain-node health">
+                                    <div class="noc-domain-node-name">JAVA</div>
+                                    <div class="noc-domain-node-count">12</div>
+                                </div>
+                                <div class="noc-edge"></div>
+                                <div class="noc-domain-node health">
+                                    <div class="noc-domain-node-name">JS</div>
+                                    <div class="noc-domain-node-count">4</span>
+                                </div>
+                            </div>
+
+                            <div class="noc-controls">
+                                <button class="noc-btn">ZOOM +</button>
+                                <button class="noc-btn">ZOOM −</button>
+                                <button class="noc-btn">FIT</button>
+                                <button class="noc-btn">THEME ☀</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="legend">
+                        <div class="legend-title">STATUS</div>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <div class="legend-color success"></div>
+                                <span class="legend-label">Health</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color warning"></div>
+                                <span class="legend-label">Warning</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color error"></div>
+                                <span class="legend-label">Blocked</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Blueprint Light Theme -->
+        <div class="theme-panel theme-blueprint">
+            <div class="theme-header">
+                <span>技术蓝图风格 (亮色)</span>
+                <span class="tag">Light Mode</span>
+            </div>
+            <div class="theme-content">
+                <div class="blueprint-container">
+                    <div class="blueprint-header">
+                        <div class="blueprint-title">ARCHON DEPENDENCY GRAPH</div>
+                        <div class="blueprint-stats">
+                            <div class="blueprint-stat">
+                                <div class="blueprint-stat-value">7</div>
+                                <div class="blueprint-stat-label">Domains</div>
+                            </div>
+                            <div class="blueprint-stat">
+                                <div class="blueprint-stat-value">80</div>
+                                <div class="blueprint-stat-label">Classes</div>
+                            </div>
+                            <div class="blueprint-stat">
+                                <div class="blueprint-stat-value">124</div>
+                                <div class="blueprint-stat-label">Edges</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="blueprint-layout">
+                        <div class="blueprint-sidebar">
+                            <div class="blueprint-tree-title">Modules</div>
+                            <div class="blueprint-domain-item active">
+                                <span class="blueprint-domain-name">core</span>
+                                <span class="blueprint-domain-count">45</span>
+                            </div>
+                            <div class="blueprint-domain-item">
+                                <span class="blueprint-domain-name">java</span>
+                                <span class="blueprint-domain-count">12</span>
+                            </div>
+                            <div class="blueprint-domain-item warning">
+                                <span class="blueprint-domain-name">viz</span>
+                                <span class="blueprint-domain-count">8</span>
+                            </div>
+                            <div class="blueprint-domain-item">
+                                <span class="blueprint-domain-name">cli</span>
+                                <span class="blueprint-domain-count">6</span>
+                            </div>
+                            <div class="blueprint-domain-item">
+                                <span class="blueprint-domain-name">js</span>
+                                <span class="blueprint-domain-count">4</span>
+                            </div>
+                            <div class="blueprint-domain-item">
+                                <span class="blueprint-domain-name">python</span>
+                                <span class="blueprint-domain-count">5</span>
+                            </div>
+                        </div>
+
+                        <div class="blueprint-canvas">
+                            <div class="blueprint-graph">
+                                <div class="blueprint-domain-node warning focused">
+                                    <div class="blueprint-domain-node-name">viz</div>
+                                    <div class="blueprint-domain-node-count">8</div>
+                                </div>
+                                <div class="blueprint-edge"></div>
+                                <div class="blueprint-domain-node">
+                                    <div class="blueprint-domain-node-name">core</div>
+                                    <div class="blueprint-domain-node-count">45</div>
+                                </div>
+                                <div class="blueprint-edge highlight"></div>
+                                <div class="blueprint-domain-node">
+                                    <div class="blueprint-domain-node-name">cli</div>
+                                    <div class="blueprint-domain-node-count">6</div>
+                                </div>
+                                <div class="blueprint-edge"></div>
+                                <div class="blueprint-domain-node">
+                                    <div class="blueprint-domain-node-name">java</div>
+                                    <div class="blueprint-domain-node-count">12</div>
+                                </div>
+                                <div class="blueprint-edge"></div>
+                                <div class="blueprint-domain-node">
+                                    <div class="blueprint-domain-node-name">js</div>
+                                    <div class="blueprint-domain-node-count">4</div>
+                                </div>
+                            </div>
+
+                            <div class="blueprint-controls">
+                                <button class="blueprint-btn">ZOOM +</button>
+                                <button class="blueprint-btn">ZOOM −</button>
+                                <button class="blueprint-btn">FIT</button>
+                                <button class="blueprint-btn">THEME ☾</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="legend" style="background: #ffffff; border-top: 2px solid #e2e8f0;">
+                        <div class="legend-title" style="color: #64748b;">RISK LEVEL</div>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <div class="legend-color success"></div>
+                                <span class="legend-label">LOW</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color warning"></div>
+                                <span class="legend-label">MEDIUM</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color error"></div>
+                                <span class="legend-label">HIGH</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; padding: 30px; color: #444; font-size: 13px;">
+        <p>Click items on the left to highlight → Click graph nodes to drill down</p>
+        <p style="margin-top: 10px;">Toggle theme button to see both modes</p>
+    </div>
+
+    <script>
+        // Simple interactivity for demo
+        document.querySelectorAll('.noc-domain-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.noc-domain-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.blueprint-domain-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.blueprint-domain-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

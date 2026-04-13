@@ -196,9 +196,10 @@ public class ViewServer {
 
     private void sendResponse(HttpExchange exchange, int status, String contentType, String body) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", contentType);
-        exchange.sendResponseHeaders(status, body.length());
+        byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(status, bodyBytes.length);
         OutputStream os = exchange.getResponseBody();
-        os.write(body.getBytes(StandardCharsets.UTF_8));
+        os.write(bodyBytes);
         os.close();
     }
 

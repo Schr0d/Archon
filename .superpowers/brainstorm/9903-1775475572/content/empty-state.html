@@ -1,0 +1,29 @@
+<h2>Empty state text when no graph is loaded</h2>
+<p class="subtitle">What should users see when they first open the viewer? Needs warmth and a clear next step.</p>
+
+<div class="options">
+  <div class="option" data-choice="friendly" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>"No graph loaded yet. Use File → Open to visualize your dependencies."</h3>
+      <p>Pros: Clear action, helpful tone, tells users exactly what to do.</p>
+      <p>Cons: Assumes users know how to get a graph file.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="example" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>"Welcome to Archon. Open a dependency graph to explore your codebase structure."</h3>
+      <p>Pros: Friendly welcome, explains the tool's purpose.</p>
+      <p>Cons: More abstract, less direct guidance.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>"Open a graph file to begin"</h3>
+      <p>Pros: Short, clear, gets straight to the point.</p>
+      <p>Cons: Less warmth, doesn't explain what the viewer does.</p>
+    </div>
+  </div>
+</div>

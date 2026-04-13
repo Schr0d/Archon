@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -63,6 +64,13 @@ public class JsonSerializer {
     public String toJson(DependencyGraph graph, Map<String, String> domains,
                          List<List<String>> cycles, List<Node> hotspots,
                          List<BlindSpot> blindSpots) {
+        return toJson(graph, domains, cycles, hotspots, blindSpots, List.of());
+    }
+
+    public String toJson(DependencyGraph graph, Map<String, String> domains,
+                         List<List<String>> cycles, List<Node> hotspots,
+                         List<BlindSpot> blindSpots, List<String> errors) {
+        Objects.requireNonNull(errors, "errors cannot be null");
         try {
             ObjectNode root = mapper.createObjectNode();
             root.put("graph", mapper.readTree(toJson(graph)));
@@ -79,7 +87,7 @@ public class JsonSerializer {
                 cyclesArray.add(mapper.valueToTree(cycle));
             }
 
-            // Hotspots (node IDs only for brevity)
+            // Hotspots
             ArrayNode hotspotsArray = root.putArray("hotspots");
             for (Node hotspot : hotspots) {
                 hotspotsArray.add(hotspot.getId());
@@ -93,6 +101,12 @@ public class JsonSerializer {
                 spotObj.put("location", spot.getLocation());
                 spotObj.put("description", spot.getDescription());
                 blindSpotsArray.add(spotObj);
+            }
+
+            // Errors (NEW)
+            ArrayNode errorsArray = root.putArray("errors");
+            for (String error : errors) {
+                errorsArray.add(error);
             }
 
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);

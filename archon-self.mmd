@@ -1,0 +1,219 @@
+flowchart TD
+  subgraph core["core"]
+    com_archon_core_analysis_AnalysisPipeline["AnalysisPipeline"]
+    com_archon_core_analysis_AnalysisResult["AnalysisResult"]
+    com_archon_core_analysis_ArchLayer["ArchLayer"]
+    com_archon_core_analysis_ChangeImpactReport["ChangeImpactReport"]
+    com_archon_core_analysis_CouplingAnalyzer["CouplingAnalyzer"]
+    com_archon_core_analysis_CycleDetector["CycleDetector"]
+    com_archon_core_analysis_DomainDetector["DomainDetector"]
+    com_archon_core_analysis_DomainResult["DomainResult"]
+    com_archon_core_analysis_DomainStrategy["DomainStrategy"]
+    com_archon_core_analysis_GraphDiff["GraphDiff"]
+    com_archon_core_analysis_GraphDiffer["GraphDiffer"]
+    com_archon_core_analysis_ImpactPropagator["ImpactPropagator"]
+    com_archon_core_analysis_ImpactResult["ImpactResult"]
+    com_archon_core_analysis_LayerClassifier["LayerClassifier"]
+    com_archon_core_analysis_RiskScorer["RiskScorer"]
+    com_archon_core_analysis_RiskSummary["RiskSummary"]
+    com_archon_core_analysis_RiskSynthesizer["RiskSynthesizer"]
+    com_archon_core_analysis_ThresholdCalculator["ThresholdCalculator"]
+    com_archon_core_analysis_Thresholds["Thresholds"]
+    com_archon_core_config_ArchonConfig["ArchonConfig"]
+    com_archon_core_config_RuleValidator["RuleValidator"]
+    com_archon_core_config_RuleViolation["RuleViolation"]
+    com_archon_core_coordination_ParseOrchestrator["ParseOrchestrator"]
+    com_archon_core_ecp_EcpGenerator["EcpGenerator"]
+    com_archon_core_git_CliGitAdapter["CliGitAdapter"]
+    com_archon_core_git_GitAdapter["GitAdapter"]
+    com_archon_core_git_GitException["GitException"]
+    com_archon_core_graph_BlindSpot["BlindSpot"]
+    com_archon_core_graph_Confidence["Confidence"]
+    com_archon_core_graph_DependencyGraph["DependencyGraph"]
+    com_archon_core_graph_Edge["Edge"]
+    com_archon_core_graph_EdgeType["EdgeType"]
+    com_archon_core_graph_GraphBuilder["GraphBuilder"]
+    com_archon_core_graph_Node["Node"]
+    com_archon_core_graph_NodeType["NodeType"]
+    com_archon_core_graph_RiskLevel["RiskLevel"]
+    com_archon_core_output_JsonSerializer["JsonSerializer"]
+    com_archon_core_plugin_BlindSpot["BlindSpot"]
+    com_archon_core_plugin_LanguagePlugin["LanguagePlugin"]
+    com_archon_core_plugin_ParseContext["ParseContext"]
+    com_archon_core_plugin_ParseResult["ParseResult"]
+    com_archon_core_plugin_PluginDiscoverer["PluginDiscoverer"]
+    com_archon_core_viz_AsciiRenderer["AsciiRenderer"]
+    com_archon_core_viz_DotExporter["DotExporter"]
+    com_archon_core_viz_TerminalCapabilities["TerminalCapabilities"]
+  end
+  subgraph java["java"]
+    com_archon_java_AstVisitor["AstVisitor"]
+    com_archon_java_BlindSpotDetector["BlindSpotDetector"]
+    com_archon_java_ImportResolver["ImportResolver"]
+    com_archon_java_JavaDomainStrategy["JavaDomainStrategy"]
+    com_archon_java_JavaParserPlugin["JavaParserPlugin"]
+    com_archon_java_JavaPlugin["JavaPlugin"]
+    com_archon_java_ModuleDetector["ModuleDetector"]
+    com_archon_java_SymbolSolverAdapter["SymbolSolverAdapter"]
+  end
+  subgraph cli["cli"]
+    com_archon_cli_AnalyzeCommand["AnalyzeCommand"]
+    com_archon_cli_ArchonCli["ArchonCli"]
+    com_archon_cli_CheckCommand["CheckCommand"]
+    com_archon_cli_DiffCommand["DiffCommand"]
+    com_archon_cli_EcpCommand["EcpCommand"]
+    com_archon_cli_ImpactCommand["ImpactCommand"]
+  end
+  subgraph js["js"]
+    com_archon_js_JsAstVisitor["JsAstVisitor"]
+    com_archon_js_JsDomainStrategy["JsDomainStrategy"]
+    com_archon_js_JsPlugin["JsPlugin"]
+    com_archon_js_ModulePathResolver["ModulePathResolver"]
+    com_archon_js_VueFileExtractor["VueFileExtractor"]
+  end
+  subgraph python["python"]
+    com_archon_python_PythonDomainStrategy["PythonDomainStrategy"]
+    com_archon_python_PythonImportExtractor["PythonImportExtractor"]
+    com_archon_python_PythonModuleResolver["PythonModuleResolver"]
+    com_archon_python_PythonPlugin["PythonPlugin"]
+    com_archon_python_PythonStdlib["PythonStdlib"]
+  end
+  subgraph viz["viz"]
+    com_archon_viz_DiffSerializer["DiffSerializer"]
+    com_archon_viz_EdgeView["EdgeView"]
+    com_archon_viz_JsonSerializer["JsonSerializer"]
+    com_archon_viz_NodeGroup["NodeGroup"]
+    com_archon_viz_NodeView["NodeView"]
+    com_archon_viz_PerspectiveBuilder["PerspectiveBuilder"]
+    com_archon_viz_PerspectiveView["PerspectiveView"]
+    com_archon_viz_TerminalRenderer["TerminalRenderer"]
+    com_archon_viz_ViewCommand["ViewCommand"]
+    com_archon_viz_ViewServer["ViewServer"]
+  end
+  subgraph archonvizsrcmainresourceslibdagre["archon-viz/src/main/resources/lib/dagre"]
+    archonvizsrcmainresourceslibdagre_min["dagre.min"]
+  end
+  com_archon_core_config_RuleValidator --> com_archon_core_analysis_Thresholds
+  com_archon_core_coordination_ParseOrchestrator --> com_archon_core_analysis_DomainStrategy
+  com_archon_core_plugin_LanguagePlugin --> com_archon_core_graph_DependencyGraph
+  com_archon_core_plugin_LanguagePlugin --> com_archon_core_analysis_DomainStrategy
+  com_archon_core_plugin_ParseResult --> com_archon_core_graph_DependencyGraph
+  com_archon_core_viz_AsciiRenderer --> com_archon_core_graph_DependencyGraph
+  com_archon_core_viz_DotExporter --> com_archon_core_graph_DependencyGraph
+  com_archon_java_AstVisitor --> com_archon_core_graph_Confidence
+  com_archon_java_AstVisitor --> com_archon_core_graph_Edge
+  com_archon_java_AstVisitor --> com_archon_core_graph_EdgeType
+  com_archon_java_AstVisitor --> com_archon_core_graph_GraphBuilder
+  com_archon_java_AstVisitor --> com_archon_core_graph_Node
+  com_archon_java_AstVisitor --> com_archon_core_graph_NodeType
+  com_archon_java_BlindSpotDetector --> com_archon_core_graph_BlindSpot
+  com_archon_java_JavaDomainStrategy --> com_archon_core_analysis_DomainStrategy
+  com_archon_java_JavaDomainStrategy --> com_archon_core_graph_DependencyGraph
+  com_archon_java_JavaParserPlugin --> com_archon_core_config_ArchonConfig
+  com_archon_java_JavaParserPlugin --> com_archon_core_graph_BlindSpot
+  com_archon_java_JavaParserPlugin --> com_archon_core_graph_DependencyGraph
+  com_archon_java_JavaParserPlugin --> com_archon_core_graph_GraphBuilder
+  com_archon_java_JavaPlugin --> com_archon_core_analysis_DomainStrategy
+  com_archon_java_JavaPlugin --> com_archon_core_graph_DependencyGraph
+  com_archon_java_JavaPlugin --> com_archon_core_graph_GraphBuilder
+  com_archon_java_JavaPlugin --> com_archon_core_plugin_LanguagePlugin
+  com_archon_java_JavaPlugin --> com_archon_core_plugin_ParseContext
+  com_archon_java_JavaPlugin --> com_archon_core_plugin_ParseResult
+  com_archon_cli_AnalyzeCommand --> com_archon_core_analysis_CouplingAnalyzer
+  com_archon_cli_AnalyzeCommand --> com_archon_core_analysis_CycleDetector
+  com_archon_cli_AnalyzeCommand --> com_archon_core_analysis_DomainDetector
+  com_archon_cli_AnalyzeCommand --> com_archon_core_analysis_DomainResult
+  com_archon_cli_AnalyzeCommand --> com_archon_core_analysis_ThresholdCalculator
+  com_archon_cli_AnalyzeCommand --> com_archon_core_analysis_Thresholds
+  com_archon_cli_AnalyzeCommand --> com_archon_core_config_ArchonConfig
+  com_archon_cli_AnalyzeCommand --> com_archon_core_coordination_ParseOrchestrator
+  com_archon_cli_AnalyzeCommand --> com_archon_core_graph_DependencyGraph
+  com_archon_cli_AnalyzeCommand --> com_archon_core_graph_Node
+  com_archon_cli_AnalyzeCommand --> com_archon_core_plugin_BlindSpot
+  com_archon_cli_AnalyzeCommand --> com_archon_core_plugin_LanguagePlugin
+  com_archon_cli_AnalyzeCommand --> com_archon_core_plugin_ParseContext
+  com_archon_cli_AnalyzeCommand --> com_archon_core_plugin_ParseResult
+  com_archon_cli_AnalyzeCommand --> com_archon_core_plugin_PluginDiscoverer
+  com_archon_cli_AnalyzeCommand --> com_archon_core_viz_DotExporter
+  com_archon_cli_AnalyzeCommand --> com_archon_java_ModuleDetector
+  com_archon_cli_CheckCommand --> com_archon_core_analysis_CycleDetector
+  com_archon_cli_CheckCommand --> com_archon_core_analysis_DomainDetector
+  com_archon_cli_CheckCommand --> com_archon_core_analysis_DomainResult
+  com_archon_cli_CheckCommand --> com_archon_core_analysis_ThresholdCalculator
+  com_archon_cli_CheckCommand --> com_archon_core_analysis_Thresholds
+  com_archon_cli_CheckCommand --> com_archon_core_config_ArchonConfig
+  com_archon_cli_CheckCommand --> com_archon_core_config_RuleValidator
+  com_archon_cli_CheckCommand --> com_archon_core_config_RuleViolation
+  com_archon_cli_CheckCommand --> com_archon_core_coordination_ParseOrchestrator
+  com_archon_cli_CheckCommand --> com_archon_core_graph_DependencyGraph
+  com_archon_cli_CheckCommand --> com_archon_core_plugin_LanguagePlugin
+  com_archon_cli_CheckCommand --> com_archon_core_plugin_ParseContext
+  com_archon_cli_CheckCommand --> com_archon_core_plugin_ParseResult
+  com_archon_cli_CheckCommand --> com_archon_core_plugin_PluginDiscoverer
+  com_archon_cli_DiffCommand --> com_archon_core_config_ArchonConfig
+  com_archon_cli_DiffCommand --> com_archon_core_coordination_ParseOrchestrator
+  com_archon_cli_DiffCommand --> com_archon_core_git_CliGitAdapter
+  com_archon_cli_DiffCommand --> com_archon_core_git_GitAdapter
+  com_archon_cli_DiffCommand --> com_archon_core_git_GitException
+  com_archon_cli_DiffCommand --> com_archon_core_graph_DependencyGraph
+  com_archon_cli_DiffCommand --> com_archon_core_graph_Edge
+  com_archon_cli_DiffCommand --> com_archon_core_graph_GraphBuilder
+  com_archon_cli_DiffCommand --> com_archon_core_graph_Node
+  com_archon_cli_DiffCommand --> com_archon_core_graph_RiskLevel
+  com_archon_cli_DiffCommand --> com_archon_core_plugin_LanguagePlugin
+  com_archon_cli_DiffCommand --> com_archon_core_plugin_ParseContext
+  com_archon_cli_DiffCommand --> com_archon_core_plugin_ParseResult
+  com_archon_cli_DiffCommand --> com_archon_core_plugin_PluginDiscoverer
+  com_archon_cli_ImpactCommand --> com_archon_core_analysis_ArchLayer
+  com_archon_cli_ImpactCommand --> com_archon_core_analysis_DomainDetector
+  com_archon_cli_ImpactCommand --> com_archon_core_analysis_DomainResult
+  com_archon_cli_ImpactCommand --> com_archon_core_analysis_ImpactPropagator
+  com_archon_cli_ImpactCommand --> com_archon_core_analysis_ImpactResult
+  com_archon_cli_ImpactCommand --> com_archon_core_config_ArchonConfig
+  com_archon_cli_ImpactCommand --> com_archon_core_coordination_ParseOrchestrator
+  com_archon_cli_ImpactCommand --> com_archon_core_graph_DependencyGraph
+  com_archon_cli_ImpactCommand --> com_archon_core_plugin_LanguagePlugin
+  com_archon_cli_ImpactCommand --> com_archon_core_plugin_ParseContext
+  com_archon_cli_ImpactCommand --> com_archon_core_plugin_ParseResult
+  com_archon_cli_ImpactCommand --> com_archon_core_plugin_PluginDiscoverer
+  com_archon_js_JsAstVisitor --> com_archon_core_plugin_BlindSpot
+  com_archon_js_JsDomainStrategy --> com_archon_core_analysis_DomainStrategy
+  com_archon_js_JsDomainStrategy --> com_archon_core_graph_DependencyGraph
+  com_archon_js_JsPlugin --> com_archon_core_analysis_DomainStrategy
+  com_archon_js_JsPlugin --> com_archon_core_graph_DependencyGraph
+  com_archon_js_JsPlugin --> com_archon_core_graph_Edge
+  com_archon_js_JsPlugin --> com_archon_core_graph_EdgeType
+  com_archon_js_JsPlugin --> com_archon_core_graph_GraphBuilder
+  com_archon_js_JsPlugin --> com_archon_core_graph_Node
+  com_archon_js_JsPlugin --> com_archon_core_graph_NodeType
+  com_archon_js_JsPlugin --> com_archon_core_plugin_BlindSpot
+  com_archon_js_JsPlugin --> com_archon_core_plugin_LanguagePlugin
+  com_archon_js_JsPlugin --> com_archon_core_plugin_ParseContext
+  com_archon_js_JsPlugin --> com_archon_core_plugin_ParseResult
+  com_archon_python_PythonDomainStrategy --> com_archon_core_analysis_DomainStrategy
+  com_archon_python_PythonDomainStrategy --> com_archon_core_graph_DependencyGraph
+  com_archon_python_PythonPlugin --> com_archon_core_analysis_DomainStrategy
+  com_archon_python_PythonPlugin --> com_archon_core_graph_DependencyGraph
+  com_archon_python_PythonPlugin --> com_archon_core_graph_Edge
+  com_archon_python_PythonPlugin --> com_archon_core_graph_EdgeType
+  com_archon_python_PythonPlugin --> com_archon_core_graph_GraphBuilder
+  com_archon_python_PythonPlugin --> com_archon_core_graph_Node
+  com_archon_python_PythonPlugin --> com_archon_core_graph_NodeType
+  com_archon_python_PythonPlugin --> com_archon_core_plugin_BlindSpot
+  com_archon_python_PythonPlugin --> com_archon_core_plugin_LanguagePlugin
+  com_archon_python_PythonPlugin --> com_archon_core_plugin_ParseContext
+  com_archon_python_PythonPlugin --> com_archon_core_plugin_ParseResult
+  com_archon_viz_DiffSerializer --> com_archon_core_analysis_ChangeImpactReport
+  com_archon_viz_DiffSerializer --> com_archon_core_analysis_GraphDiff
+  com_archon_viz_DiffSerializer --> com_archon_core_analysis_ImpactResult
+  com_archon_viz_DiffSerializer --> com_archon_core_analysis_RiskSummary
+  com_archon_viz_DiffSerializer --> com_archon_core_graph_DependencyGraph
+  com_archon_viz_DiffSerializer --> com_archon_core_graph_Edge
+  com_archon_viz_DiffSerializer --> com_archon_core_output_JsonSerializer
+  com_archon_viz_JsonSerializer --> com_archon_core_graph_DependencyGraph
+  com_archon_viz_JsonSerializer --> com_archon_core_graph_Node
+  com_archon_viz_JsonSerializer --> com_archon_core_plugin_BlindSpot
+  com_archon_viz_PerspectiveBuilder --> com_archon_core_graph_DependencyGraph
+  com_archon_viz_TerminalRenderer --> com_archon_core_plugin_BlindSpot
+  com_archon_viz_ViewCommand --> com_archon_core_analysis_AnalysisPipeline
+  com_archon_viz_ViewCommand --> com_archon_core_analysis_AnalysisResult

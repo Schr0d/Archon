@@ -259,4 +259,31 @@ class JsonSerializerTest {
         assertEquals(0, root.get("hotspots").size());
         assertEquals(0, root.get("blindSpots").size());
     }
+
+    @Test
+    void testToJsonWithErrors() throws Exception {
+        // Given: a graph with parse errors
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        Node foo = Node.builder().id("com.example.Foo").type(NodeType.CLASS).build();
+        builder.addNode(foo);
+        DependencyGraph graph = builder.build();
+
+        Map<String, String> domains = Map.of("com.example.Foo", "CORE");
+        List<List<String>> cycles = List.of();
+        List<Node> hotspots = List.of();
+        List<BlindSpot> blindSpots = List.of();
+        List<String> errors = List.of("Failed to parse com/example/Bar.java:42", "Unexpected token in com/example/Baz.java");
+
+        // When: serializing with errors
+        JsonSerializer serializer = new JsonSerializer();
+        String json = serializer.toJson(graph, domains, cycles, hotspots, blindSpots, errors);
+
+        // Then: errors field should be present
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(json);
+        assertTrue(root.has("errors"));
+        assertEquals(2, root.get("errors").size());
+        assertEquals("Failed to parse com/example/Bar.java:42", root.get("errors").get(0).asText());
+        assertEquals("Unexpected token in com/example/Baz.java", root.get("errors").get(1).asText());
+    }
 }

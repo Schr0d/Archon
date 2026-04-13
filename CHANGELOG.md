@@ -5,16 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0.0] - 2026-04-06
-
-### Added [EXPERIMENTAL]
-- **Web Visualization** — `archon view` command with web-based dependency graph viewer (experimental)
-  - Static HTML export works offline with inlined dagre.js
-  - JSON/JSON output format for programmatic access
-  - Mermaid and DOT export formats for external tools
-  - **Note:** Interactive viewer has rendering issues — use JSON/Mermaid/DOT for production
+## [0.5.0.0] - 2026-04-13
 
 ### Added
+- **Web Visualization** — `archon view` command with interactive DOM+SVG dependency graph viewer
+  - Two-mode navigation: domain overview (UML package grid) → module drill-down (boundary container)
+  - Impact analysis overlay: hover any class to see P0/P1/P2 blast radius with BFS propagation
+  - Detail panel with metrics (PageRank, betweenness, closeness), badges (hotspot, bridge), and blast radius breakdown
+  - Draggable class nodes with socket system for cross-boundary edge connections
+  - SVG arrow rendering with L-shape polyline routing
+  - Static HTML export works offline, JSON output for programmatic access
+  - Mermaid and DOT export formats for external tools
+- **Left sidebar navigation** with domain hierarchy and hotspot indicators
 - **Web Diff Viewer** — `archon diff --view` opens browser with red/green/yellow diff visualization
 - **Mermaid Export** — `archon analyze --mermaid diagram.mmd` exports to Mermaid flowchart format
 - **Terminal Visualization** — Structured text output with domain grouping and formatting
@@ -23,18 +25,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New Module: archon-viz** — Visualization module with JSON serializers and web server
 
 ### Changed
+- Rendering layer rewritten from canvas (d3 + dagre-d3) to DOM+SVG for reliable interactive visualization
 - ViewServer binds to 127.0.0.1 only (security: never 0.0.0.0)
 - DotExporter reimplemented using centralized class in archon-core
 - Port auto-selection now works correctly in all scenarios (8420-8430 fallback)
+- Design system: Geist font stack, sky blue accent (#38bdf8), no ambient animations
 
 ### Fixed
+- Interactive viewer rendering issues resolved by replacing canvas with DOM+SVG
 - ViewServer port bug: browser now opens correct URL when auto-port selection happens
 - ViewServer: proper request tracking for idle timeout functionality
 - ViewCommand: server no longer starts when `--format json` is specified
 
+### Removed
+- Canvas renderer (graphCanvas.ts), d3, and dagre-d3 dependencies
+
 ### Acknowledgments
 - The web viewer adapts the approach of [oh-my-mermaid](https://github.com/oh-my-mermaid/oh-my-mermaid) (MIT licensed)
-- Uses dagre 0.8.5 for graph layout (vendored in JAR for offline use)
 
 ## [0.4.0.3] - 2026-04-04
 
@@ -132,15 +139,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI commands: analyze, impact, check
 - Cycle detection, hotspot analysis, domain detection
 - Blind spot detection for dynamic patterns
-## [Unreleased]
-
-### Added
-- Left sidebar navigation tree to web viewer with domain hierarchy
-- Hotspot indicators (⭐) for classes with high in-degree (≥10 dependencies)
-- Accessibility improvements: 44px minimum button height, improved text contrast, motion reduction support
-- Intro hint overlay for first-time users
-
-### Improved
-- Web viewer now shows domain-level overview by default with option to drill down
-- Better navigation for large dependency graphs
 
