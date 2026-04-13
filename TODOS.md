@@ -54,14 +54,14 @@
 - **Context:** Blocks canvas visualization testing. Needed for consistent `archon analyze --json` output.
 - **File:** `archon-cli/src/main/java/com/archon/cli/AnalyzeCommand.java`
 
-## 7. Browser automation tests for canvas visualization
-- **What:** Add Playwright or similar browser automation tests for canvas graph visualization.
-- **Why:** Manual testing is error-prone. Automated tests catch regressions in interactions (hover, click, pan, zoom, drill-down).
+## 7. Browser automation tests for DOM+SVG visualization
+- **What:** Add Playwright or similar browser automation tests for DOM+SVG graph visualization.
+- **Why:** Manual testing is error-prone. Automated tests catch regressions in interactions (hover impact overlay, click drill-down, drag nodes, socket repositioning, mode transitions).
 - **Status:** Deferred to post-v0.5
 - **Pros:** Regression coverage for interactions, CI confidence
 - **Cons:** ~400 LOC of test infrastructure, slower CI runs
-- **Context:** Canvas viz ships with manual test plan. Add automation if it becomes a pain point.
-- **Depends on:** Canvas visualization must ship first.
+- **Context:** DOM+SVG viz ships with manual test plan. Add automation if it becomes a pain point.
+- **Depends on:** DOM+SVG visualization must ship first.
 
 ## 8. Quick Start Docs (Java 17 Prerequisite)
 - **What:** Add Java 17 prerequisite check to README.md Quick Start section before build commands.
