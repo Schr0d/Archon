@@ -134,6 +134,66 @@ class CliGitAdapterTest {
         assertEquals(1, count);
     }
 
+    @Test
+    void testGetWorkingTreeChanges_unstagedFile(@TempDir Path tempDir) throws Exception {
+        // Initialize repository
+        runGitCommand(tempDir, "git", "init");
+        configureGit(tempDir);
+
+        // Create and commit a file
+        Path file1 = tempDir.resolve("app.java");
+        Files.writeString(file1, "initial");
+        runGitCommand(tempDir, "git", "add", "app.java");
+        runGitCommand(tempDir, "git", "commit", "-m", "Initial commit");
+
+        // Modify file without staging
+        Files.writeString(file1, "modified");
+
+        List<String> changes = adapter.getWorkingTreeChanges(tempDir);
+
+        assertEquals(1, changes.size());
+        assertTrue(changes.contains("app.java"));
+    }
+
+    @Test
+    void testGetWorkingTreeChanges_stagedFile(@TempDir Path tempDir) throws Exception {
+        // Initialize repository
+        runGitCommand(tempDir, "git", "init");
+        configureGit(tempDir);
+
+        // Create and commit a file
+        Path file1 = tempDir.resolve("app.java");
+        Files.writeString(file1, "initial");
+        runGitCommand(tempDir, "git", "add", "app.java");
+        runGitCommand(tempDir, "git", "commit", "-m", "Initial commit");
+
+        // Modify and stage
+        Files.writeString(file1, "modified");
+        runGitCommand(tempDir, "git", "add", "app.java");
+
+        List<String> changes = adapter.getWorkingTreeChanges(tempDir);
+
+        assertEquals(1, changes.size());
+        assertTrue(changes.contains("app.java"));
+    }
+
+    @Test
+    void testGetWorkingTreeChanges_noChanges(@TempDir Path tempDir) throws Exception {
+        // Initialize repository
+        runGitCommand(tempDir, "git", "init");
+        configureGit(tempDir);
+
+        // Create and commit a file (clean working tree)
+        Path file1 = tempDir.resolve("app.java");
+        Files.writeString(file1, "initial");
+        runGitCommand(tempDir, "git", "add", "app.java");
+        runGitCommand(tempDir, "git", "commit", "-m", "Initial commit");
+
+        List<String> changes = adapter.getWorkingTreeChanges(tempDir);
+
+        assertTrue(changes.isEmpty());
+    }
+
     // Helper methods
 
     private void configureGit(Path tempDir) throws Exception {

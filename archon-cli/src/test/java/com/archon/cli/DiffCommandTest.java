@@ -5,6 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DiffCommandTest {
@@ -34,17 +36,16 @@ class DiffCommandTest {
         }
 
         @Test
-        @DisplayName("view flag enables web viewer mode")
+        @DisplayName("view flag enables web viewer mode with params list")
         void viewFlag_enablesWebViewerMode() {
             command.view = true;
-            command.baseRef = "HEAD~1";
-            command.headRef = "HEAD";
-            command.projectPath = ".";
+            command.params = List.of("HEAD~1", "HEAD", ".");
 
             assertTrue(command.view, "view flag should be true");
-            assertEquals("HEAD~1", command.baseRef);
-            assertEquals("HEAD", command.headRef);
-            assertEquals(".", command.projectPath);
+            assertEquals(3, command.params.size());
+            assertEquals("HEAD~1", command.params.get(0));
+            assertEquals("HEAD", command.params.get(1));
+            assertEquals(".", command.params.get(2));
         }
     }
 
@@ -53,24 +54,30 @@ class DiffCommandTest {
     class Parameters {
 
         @Test
-        @DisplayName("baseRef can be set")
-        void baseRef_canBeSet() {
-            command.baseRef = "main";
-            assertEquals("main", command.baseRef);
+        @DisplayName("params list can be set with base ref only")
+        void params_baseRefOnly() {
+            command.params = List.of("main");
+            assertEquals(List.of("main"), command.params);
         }
 
         @Test
-        @DisplayName("headRef can be set")
-        void headRef_canBeSet() {
-            command.headRef = "develop";
-            assertEquals("develop", command.headRef);
+        @DisplayName("params list can be set with base and head ref")
+        void params_baseAndHeadRef() {
+            command.params = List.of("main", "develop");
+            assertEquals(List.of("main", "develop"), command.params);
         }
 
         @Test
-        @DisplayName("projectPath can be set")
-        void projectPath_canBeSet() {
-            command.projectPath = "/path/to/project";
-            assertEquals("/path/to/project", command.projectPath);
+        @DisplayName("params list can be set with all three args")
+        void params_allThree() {
+            command.params = List.of("main", "develop", "/path/to/project");
+            assertEquals(List.of("main", "develop", "/path/to/project"), command.params);
+        }
+
+        @Test
+        @DisplayName("params list defaults to null (zero-arg mode)")
+        void params_defaultsToNull() {
+            assertNull(command.params);
         }
     }
 }

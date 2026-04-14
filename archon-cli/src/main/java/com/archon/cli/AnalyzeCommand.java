@@ -12,6 +12,7 @@ import com.archon.core.config.ArchonConfig;
 import com.archon.core.coordination.ParseOrchestrator;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Node;
+import com.archon.core.output.AgentOutputFormatter;
 import com.archon.core.plugin.BlindSpot;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
@@ -63,6 +64,9 @@ public class AnalyzeCommand implements Callable<Integer> {
 
     @Option(names = "--with-full-analysis", description = "Include full analysis (centrality metrics, bridges, components) in JSON output")
     boolean withFullAnalysis;
+
+    @Option(names = "--format", description = "Output format: text (default), agent")
+    String format;
 
     @Override
     public Integer call() {
@@ -172,6 +176,15 @@ public class AnalyzeCommand implements Callable<Integer> {
                 System.out.println("  [" + spot.getType() + "] " + spot.getLocation()
                     + " \u2014 " + spot.getDescription());
             }
+        }
+
+        // Agent format output (short-circuits all other output)
+        boolean useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
+        if (useAgentFormat) {
+            AgentOutputFormatter agentFmt = new AgentOutputFormatter();
+            String output = agentFmt.format(graph, domainMap, cycles, hotspots, blindSpots, projectPath);
+            System.out.println(output);
+            return (!cycles.isEmpty()) ? 1 : 0;
         }
 
         // Step 6: DOT export

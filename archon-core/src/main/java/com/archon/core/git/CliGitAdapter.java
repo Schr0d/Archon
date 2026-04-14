@@ -6,7 +6,9 @@ import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -96,6 +98,29 @@ public class CliGitAdapter implements GitAdapter {
         } catch (GitException e) {
             return false;
         }
+    }
+
+    @Override
+    public List<String> getWorkingTreeChanges(Path repoRoot) {
+        // Get unstaged changes vs HEAD
+        List<String> unstaged = execute(
+            repoRoot,
+            "git", "diff", "--name-only", "HEAD"
+        );
+        // Get staged changes vs HEAD
+        List<String> staged = execute(
+            repoRoot,
+            "git", "diff", "--cached", "--name-only", "HEAD"
+        );
+        // Deduplicate
+        Set<String> all = new LinkedHashSet<>();
+        for (String line : unstaged) {
+            if (!line.trim().isEmpty()) all.add(line.trim());
+        }
+        for (String line : staged) {
+            if (!line.trim().isEmpty()) all.add(line.trim());
+        }
+        return new ArrayList<>(all);
     }
 
     /**

@@ -42,4 +42,12 @@ public interface GitAdapter {
      * Check if git is available on the system.
      */
     boolean isGitAvailable();
+
+    /**
+     * Get list of files changed in the working tree (staged + unstaged) vs HEAD.
+     * Returns relative file paths (forward slashes), deduplicated.
+     */
+    default List<String> getWorkingTreeChanges(Path repoRoot) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 }
