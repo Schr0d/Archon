@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0.2] - 2026-04-14
+
+### Added
+- **Declaration-based plugin SPI** — Language plugins now return `ModuleDeclaration` and `DependencyDeclaration` records instead of building graphs directly. Graph construction is centralized in `DeclarationGraphBuilder`, eliminating duplicated conversion logic across 3+ call sites.
+- **Namespace prefix validation** — `ModuleDeclaration.id` and `DependencyDeclaration.sourceId/targetId` now validate that IDs contain a namespace prefix (e.g. `java:`, `py:`), preventing silent edge drops from unprefixed IDs.
+- **BlindSpot equality** — Added `equals()`/`hashCode()` to `BlindSpot` so instances can be safely collected in `Set` and `Map`.
+- **DeclarationGraphBuilder** — Shared utility for converting declaration lists into a `DependencyGraph` with warnings collection instead of System.err.
+- **Tests** — Added `DeclarationGraphBuilderTest` (8 tests), `DependencyGraphTest` additions for `mergeInto`/`knownNodeIds`, `ParseResultTest` additions for null graph contract. EdgeSkipWarningTest now verifies warnings via parse errors instead of stderr capture.
+
+### Changed
+- **ParseOrchestrator** uses `DeclarationGraphBuilder` for graph construction. Edge-skip warnings are collected in the result's error list instead of printed to System.err.
+- **DiffCommand** uses `DeclarationGraphBuilder` for base graph construction, eliminating ~40 lines of duplicated conversion logic.
+- **JavaParserPlugin** uses `DeclarationGraphBuilder`, removing its private `buildGraphFromDeclarations` method.
+- **ModuleDetector** moved from `archon-java` to `archon-core/util`, eliminating the `cli -> java` compile-time dependency and removing ~20 lines of reflection in `AnalysisPipeline`.
+- **archon-cli build.gradle** changed `implementation(project(":archon-java"))` to `runtimeOnly`, so CLI no longer has compile-time dependency on Java plugin.
+
+### Removed
+- **DomainStrategy interface** and all implementations (`JavaDomainStrategy`, `JsDomainStrategy`, `PythonDomainStrategy`) — dead code, never called in production pipeline.
+- **GraphBuilder** — dead code, superseded by `DependencyGraph.MutableBuilder`.
+- **Duplicate enum types** in `plugin` package now mapped via shared `DeclarationGraphBuilder` enum mappers.
+
 ## [0.6.0.1] - 2026-04-13
 
 ### Added
