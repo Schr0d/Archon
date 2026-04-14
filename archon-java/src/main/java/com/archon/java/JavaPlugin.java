@@ -1,10 +1,15 @@
 package com.archon.java;
 
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.GraphBuilder;
+import com.archon.core.graph.Edge;
+import com.archon.core.graph.Node;
+import com.archon.core.graph.NodeType;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
+import com.archon.core.plugin.ModuleDeclaration;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.Confidence;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
@@ -12,12 +17,9 @@ import com.github.javaparser.ast.CompilationUnit;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * LanguagePlugin implementation for Java.
@@ -79,6 +81,7 @@ public class JavaPlugin implements LanguagePlugin {
     /**
      * Reset the internal FQCN cache. Should be called before parsing a new project.
      */
+    @Override
     public void reset() {
         allSourceFqcns.clear();
     }
@@ -92,12 +95,13 @@ public class JavaPlugin implements LanguagePlugin {
     public ParseResult parseFromContent(
         String filePath,
         String content,
-        ParseContext context,
-        DependencyGraph.MutableBuilder builder
+        ParseContext context
     ) {
         List<String> parseErrors = new ArrayList<>();
         List<com.archon.core.plugin.BlindSpot> blindSpots = new ArrayList<>();
         Set<String> sourceModules = new HashSet<>();
+        List<ModuleDeclaration> moduleDeclarations = new ArrayList<>();
+        List<DependencyDeclaration> declarations = new ArrayList<>();
 
         try {
             // First pass: collect FQCN from this file
@@ -109,10 +113,12 @@ public class JavaPlugin implements LanguagePlugin {
                     .orElse("Unknown parse error");
                 parseErrors.add(filePath + ":0 - " + message);
                 return new ParseResult(
-                    GraphBuilder.builder().build(),
+                    new DependencyGraph.MutableBuilder().build(),
                     sourceModules,
                     blindSpots,
-                    parseErrors
+                    parseErrors,
+                    moduleDeclarations,
+                    declarations
                 );
             }
 
@@ -135,53 +141,69 @@ public class JavaPlugin implements LanguagePlugin {
             // Create AstVisitor with all known source classes
             AstVisitor astVisitor = new AstVisitor(allSourceFqcns);
 
-            // Create a temporary builder to capture nodes/edges from this file
-            GraphBuilder tempBuilder = GraphBuilder.builder();
-            astVisitor.visit(cu, tempBuilder);
+            // Create a local builder to capture nodes/edges from this file
+            DependencyGraph.MutableBuilder localBuilder = new DependencyGraph.MutableBuilder();
+            astVisitor.visit(cu, localBuilder);
 
-            // Build the temp graph to extract nodes and edges
-            DependencyGraph tempGraph = tempBuilder.build();
+            // Build the local graph to extract nodes and edges
+            DependencyGraph localGraph = localBuilder.build();
 
-            // Add nodes with namespace prefix to the shared builder
+            // Add nodes with namespace prefix, collect module declarations
             Set<String> addedPrefixedIds = new HashSet<>();
             for (String fqcn : fileFqcns) {
                 String prefixedId = NAMESPACE + ":" + fqcn;
                 sourceModules.add(prefixedId);
-                tempGraph.getNode(fqcn).ifPresent(node -> {
-                    builder.addNode(com.archon.core.graph.Node.builder()
-                        .id(prefixedId)
-                        .type(node.getType())
-                        .build());
+                localGraph.getNode(fqcn).ifPresent(node -> {
                     addedPrefixedIds.add(prefixedId);
+                    // Collect module declaration
+                    moduleDeclarations.add(new ModuleDeclaration(
+                        prefixedId,
+                        com.archon.core.plugin.NodeType.CLASS,
+                        filePath,
+                        com.archon.core.plugin.Confidence.HIGH
+                    ));
                 });
             }
 
-            // Add edges with namespace prefix to the shared builder
-            // Only add edges where both source and target nodes were added to the builder
-            for (com.archon.core.graph.Edge edge : tempGraph.getAllEdges()) {
+            // Add edges with namespace prefix, collect dependency declarations
+            for (Edge edge : localGraph.getAllEdges()) {
                 String prefixedSource = NAMESPACE + ":" + edge.getSource();
                 String prefixedTarget = NAMESPACE + ":" + edge.getTarget();
                 // Only add edges where source node exists in the builder
                 if (addedPrefixedIds.contains(prefixedSource)) {
-                    builder.addEdge(com.archon.core.graph.Edge.builder()
-                        .source(prefixedSource)
-                        .target(prefixedTarget)
-                        .type(edge.getType())
-                        .confidence(edge.getConfidence())
-                        .evidence(edge.getEvidence())
-                        .build());
+                    // Collect dependency declaration
+                    declarations.add(new DependencyDeclaration(
+                        prefixedSource,
+                        prefixedTarget,
+                        com.archon.core.plugin.EdgeType.valueOf(edge.getType().name()),
+                        com.archon.core.plugin.Confidence.valueOf(edge.getConfidence().name()),
+                        edge.getEvidence(),
+                        edge.isDynamic()
+                    ));
                 }
             }
+
+            // Return with both graph and declarations populated
+            return new ParseResult(
+                localGraph,
+                sourceModules,
+                blindSpots,
+                parseErrors,
+                moduleDeclarations,
+                declarations
+            );
 
         } catch (Exception e) {
             parseErrors.add(filePath + ":0 - Failed to parse: " + e.getMessage());
         }
 
         return new ParseResult(
-            builder.build(),
+            new DependencyGraph.MutableBuilder().build(),
             sourceModules,
             blindSpots,
-            parseErrors
+            parseErrors,
+            moduleDeclarations,
+            declarations
         );
     }
 }

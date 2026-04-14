@@ -1,9 +1,8 @@
 package com.archon.java;
 
 import com.archon.core.config.ArchonConfig;
-import com.archon.core.graph.BlindSpot;
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.GraphBuilder;
+import com.archon.core.plugin.BlindSpot;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
@@ -23,6 +22,10 @@ import java.util.Set;
 /**
  * Parses Java source trees and builds a dependency graph.
  * Orchestrates: ModuleDetector -> AstVisitor -> BlindSpotDetector
+ *
+ * <p>This is a standalone utility (NOT implementing LanguagePlugin).
+ * It has its own ParseResult and ParseError inner classes for its
+ * file-system-based parsing mode.
  */
 public class JavaParserPlugin {
 
@@ -63,7 +66,7 @@ public class JavaParserPlugin {
     public ParseResult parse(Path projectRoot, ArchonConfig config) {
         List<ParseError> errors = new ArrayList<>();
         List<BlindSpot> blindSpots = new ArrayList<>();
-        GraphBuilder graphBuilder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder graphBuilder = new DependencyGraph.MutableBuilder();
 
         // Step 1: Detect source roots
         ModuleDetector moduleDetector = new ModuleDetector();
@@ -106,7 +109,7 @@ public class JavaParserPlugin {
      */
     public ParseResult parseFromContent(Map<Path, String> fileContents, Set<String> knownSourceClasses) {
         List<ParseError> errors = new ArrayList<>();
-        GraphBuilder graphBuilder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder graphBuilder = new DependencyGraph.MutableBuilder();
 
         if (fileContents.isEmpty()) {
             return new ParseResult(graphBuilder.build(), List.of(), errors);
@@ -130,7 +133,7 @@ public class JavaParserPlugin {
     }
 
     private void parseSourceRoot(Path sourceRoot, JavaParser javaParser,
-                                  AstVisitor astVisitor, GraphBuilder graphBuilder,
+                                  AstVisitor astVisitor, DependencyGraph.MutableBuilder graphBuilder,
                                   List<ParseError> errors) {
         if (!Files.isDirectory(sourceRoot)) {
             return;
@@ -204,7 +207,7 @@ public class JavaParserPlugin {
     }
 
     private void parseSingleFile(Path file, JavaParser javaParser,
-                                  AstVisitor astVisitor, GraphBuilder graphBuilder,
+                                  AstVisitor astVisitor, DependencyGraph.MutableBuilder graphBuilder,
                                   List<ParseError> errors) {
         try {
             var parseResult = javaParser.parse(file);
@@ -247,7 +250,7 @@ public class JavaParserPlugin {
     }
 
     private void parseContentFile(String fileName, String content, JavaParser javaParser,
-                                   AstVisitor astVisitor, GraphBuilder graphBuilder,
+                                   AstVisitor astVisitor, DependencyGraph.MutableBuilder graphBuilder,
                                    List<ParseError> errors) {
         try {
             var parseResult = javaParser.parse(content);

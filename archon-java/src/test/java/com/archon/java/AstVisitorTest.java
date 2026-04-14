@@ -4,7 +4,6 @@ import com.archon.core.graph.Confidence;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import com.github.javaparser.JavaParser;
@@ -26,7 +25,7 @@ class AstVisitorTest {
     void visit_classDeclaration_addsNodeWithFqcn() {
         String source = "package com.fuwa.system.domain;\npublic class SysUser {}";
         CompilationUnit cu = parse(source);
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         Set<String> sourceClasses = Set.of("com.fuwa.system.domain.SysUser");
         AstVisitor visitor = new AstVisitor(sourceClasses);
@@ -44,7 +43,7 @@ class AstVisitorTest {
             + "import com.fuwa.system.domain.SysUser;\n"
             + "public class LoginService {}";
         CompilationUnit cu = parse(source);
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         Set<String> sourceClasses = Set.of(
             "com.fuwa.framework.security.LoginService",
@@ -68,7 +67,7 @@ class AstVisitorTest {
             + "import com.fuwa.system.domain.SysUser;\n"
             + "public class SysUserServiceImpl extends SysUser {}";
         CompilationUnit cu = parse(source);
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         Set<String> sourceClasses = Set.of(
             "com.fuwa.system.service.SysUserServiceImpl",
@@ -89,7 +88,7 @@ class AstVisitorTest {
             + "import com.fuwa.system.service.ISysUserService;\n"
             + "public class SysUserServiceImpl implements ISysUserService {}";
         CompilationUnit cu = parse(source);
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         Set<String> sourceClasses = Set.of(
             "com.fuwa.system.service.SysUserServiceImpl",
@@ -108,7 +107,7 @@ class AstVisitorTest {
     void visit_noPackage_defaultPackage() {
         String source = "public class Standalone {}";
         CompilationUnit cu = parse(source);
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         Set<String> sourceClasses = Set.of("Standalone");
         AstVisitor visitor = new AstVisitor(sourceClasses);
@@ -122,7 +121,7 @@ class AstVisitorTest {
     void visit_interfaceDeclaration_addsClassNode() {
         String source = "package com.fuwa.system.service;\npublic interface ISysUserService {}";
         CompilationUnit cu = parse(source);
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         Set<String> sourceClasses = Set.of("com.fuwa.system.service.ISysUserService");
         AstVisitor visitor = new AstVisitor(sourceClasses);
@@ -139,7 +138,7 @@ class AstVisitorTest {
             + "class InnerA {}\n"
             + "class InnerB {}";
         CompilationUnit cu = parse(source);
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         Set<String> sourceClasses = Set.of("com.fuwa.system.InnerA", "com.fuwa.system.InnerB");
         AstVisitor visitor = new AstVisitor(sourceClasses);
@@ -158,7 +157,7 @@ class AstVisitorTest {
             public class Foo { }
             """;
         Set<String> sourceClasses = Set.of("com.example.Foo");
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
         AstVisitor visitor = new AstVisitor(sourceClasses);
         CompilationUnit cu = parse(source);
         visitor.visit(cu, builder);
@@ -176,7 +175,7 @@ class AstVisitorTest {
             public class Foo { }
             """;
         Set<String> sourceClasses = Set.of("com.example.Foo", "com.example.Bar");
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
         AstVisitor visitor = new AstVisitor(sourceClasses);
         CompilationUnit cu = parse(source);
         visitor.visit(cu, builder);

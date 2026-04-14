@@ -1,6 +1,6 @@
 package com.archon.java;
 
-import com.archon.core.graph.BlindSpot;
+import com.archon.core.plugin.BlindSpot;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -71,33 +71,33 @@ public class BlindSpotDetector {
         String trimmed = line.trim();
 
         if (trimmed.contains("Class.forName")) {
-            spots.add(new BlindSpot(file, lineNumber, "reflection", "Class.forName"));
+            spots.add(new BlindSpot("reflection", file + ":" + lineNumber, "Class.forName"));
         }
         if (trimmed.contains("Method.invoke") || trimmed.matches(".*\\w\\.invoke\\s*\\(.*")) {
-            spots.add(new BlindSpot(file, lineNumber, "reflection", "Method.invoke"));
+            spots.add(new BlindSpot("reflection", file + ":" + lineNumber, "Method.invoke"));
         }
         if (trimmed.contains("getDeclaredMethod")) {
-            spots.add(new BlindSpot(file, lineNumber, "reflection", "getDeclaredMethod"));
+            spots.add(new BlindSpot("reflection", file + ":" + lineNumber, "getDeclaredMethod"));
         }
         if (trimmed.contains("getDeclaredField")) {
-            spots.add(new BlindSpot(file, lineNumber, "reflection", "getDeclaredField"));
+            spots.add(new BlindSpot("reflection", file + ":" + lineNumber, "getDeclaredField"));
         }
 
         if (trimmed.contains("@EventListener")) {
-            spots.add(new BlindSpot(file, lineNumber, "event-driven", "@EventListener"));
+            spots.add(new BlindSpot("event-driven", file + ":" + lineNumber, "@EventListener"));
         }
         if (trimmed.contains("@Subscribe")) {
-            spots.add(new BlindSpot(file, lineNumber, "event-driven", "@Subscribe"));
+            spots.add(new BlindSpot("event-driven", file + ":" + lineNumber, "@Subscribe"));
         }
         if (trimmed.contains("ApplicationEventPublisher")) {
-            spots.add(new BlindSpot(file, lineNumber, "event-driven", "ApplicationEventPublisher"));
+            spots.add(new BlindSpot("event-driven", file + ":" + lineNumber, "ApplicationEventPublisher"));
         }
         if (trimmed.contains("publishEvent")) {
-            spots.add(new BlindSpot(file, lineNumber, "event-driven", "publishEvent"));
+            spots.add(new BlindSpot("event-driven", file + ":" + lineNumber, "publishEvent"));
         }
 
         if (trimmed.contains("Proxy.newProxyInstance")) {
-            spots.add(new BlindSpot(file, lineNumber, "dynamic-proxy", "Proxy.newProxyInstance"));
+            spots.add(new BlindSpot("dynamic-proxy", file + ":" + lineNumber, "Proxy.newProxyInstance"));
         }
     }
 
@@ -110,7 +110,8 @@ public class BlindSpotDetector {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                     if (mapperMatcher.matches(file) || daoMatcher.matches(file)) {
                         spots.add(new BlindSpot(
-                            file.toString(), 0, "mybatis-xml",
+                            "mybatis-xml",
+                            file.toString(),
                             file.getFileName().toString()
                         ));
                     }

@@ -1,9 +1,9 @@
 package com.archon.java;
 
 import com.archon.core.graph.Confidence;
+import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import com.github.javaparser.ast.CompilationUnit;
@@ -11,19 +11,28 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * Walks JavaParser AST and extracts nodes + edges into a GraphBuilder.
+ * Walks JavaParser AST and extracts nodes + edges into a DependencyGraph.MutableBuilder.
  * Only creates graph nodes for classes that exist in the user's source tree,
  * silently skipping external dependencies (JDK, libraries, etc.).
+ *
+ * <p>Also collects ModuleDeclaration and DependencyDeclaration lists alongside
+ * the graph-building path for the declaration-based architecture.
  */
 public class AstVisitor {
 
     private final Set<String> sourceClasses;
     private final Set<String> addedNodes = new HashSet<>();
+
+    // Declaration collection lists
+    private final List<com.archon.core.plugin.ModuleDeclaration> moduleDeclarations = new ArrayList<>();
+    private final List<com.archon.core.plugin.DependencyDeclaration> declarations = new ArrayList<>();
 
     /**
      * Creates an AstVisitor that only creates nodes for classes in the given set.
@@ -36,7 +45,7 @@ public class AstVisitor {
     /**
      * Visit a CompilationUnit and extract class declarations, imports, and type hierarchies.
      */
-    public void visit(CompilationUnit cu, GraphBuilder graphBuilder) {
+    public void visit(CompilationUnit cu, DependencyGraph.MutableBuilder graphBuilder) {
         String packageName = cu.getPackageDeclaration()
             .map(pd -> pd.getName().asString())
             .orElse("");
@@ -47,11 +56,25 @@ public class AstVisitor {
     }
 
     /**
+     * Returns the collected module declarations.
+     */
+    public List<com.archon.core.plugin.ModuleDeclaration> getModuleDeclarations() {
+        return moduleDeclarations;
+    }
+
+    /**
+     * Returns the collected dependency declarations.
+     */
+    public List<com.archon.core.plugin.DependencyDeclaration> getDeclarations() {
+        return declarations;
+    }
+
+    /**
      * Ensures a node exists in the graph builder, but only for source-tree classes.
      * External classes (not in sourceClasses) are silently skipped.
      * @return true if the node is a source class (exists or just added), false if external
      */
-    private boolean ensureNodeExists(String fqcn, GraphBuilder graphBuilder) {
+    private boolean ensureNodeExists(String fqcn, DependencyGraph.MutableBuilder graphBuilder) {
         if (!sourceClasses.contains(fqcn)) {
             return false; // external class — skip node and edge
         }
@@ -63,7 +86,7 @@ public class AstVisitor {
     }
 
     private void processTypeDeclaration(TypeDeclaration<?> typeDecl, String packageName,
-                                         GraphBuilder graphBuilder) {
+                                         DependencyGraph.MutableBuilder graphBuilder) {
         String fqcn = packageName.isEmpty() ? typeDecl.getName().asString()
             : packageName + "." + typeDecl.getName().asString();
 
