@@ -89,6 +89,9 @@ public class DiffCommand implements Callable<Integer> {
             return 1;
         }
 
+        // Detect agent format early to suppress progress messages with ANSI codes
+        boolean useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
+
         GitAdapter git = new CliGitAdapter();
         if (!git.isGitAvailable()) {
             System.err.println("Error: git not found. Install git or use analyze/impact/check without diff.");
@@ -119,7 +122,7 @@ public class DiffCommand implements Callable<Integer> {
             }
             printStep("Computing working tree changes...");
             try {
-                changedFiles = ((CliGitAdapter) git).getWorkingTreeChanges(repoRoot);
+                changedFiles = git.getWorkingTreeChanges(repoRoot);
             } catch (GitException e) {
                 System.err.println("Error getting working tree changes: " + e.getMessage());
                 return 1;
@@ -262,7 +265,6 @@ public class DiffCommand implements Callable<Integer> {
             changedClassDomains, allImpactedNodes, riskSummary);
 
         // Agent format output (short-circuits all other output)
-        boolean useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
         if (useAgentFormat) {
             String agentOutput = formatAgentDiff(report, headGraph, domainMap,
                 headResult.getBlindSpots(), projectPath);
@@ -656,6 +658,9 @@ public class DiffCommand implements Callable<Integer> {
     }
 
     private void printStep(String message) {
-        System.out.println("\u001B[2m  " + message + "\u001B[0m");
+        // Suppress progress output in agent mode to prevent ANSI codes in piped output
+        if (System.console() != null) {
+            System.out.println("\u001B[2m  " + message + "\u001B[0m");
+        }
     }
 }

@@ -123,4 +123,23 @@ class AnalyzeCommandTest {
         // Then: withFullAnalysis should default to false
         assertFalse(command.withFullAnalysis, "withFullAnalysis flag should default to false");
     }
+
+    @Test
+    void testFormatFieldDefaultsToNull() {
+        // Given: default AnalyzeCommand
+        AnalyzeCommand command = new AnalyzeCommand();
+
+        // Then: format should default to null (text mode)
+        assertNull(command.format, "format field should default to null");
+    }
+
+    @Test
+    void testFormatFieldCanBeSetToAgent() {
+        // Given: AnalyzeCommand with format=agent
+        AnalyzeCommand command = new AnalyzeCommand();
+        command.format = "agent";
+
+        // Then: format should be "agent"
+        assertEquals("agent", command.format, "format field should be settable to 'agent'");
+    }
 }
