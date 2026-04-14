@@ -7,7 +7,6 @@ import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.DependencyDeclaration;
 import com.archon.core.plugin.NodeType;
 import com.archon.core.plugin.EdgeType;
-import com.archon.core.graph.DependencyGraph;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
@@ -289,8 +288,8 @@ class PythonPluginTest {
     }
 
     @Test
-    @DisplayName("backward-compat graph still populated from builder")
-    void testBackwardCompatGraphPopulated() {
+    @DisplayName("declarations populated from plugin parse")
+    void testDeclarationsPopulated() {
         PythonPlugin plugin = new PythonPlugin();
         ParseContext context = new ParseContext(
             Path.of("/project/src"),
@@ -303,16 +302,13 @@ class PythonPluginTest {
             context
         );
 
-        DependencyGraph graph = result.getGraph();
-        assertNotNull(graph, "Graph should not be null");
+        // Module declarations should be populated
+        assertFalse(result.getModuleDeclarations().isEmpty(),
+            "Should have module declarations");
 
-        // Graph should contain the source node
-        assertFalse(graph.getNodeIds().isEmpty(),
-            "Graph should contain at least the source module node");
-
-        // Find the source node
-        boolean foundSource = graph.getNodeIds().stream()
-            .anyMatch(id -> id.startsWith("py:"));
-        assertTrue(foundSource, "Graph should contain a py:-prefixed node");
+        // Find the source node declaration
+        boolean foundSource = result.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().startsWith("py:"));
+        assertTrue(foundSource, "Declarations should contain a py:-prefixed module");
     }
 }

@@ -7,7 +7,7 @@ val archonVersion = file("../VERSION").takeIf { it.exists() }?.readText()?.trim(
 
 dependencies {
     implementation(project(":archon-core"))
-    implementation(project(":archon-java"))
+    runtimeOnly(project(":archon-java"))
     implementation(project(":archon-js"))
     implementation(project(":archon-python"))
     implementation(project(":archon-viz"))

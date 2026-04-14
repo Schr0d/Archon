@@ -30,5 +30,9 @@ public record DependencyDeclaration(
         Objects.requireNonNull(confidence, "confidence must not be null");
         if (sourceId.isBlank()) throw new IllegalArgumentException("sourceId must not be blank");
         if (targetId.isBlank()) throw new IllegalArgumentException("targetId must not be blank");
+        if (!sourceId.contains(":")) throw new IllegalArgumentException(
+            "sourceId must contain a namespace prefix (e.g. 'java:com.example.Foo'), got: " + sourceId);
+        if (!targetId.contains(":")) throw new IllegalArgumentException(
+            "targetId must contain a namespace prefix (e.g. 'py:os'), got: " + targetId);
     }
 }

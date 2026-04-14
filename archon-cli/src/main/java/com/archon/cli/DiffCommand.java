@@ -2,15 +2,17 @@ package com.archon.cli;
 
 import com.archon.core.analysis.*;
 import com.archon.core.config.ArchonConfig;
+import com.archon.core.coordination.DeclarationGraphBuilder;
 import com.archon.core.coordination.ParseOrchestrator;
 import com.archon.core.git.CliGitAdapter;
 import com.archon.core.git.GitAdapter;
 import com.archon.core.git.GitException;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
-import com.archon.core.graph.Node;
 import com.archon.core.graph.RiskLevel;
+import com.archon.core.plugin.DependencyDeclaration;
 import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
@@ -319,8 +321,9 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Step 2: Parse base versions of changed files using individual plugins
-        // Each plugin's parseFromContent creates its own builder internally and returns a ParseResult
-        DependencyGraph.MutableBuilder tempBuilder = new DependencyGraph.MutableBuilder();
+        // Collect declarations from each plugin and build graph from them
+        List<ModuleDeclaration> allModuleDecls = new ArrayList<>();
+        List<DependencyDeclaration> allDepDecls = new ArrayList<>();
 
         for (Map.Entry<Path, String> entry : baseContents.entrySet()) {
             Path file = entry.getKey();
@@ -342,14 +345,17 @@ public class DiffCommand implements Callable<Integer> {
                     content,
                     context
                 );
-                // Merge the parsed graph into the temp builder (with namespace prefixes)
-                DependencyGraph.mergeInto(result.getGraph(), tempBuilder);
-                // Errors are ignored for base graph parsing
+                // Collect declarations from the plugin
+                allModuleDecls.addAll(result.getModuleDeclarations());
+                allDepDecls.addAll(result.getDeclarations());
             }
         }
 
-        // Build temp graph and strip namespace prefixes
-        DependencyGraph changedGraph = DependencyGraph.stripNamespacePrefixesAndBuild(tempBuilder);
+        // Build graph from declarations using the shared utility
+        DeclarationGraphBuilder.BuildResult buildResult = DeclarationGraphBuilder.build(
+            allModuleDecls, allDepDecls
+        );
+        DependencyGraph changedGraph = buildResult.graph();
 
         // Merge changed graph into base builder
         DependencyGraph.mergeInto(changedGraph, baseBuilder);

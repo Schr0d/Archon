@@ -1,6 +1,5 @@
 package com.archon.core.coordination;
 
-import com.archon.core.graph.DependencyGraph;
 import com.archon.core.plugin.*;
 
 import java.util.List;
@@ -35,9 +34,8 @@ class DeclarationPlugin implements LanguagePlugin {
 
     @Override
     public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
-        DependencyGraph emptyGraph = new DependencyGraph.MutableBuilder().build();
         return new ParseResult(
-            emptyGraph, sourceModules, List.of(), List.of(),
+            sourceModules, List.of(), List.of(),
             moduleDeclarations, dependencyDeclarations
         );
     }

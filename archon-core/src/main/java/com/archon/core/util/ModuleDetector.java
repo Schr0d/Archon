@@ -1,4 +1,4 @@
-package com.archon.java;
+package com.archon.core.util;
 
 import java.io.IOException;
 import java.nio.file.Files;

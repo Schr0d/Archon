@@ -1,6 +1,5 @@
 package com.archon.java;
 
-import com.archon.core.graph.DependencyGraph;
 import com.archon.core.plugin.DependencyDeclaration;
 import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.ParseContext;
@@ -90,9 +89,9 @@ class JavaPluginTest {
         // Check source module
         assertTrue(result.getSourceModules().contains("java:com.example.Foo"));
 
-        // Check the graph has the node with namespace prefix
-        DependencyGraph graph = result.getGraph();
-        assertTrue(graph.containsNode("com.example.Foo"));
+        // Check the module declaration has the namespace-prefixed ID
+        assertTrue(result.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().equals("java:com.example.Foo")));
     }
 
     @Test
@@ -120,15 +119,11 @@ class JavaPluginTest {
 
         assertFalse(childResult.hasErrors());
 
-        // Check nodes are in child result graph
-        DependencyGraph graph = childResult.getGraph();
-        assertTrue(graph.containsNode("com.example.Parent"));
-        assertTrue(graph.containsNode("com.example.Child"));
+        // Check module declarations for both classes
+        assertTrue(childResult.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().equals("java:com.example.Child")));
 
-        // Check edge exists
-        assertTrue(graph.getEdge("com.example.Child", "com.example.Parent").isPresent());
-
-        // Check dependency declarations
+        // Check dependency declaration for extends edge
         assertFalse(childResult.getDeclarations().isEmpty());
         assertTrue(childResult.getDeclarations().stream()
             .anyMatch(dd -> dd.sourceId().equals("java:com.example.Child")

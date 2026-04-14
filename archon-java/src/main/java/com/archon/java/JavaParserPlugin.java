@@ -1,8 +1,12 @@
 package com.archon.java;
 
 import com.archon.core.config.ArchonConfig;
+import com.archon.core.coordination.DeclarationGraphBuilder;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.plugin.BlindSpot;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.ModuleDeclaration;
+import com.archon.core.util.ModuleDetector;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
@@ -66,14 +70,13 @@ public class JavaParserPlugin {
     public ParseResult parse(Path projectRoot, ArchonConfig config) {
         List<ParseError> errors = new ArrayList<>();
         List<BlindSpot> blindSpots = new ArrayList<>();
-        DependencyGraph.MutableBuilder graphBuilder = new DependencyGraph.MutableBuilder();
 
         // Step 1: Detect source roots
         ModuleDetector moduleDetector = new ModuleDetector();
         List<ModuleDetector.SourceRoot> sourceRoots = moduleDetector.detectModules(projectRoot);
 
         if (sourceRoots.isEmpty()) {
-            return new ParseResult(graphBuilder.build(), blindSpots, errors);
+            return new ParseResult(new DependencyGraph.MutableBuilder().build(), blindSpots, errors);
         }
 
         // Step 2: First pass — collect all source FQCNs
@@ -87,16 +90,20 @@ public class JavaParserPlugin {
         AstVisitor astVisitor = new AstVisitor(sourceClasses);
 
         for (ModuleDetector.SourceRoot sourceRoot : sourceRoots) {
-            parseSourceRoot(sourceRoot.getPath(), javaParser, astVisitor, graphBuilder, errors);
+            parseSourceRoot(sourceRoot.getPath(), javaParser, astVisitor, errors);
         }
 
-        // Step 4: Detect blind spots
+        // Step 4: Build graph from declarations collected by AstVisitor
+        DependencyGraph graph = DeclarationGraphBuilder.build(
+            astVisitor.getModuleDeclarations(), astVisitor.getDependencyDeclarations()).graph();
+
+        // Step 5: Detect blind spots
         BlindSpotDetector blindSpotDetector = new BlindSpotDetector();
         for (ModuleDetector.SourceRoot sourceRoot : sourceRoots) {
             blindSpots.addAll(blindSpotDetector.detect(sourceRoot.getPath()));
         }
 
-        return new ParseResult(graphBuilder.build(), blindSpots, errors);
+        return new ParseResult(graph, blindSpots, errors);
     }
 
     /**
@@ -109,10 +116,9 @@ public class JavaParserPlugin {
      */
     public ParseResult parseFromContent(Map<Path, String> fileContents, Set<String> knownSourceClasses) {
         List<ParseError> errors = new ArrayList<>();
-        DependencyGraph.MutableBuilder graphBuilder = new DependencyGraph.MutableBuilder();
 
         if (fileContents.isEmpty()) {
-            return new ParseResult(graphBuilder.build(), List.of(), errors);
+            return new ParseResult(new DependencyGraph.MutableBuilder().build(), List.of(), errors);
         }
 
         // Collect FQCNs from the provided content
@@ -125,16 +131,19 @@ public class JavaParserPlugin {
         // Build graph with AstVisitor using the combined source class set
         AstVisitor astVisitor = new AstVisitor(sourceClasses);
         for (Map.Entry<Path, String> entry : fileContents.entrySet()) {
-            parseContentFile(entry.getKey().toString(), entry.getValue(), javaParser, astVisitor, graphBuilder, errors);
+            parseContentFile(entry.getKey().toString(), entry.getValue(), javaParser, astVisitor, errors);
         }
 
+        // Build graph from declarations
+        DependencyGraph graph = DeclarationGraphBuilder.build(
+            astVisitor.getModuleDeclarations(), astVisitor.getDependencyDeclarations()).graph();
+
         // No blind spot detection for content-based parsing (no filesystem to scan)
-        return new ParseResult(graphBuilder.build(), List.of(), errors);
+        return new ParseResult(graph, List.of(), errors);
     }
 
     private void parseSourceRoot(Path sourceRoot, JavaParser javaParser,
-                                  AstVisitor astVisitor, DependencyGraph.MutableBuilder graphBuilder,
-                                  List<ParseError> errors) {
+                                  AstVisitor astVisitor, List<ParseError> errors) {
         if (!Files.isDirectory(sourceRoot)) {
             return;
         }
@@ -144,7 +153,7 @@ public class JavaParserPlugin {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                     if (file.toString().endsWith(".java")) {
-                        parseSingleFile(file, javaParser, astVisitor, graphBuilder, errors);
+                        parseSingleFile(file, javaParser, astVisitor, errors);
                     }
                     return FileVisitResult.CONTINUE;
                 }
@@ -207,13 +216,12 @@ public class JavaParserPlugin {
     }
 
     private void parseSingleFile(Path file, JavaParser javaParser,
-                                  AstVisitor astVisitor, DependencyGraph.MutableBuilder graphBuilder,
-                                  List<ParseError> errors) {
+                                  AstVisitor astVisitor, List<ParseError> errors) {
         try {
             var parseResult = javaParser.parse(file);
             if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
                 CompilationUnit cu = parseResult.getResult().get();
-                astVisitor.visit(cu, graphBuilder);
+                astVisitor.visit(cu, file.toString());
             } else {
                 String message = parseResult.getProblems().stream()
                     .map(p -> p.getMessage())
@@ -250,13 +258,12 @@ public class JavaParserPlugin {
     }
 
     private void parseContentFile(String fileName, String content, JavaParser javaParser,
-                                   AstVisitor astVisitor, DependencyGraph.MutableBuilder graphBuilder,
-                                   List<ParseError> errors) {
+                                   AstVisitor astVisitor, List<ParseError> errors) {
         try {
             var parseResult = javaParser.parse(content);
             if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
                 CompilationUnit cu = parseResult.getResult().get();
-                astVisitor.visit(cu, graphBuilder);
+                astVisitor.visit(cu, fileName);
             } else {
                 String message = parseResult.getProblems().stream()
                     .map(p -> p.getMessage())

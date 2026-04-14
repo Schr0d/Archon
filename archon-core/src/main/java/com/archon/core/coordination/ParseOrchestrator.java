@@ -1,8 +1,6 @@
 package com.archon.core.coordination;
 
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.Edge;
-import com.archon.core.graph.Node;
 import com.archon.core.plugin.*;
 
 import java.io.IOException;
@@ -14,7 +12,6 @@ import java.util.stream.Collectors;
 /**
  * Orchestrates multiple LanguagePlugin implementations to build a unified graph.
  *
- * <h3>Declaration-based construction (primary path):</h3>
  * <p>Plugins return {@link ModuleDeclaration} and {@link DependencyDeclaration} records.
  * The orchestrator collects all declarations from all files and builds the graph
  * in a single pass:
@@ -23,11 +20,6 @@ import java.util.stream.Collectors;
  *   <li>For each DependencyDeclaration, create an edge (skip if target not in node map, log warning)</li>
  *   <li>Strip namespace prefixes before building</li>
  * </ol>
- *
- * <h3>Backward-compatible path (legacy):</h3>
- * <p>If a plugin's ParseResult has empty declarations, the orchestrator falls back to
- * merging the plugin's returned graph into the shared builder. This allows incremental
- * migration of plugins from the old graph-returning approach to the new declaration approach.
  *
  * <h3>Namespace Handling:</h3>
  * <ul>
@@ -56,9 +48,9 @@ public class ParseOrchestrator {
      * Parse source tree using all registered plugins.
      *
      * <p>Files are partitioned by extension and routed to the appropriate plugin.
-     * Each plugin returns a ParseResult that may contain declarations (new path)
-     * or a graph (legacy path). The orchestrator builds a unified graph from
-     * all declarations, strips namespace prefixes, and returns the result.
+     * Each plugin returns a ParseResult containing declarations. The orchestrator
+     * builds a unified graph from all declarations, strips namespace prefixes,
+     * and returns the result.
      *
      * @param sourceFiles List of source file paths to parse
      * @param context Parse context with source root and extensions
@@ -77,10 +69,6 @@ public class ParseOrchestrator {
         List<String> allErrors = new ArrayList<>();
         List<ModuleDeclaration> allModuleDeclarations = new ArrayList<>();
         List<DependencyDeclaration> allDependencyDeclarations = new ArrayList<>();
-
-        // Legacy fallback: collect graphs from plugins that don't return declarations
-        DependencyGraph.MutableBuilder legacyPrefixedBuilder = new DependencyGraph.MutableBuilder();
-        boolean hasLegacyResults = false;
 
         // Parse files with their respective plugins
         for (Map.Entry<String, List<Path>> entry : filesByExtension.entrySet()) {
@@ -116,35 +104,24 @@ public class ParseOrchestrator {
                     allBlindSpots.addAll(result.getBlindSpots());
                     allErrors.addAll(result.getParseErrors());
 
-                    // Check if plugin uses the new declaration path
-                    if (!result.getModuleDeclarations().isEmpty()
-                        || !result.getDeclarations().isEmpty()) {
-                        // New path: collect declarations
-                        allModuleDeclarations.addAll(result.getModuleDeclarations());
-                        allDependencyDeclarations.addAll(result.getDeclarations());
-                    } else {
-                        // Legacy path: merge the returned graph
-                        DependencyGraph.mergeInto(result.getGraph(), legacyPrefixedBuilder);
-                        hasLegacyResults = true;
-                    }
+                    // Collect declarations from all plugins
+                    allModuleDeclarations.addAll(result.getModuleDeclarations());
+                    allDependencyDeclarations.addAll(result.getDeclarations());
                 } catch (IOException e) {
                     allErrors.add("Failed to read " + file + ": " + e.getMessage());
                 }
             }
         }
 
-        // Build the final graph
+        // Build the final graph from declarations
         DependencyGraph finalGraph;
 
         if (!allModuleDeclarations.isEmpty() || !allDependencyDeclarations.isEmpty()) {
-            // New declaration-based path
-            finalGraph = buildGraphFromDeclarations(
-                allModuleDeclarations, allDependencyDeclarations,
-                hasLegacyResults ? legacyPrefixedBuilder : null
+            DeclarationGraphBuilder.BuildResult result = DeclarationGraphBuilder.build(
+                allModuleDeclarations, allDependencyDeclarations
             );
-        } else if (hasLegacyResults) {
-            // Legacy-only path: strip namespace prefixes from merged graphs
-            finalGraph = DependencyGraph.stripNamespacePrefixesAndBuild(legacyPrefixedBuilder);
+            finalGraph = result.graph();
+            allErrors.addAll(result.warnings());
         } else {
             // No results at all — return empty graph
             finalGraph = new DependencyGraph.MutableBuilder().build();
@@ -154,91 +131,6 @@ public class ParseOrchestrator {
             finalGraph, allSourceModules, allBlindSpots, allErrors,
             allModuleDeclarations, allDependencyDeclarations
         );
-    }
-
-    /**
-     * Builds a DependencyGraph from collected ModuleDeclaration and DependencyDeclaration records.
-     *
-     * <p>This method:
-     * <ol>
-     *   <li>Creates a node for each unique ModuleDeclaration.id (dedup by ID, keeps first seen)</li>
-     *   <li>Creates edges from DependencyDeclarations (skips edges to missing targets, logs warning)</li>
-     *   <li>If a legacy builder is provided, merges those nodes/edges first</li>
-     *   <li>Strips namespace prefixes from the final graph</li>
-     * </ol>
-     *
-     * @param moduleDeclarations collected module declarations from all plugins
-     * @param dependencyDeclarations collected dependency declarations from all plugins
-     * @param legacyBuilder optional legacy builder with graph-returned data (may be null)
-     * @return unified graph with namespace prefixes stripped
-     */
-    private DependencyGraph buildGraphFromDeclarations(
-        List<ModuleDeclaration> moduleDeclarations,
-        List<DependencyDeclaration> dependencyDeclarations,
-        DependencyGraph.MutableBuilder legacyBuilder
-    ) {
-        DependencyGraph.MutableBuilder prefixedBuilder = new DependencyGraph.MutableBuilder();
-
-        // If there are legacy results, merge them first
-        if (legacyBuilder != null) {
-            DependencyGraph legacyGraph = legacyBuilder.build();
-            DependencyGraph.mergeInto(legacyGraph, prefixedBuilder);
-        }
-
-        // Phase 1: Build node map from declarations (dedup by ID, keep first seen)
-        Set<String> seenIds = new HashSet<>();
-        for (ModuleDeclaration decl : moduleDeclarations) {
-            if (seenIds.add(decl.id())) {
-                Node node = Node.builder()
-                    .id(decl.id())
-                    .type(mapNodeType(decl.type()))
-                    .sourcePath(decl.sourcePath())
-                    .confidence(mapConfidence(decl.confidence()))
-                    .build();
-                prefixedBuilder.addNode(node);
-            }
-        }
-
-        // Phase 2: Build edges from declarations
-        Set<String> knownNodeIds = new HashSet<>(prefixedBuilder.knownNodeIds());
-        for (DependencyDeclaration decl : dependencyDeclarations) {
-            if (!knownNodeIds.contains(decl.sourceId())) {
-                System.err.println("Warning: Edge source '" + decl.sourceId() +
-                    "' not in node map; skipping edge.");
-                continue;
-            }
-            if (!knownNodeIds.contains(decl.targetId())) {
-                System.err.println("Warning: Edge target '" + decl.targetId() +
-                    "' not in node map; skipping edge from '" + decl.sourceId() + "'.");
-                continue;
-            }
-            Edge edge = Edge.builder()
-                .source(decl.sourceId())
-                .target(decl.targetId())
-                .type(mapEdgeType(decl.edgeType()))
-                .confidence(mapConfidence(decl.confidence()))
-                .evidence(decl.evidence())
-                .dynamic(decl.dynamic())
-                .build();
-            prefixedBuilder.addEdge(edge);
-        }
-
-        // Strip namespace prefixes and build final graph
-        return DependencyGraph.stripNamespacePrefixesAndBuild(prefixedBuilder);
-    }
-
-    // --- Enum mapping functions: plugin enums -> graph enums ---
-
-    private static com.archon.core.graph.NodeType mapNodeType(NodeType pluginNodeType) {
-        return com.archon.core.graph.NodeType.valueOf(pluginNodeType.name());
-    }
-
-    private static com.archon.core.graph.EdgeType mapEdgeType(EdgeType pluginEdgeType) {
-        return com.archon.core.graph.EdgeType.valueOf(pluginEdgeType.name());
-    }
-
-    private static com.archon.core.graph.Confidence mapConfidence(Confidence pluginConfidence) {
-        return com.archon.core.graph.Confidence.valueOf(pluginConfidence.name());
     }
 
     // --- File routing helpers ---

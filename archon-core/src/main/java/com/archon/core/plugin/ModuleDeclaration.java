@@ -24,5 +24,7 @@ public record ModuleDeclaration(
         Objects.requireNonNull(type, "type must not be null");
         Objects.requireNonNull(confidence, "confidence must not be null");
         if (id.isBlank()) throw new IllegalArgumentException("id must not be blank");
+        if (!id.contains(":")) throw new IllegalArgumentException(
+            "id must contain a namespace prefix (e.g. 'java:com.example.Foo'), got: " + id);
     }
 }

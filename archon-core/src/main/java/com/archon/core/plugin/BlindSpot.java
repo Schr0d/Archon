@@ -33,4 +33,19 @@ public class BlindSpot {
     public String toString() {
         return String.format("[%s] %s: %s", type, location, description);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BlindSpot blindSpot = (BlindSpot) o;
+        return type.equals(blindSpot.type)
+            && location.equals(blindSpot.location)
+            && description.equals(blindSpot.description);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, location, description);
+    }
 }

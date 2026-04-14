@@ -276,64 +276,6 @@ class ParseOrchestratorDeclarationTest {
     }
 
     @Test
-    void testLegacyFallbackPath(@TempDir Path tempDir) throws IOException {
-        // Plugin returns empty declarations but a non-empty graph (legacy path)
-        LanguagePlugin legacyPlugin = new LanguagePlugin() {
-            @Override
-            public Set<String> fileExtensions() {
-                return Set.of("java");
-            }
-
-            @Override
-            public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
-                DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-                builder.addNode(Node.builder()
-                    .id("java:com.legacy.Service")
-                    .type(com.archon.core.graph.NodeType.CLASS)
-                    .sourcePath("Service.java")
-                    .build());
-                builder.addNode(Node.builder()
-                    .id("java:com.legacy.Dao")
-                    .type(com.archon.core.graph.NodeType.CLASS)
-                    .sourcePath("Dao.java")
-                    .build());
-                builder.addEdge(Edge.builder()
-                    .source("java:com.legacy.Service")
-                    .target("java:com.legacy.Dao")
-                    .type(com.archon.core.graph.EdgeType.IMPORTS)
-                    .build());
-
-                // Empty declarations triggers legacy fallback
-                return new ParseResult(
-                    builder.build(), Set.of("com.legacy.Service", "com.legacy.Dao"),
-                    List.of(), List.of(), List.of(), List.of()
-                );
-            }
-        };
-
-        Path javaFile = tempDir.resolve("Service.java");
-        Files.writeString(javaFile, "// legacy test file");
-
-        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(legacyPlugin));
-        ParseResult result = orchestrator.parse(
-            List.of(javaFile),
-            new ParseContext(tempDir, Set.of("java"))
-        );
-
-        DependencyGraph graph = result.getGraph();
-
-        // Legacy graph nodes should be present with prefixes stripped
-        assertEquals(2, graph.nodeCount(), "Should have 2 nodes from legacy graph");
-        assertTrue(graph.containsNode("com.legacy.Service"), "Service node should exist");
-        assertTrue(graph.containsNode("com.legacy.Dao"), "Dao node should exist");
-
-        // Legacy edge should be present with stripped IDs
-        assertEquals(1, graph.edgeCount(), "Should have 1 edge from legacy graph");
-        assertTrue(graph.getEdge("com.legacy.Service", "com.legacy.Dao").isPresent(),
-            "Edge from Service to Dao should exist");
-    }
-
-    @Test
     void testEmptySourceFilesReturnsEmptyGraph(@TempDir Path tempDir) {
         DeclarationPlugin plugin = new DeclarationPlugin(
             "java",

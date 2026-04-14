@@ -1,10 +1,8 @@
 package com.archon.core.plugin;
 
-import com.archon.core.graph.DependencyGraph;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import java.util.Set;
-import java.util.List;
 
 class LanguagePluginTest {
     @Test
@@ -35,7 +33,7 @@ class LanguagePluginTest {
         );
 
         assertNotNull(result);
-        assertNotNull(result.getGraph());
+        assertNotNull(result.getSourceModules());
     }
 
     // Minimal test implementation
@@ -51,7 +49,7 @@ class LanguagePluginTest {
             String content,
             ParseContext context
         ) {
-            return new ParseResult(new DependencyGraph.MutableBuilder().build(), Set.of(), List.of());
+            return new ParseResult(Set.of(), java.util.List.of(), java.util.List.of());
         }
     }
 }

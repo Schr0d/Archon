@@ -27,8 +27,7 @@ class PluginDiscovererTest {
             ParseContext context
         ) {
             return new ParseResult(
-                new com.archon.core.graph.DependencyGraph.MutableBuilder().build(),
-                Set.of(), List.of()
+                Set.of(), List.of(), List.of()
             );
         }
     }
@@ -49,8 +48,7 @@ class PluginDiscovererTest {
             ParseContext context
         ) {
             return new ParseResult(
-                new com.archon.core.graph.DependencyGraph.MutableBuilder().build(),
-                Set.of(), List.of()
+                Set.of(), List.of(), List.of()
             );
         }
     }
@@ -71,8 +69,7 @@ class PluginDiscovererTest {
             ParseContext context
         ) {
             return new ParseResult(
-                new com.archon.core.graph.DependencyGraph.MutableBuilder().build(),
-                Set.of(), List.of()
+                Set.of(), List.of(), List.of()
             );
         }
     }

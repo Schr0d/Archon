@@ -1,8 +1,5 @@
 package com.archon.python;
 
-import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.Edge;
-import com.archon.core.graph.Node;
 import com.archon.core.plugin.BlindSpot;
 import com.archon.core.plugin.Confidence;
 import com.archon.core.plugin.DependencyDeclaration;
@@ -35,10 +32,6 @@ import java.util.Set;
  * <p>Filters standard library modules from the dependency graph.
  *
  * <p>Node IDs use "py:" namespace prefix (e.g., "py:src.utils.helpers").
- *
- * <p>Returns both a backward-compatible graph and declaration lists
- * (ModuleDeclaration + DependencyDeclaration) for the ParseOrchestrator
- * to use in declaration-based graph assembly.
  */
 public class PythonPlugin implements LanguagePlugin {
 
@@ -70,14 +63,12 @@ public class PythonPlugin implements LanguagePlugin {
         Set<String> sourceModules = new HashSet<>();
         List<ModuleDeclaration> moduleDecls = new ArrayList<>();
         List<DependencyDeclaration> depDecls = new ArrayList<>();
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         // Check file size to prevent OOM on malformed inputs
         if (content.length() > MAX_FILE_SIZE) {
             parseErrors.add(filePath + ":0 - File too large to parse (" +
                 (content.length() / 1024) + " KB, max " + (MAX_FILE_SIZE / 1024) + " KB)");
             return new ParseResult(
-                builder.build(),
                 sourceModules,
                 blindSpots,
                 parseErrors,
@@ -92,14 +83,6 @@ public class PythonPlugin implements LanguagePlugin {
             String prefixedId = NAMESPACE + ":" + moduleName;
             sourceModules.add(prefixedId);
 
-            // Create a node for this module in the backward-compat graph
-            Node node = Node.builder()
-                .id(prefixedId)
-                .type(com.archon.core.graph.NodeType.MODULE)
-                .sourcePath(filePath)
-                .build();
-            builder.addNode(node);
-
             // Collect module declaration
             moduleDecls.add(new ModuleDeclaration(
                 prefixedId,
@@ -111,7 +94,7 @@ public class PythonPlugin implements LanguagePlugin {
             // Extract imports using PythonImportExtractor
             Set<String> imports = PythonImportExtractor.extractImports(content);
 
-            // Add edges for each import
+            // Collect dependency declarations for each import
             for (String importModule : imports) {
                 String targetModuleName = importModule;
                 String evidence = importModule;
@@ -141,7 +124,6 @@ public class PythonPlugin implements LanguagePlugin {
 
                 // Filter out stdlib modules
                 if (PythonStdlib.isStdlib(targetModuleName)) {
-                    // Stdlib filtering — skip edge, optionally report as info
                     continue;
                 }
 
@@ -149,15 +131,6 @@ public class PythonPlugin implements LanguagePlugin {
                 // Convert dot notation (from imports) to slash notation (to match node IDs from file paths)
                 String targetId = NAMESPACE + ":" + targetModuleName.replace(".", "/");
 
-                Edge edge = Edge.builder()
-                    .source(prefixedId)
-                    .target(targetId)
-                    .type(com.archon.core.graph.EdgeType.IMPORTS)
-                    .build();
-
-                builder.addEdge(edge);
-
-                // Collect dependency declaration
                 depDecls.add(new DependencyDeclaration(
                     prefixedId,
                     targetId,
@@ -172,9 +145,7 @@ public class PythonPlugin implements LanguagePlugin {
             parseErrors.add(filePath + ":0 - Failed to parse: " + e.getMessage());
         }
 
-        // Return result with both graph and declarations populated
         return new ParseResult(
-            builder.build(),
             sourceModules,
             blindSpots,
             parseErrors,

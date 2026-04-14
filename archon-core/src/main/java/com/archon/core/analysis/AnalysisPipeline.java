@@ -9,6 +9,7 @@ import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
+import com.archon.core.util.ModuleDetector;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -131,25 +132,13 @@ public class AnalysisPipeline {
 
         // Use ModuleDetector to find Java source roots (only if "java" in extensions)
         if (extensions.contains("java")) {
-            try {
-                // Try to use ModuleDetector from archon-java module
-                Class<?> moduleDetectorClass = Class.forName("com.archon.java.ModuleDetector");
-                Object moduleDetector = moduleDetectorClass.getDeclaredConstructor().newInstance();
-                java.lang.reflect.Method detectMethod = moduleDetectorClass.getMethod("detectModules", Path.class);
-                Object sourceRoots = detectMethod.invoke(moduleDetector, root);
+            ModuleDetector moduleDetector = new ModuleDetector();
+            List<ModuleDetector.SourceRoot> javaSourceRoots = moduleDetector.detectModules(root);
 
-                if (sourceRoots instanceof List<?> javaSourceRoots && !javaSourceRoots.isEmpty()) {
-                    Class<?> sourceRootClass = Class.forName("com.archon.java.ModuleDetector$SourceRoot");
-                    java.lang.reflect.Method getPathMethod = sourceRootClass.getMethod("getPath");
-
-                    for (Object sourceRoot : javaSourceRoots) {
-                        Path sourceRootPath = (Path) getPathMethod.invoke(sourceRoot);
-                        collectFilesFromDirectory(sourceRootPath, Set.of("java"), sourceFiles);
-                    }
+            if (!javaSourceRoots.isEmpty()) {
+                for (ModuleDetector.SourceRoot sourceRoot : javaSourceRoots) {
+                    collectFilesFromDirectory(sourceRoot.getPath(), Set.of("java"), sourceFiles);
                 }
-            } catch (ReflectiveOperationException e) {
-                // Fall back to tree walk if ModuleDetector is not available (archon-core doesn't depend on archon-java)
-                walkProjectForFiles(root, extensions, sourceFiles);
             }
         }
 

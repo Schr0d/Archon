@@ -1,7 +1,6 @@
 package com.archon.core.coordination;
 
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.DependencyGraph.MutableBuilder;
 import com.archon.core.plugin.*;
 
 import org.junit.jupiter.api.Test;
@@ -115,87 +114,5 @@ class CrossPluginEdgeResolutionTest {
 
         // Edge to nonexistent should be skipped
         assertEquals(0, graph.edgeCount(), "Edge to nonexistent target should be skipped");
-    }
-
-    @Test
-    void testMixedDeclarationAndLegacyPlugins(@TempDir Path tempDir) throws IOException {
-        // Declaration-based plugin
-        DeclarationPlugin declPlugin = new DeclarationPlugin(
-            "java",
-            List.of(
-                new ModuleDeclaration("java:JavaService", NodeType.SERVICE, "JavaService.java", Confidence.HIGH)
-            ),
-            List.of(),
-            Set.of("JavaService")
-        );
-
-        // Legacy graph-returning plugin
-        LegacyPlugin legacyPlugin = new LegacyPlugin(
-            "js",
-            List.of("js:JsModule"),
-            List.of()
-        );
-
-        Path javaFile = tempDir.resolve("Test.java");
-        Files.writeString(javaFile, "// java");
-        Path jsFile = tempDir.resolve("test.js");
-        Files.writeString(jsFile, "// js");
-
-        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(declPlugin, legacyPlugin));
-        ParseResult result = orchestrator.parse(
-            List.of(javaFile, jsFile),
-            new ParseContext(tempDir, Set.of("java", "js"))
-        );
-
-        DependencyGraph graph = result.getGraph();
-
-        // Both nodes should exist regardless of which path was used
-        assertEquals(2, graph.nodeCount(), "Should have nodes from both plugin paths");
-        assertTrue(graph.containsNode("JavaService"), "Declaration-based node should exist");
-        assertTrue(graph.containsNode("JsModule"), "Legacy graph node should exist");
-    }
-
-    /**
-     * Legacy test plugin that returns a graph instead of declarations.
-     */
-    static class LegacyPlugin implements LanguagePlugin {
-        private final String extension;
-        private final List<String> nodeIds;
-        private final List<String[]> edges; // [source, target]
-
-        LegacyPlugin(String extension, List<String> nodeIds, List<String[]> edges) {
-            this.extension = extension;
-            this.nodeIds = nodeIds;
-            this.edges = edges;
-        }
-
-        @Override
-        public Set<String> fileExtensions() {
-            return Set.of(extension);
-        }
-
-        @Override
-        public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
-            MutableBuilder builder = new MutableBuilder();
-
-            for (String nodeId : nodeIds) {
-                builder.addNode(com.archon.core.graph.Node.builder()
-                    .id(nodeId)
-                    .type(com.archon.core.graph.NodeType.MODULE)
-                    .sourcePath(filePath)
-                    .build());
-            }
-
-            for (String[] edge : edges) {
-                builder.addEdge(com.archon.core.graph.Edge.builder()
-                    .source(edge[0])
-                    .target(edge[1])
-                    .type(com.archon.core.graph.EdgeType.IMPORTS)
-                    .build());
-            }
-
-            // Return ParseResult WITHOUT declarations — triggers legacy path
-            return new ParseResult(builder.build(), Set.of(), List.of());
-        }
     }
 }
