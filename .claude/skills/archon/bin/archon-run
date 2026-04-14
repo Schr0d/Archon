@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# archon-run — Invoke Archon CLI with auto-detected JDK and JAR
+# Usage: archon-run <command> [args...]
+# Example: archon-run view . --format json --with-metadata --with-full-analysis
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- Detect JDK ---
+if [ -z "${ARCHON_JAVA_HOME:-}" ]; then
+  eval "$(source "$SCRIPT_DIR/archon-detect")" || {
+    echo "ERROR: JDK 17 not found. Run /archon setup first." >&2
+    exit 1
+  }
+fi
+JAVA="$ARCHON_JAVA_HOME/bin/java"
+
+# --- Find or build JAR ---
+ARCHON_JAR="${ARCHON_JAR:-}"
+
+if [ -z "$ARCHON_JAR" ] || [ ! -f "$ARCHON_JAR" ]; then
+  # Try to find JAR in local project
+  REPO_ROOT=""
+  # Walk up from CWD to find build.gradle
+  _DIR="$(pwd)"
+  while [ "$_DIR" != "/" ]; do
+    if [ -f "$_DIR/build.gradle" ] || [ -f "$_DIR/build.gradle.kts" ]; then
+      REPO_ROOT="$_DIR"
+      break
+    fi
+    _DIR="$(dirname "$_DIR")"
+  done
+
+  if [ -n "$REPO_ROOT" ]; then
+    # Find the shadow JAR in build/libs
+    JAR_CANDIDATE=$(ls -t "$REPO_ROOT"/archon-cli/build/libs/archon-*.jar 2>/dev/null | grep -v -- '-sources\|-javadoc' | head -1)
+    if [ -n "$JAR_CANDIDATE" ]; then
+      ARCHON_JAR="$JAR_CANDIDATE"
+    else
+      # Build it
+      echo "# archon-run: Building shadow JAR (first run)..." >&2
+      (cd "$REPO_ROOT" && export JAVA_HOME="$ARCHON_JAVA_HOME" && export PATH="$JAVA_HOME/bin:$PATH" && ./gradlew :archon-cli:shadowJar --quiet 2>&1) >&2
+      JAR_CANDIDATE=$(ls -t "$REPO_ROOT"/archon-cli/build/libs/archon-*.jar 2>/dev/null | grep -v -- '-sources\|-javadoc' | head -1)
+      if [ -n "$JAR_CANDIDATE" ]; then
+        ARCHON_JAR="$JAR_CANDIDATE"
+      fi
+    fi
+  fi
+fi
+
+if [ -z "$ARCHON_JAR" ] || [ ! -f "$ARCHON_JAR" ]; then
+  echo "ERROR: Archon JAR not found. Run /archon setup first." >&2
+  exit 1
+fi
+
+# --- Cache JAR path ---
+STATE_DIR="$HOME/.archon"
+CONFIG_FILE="$STATE_DIR/config.json"
+mkdir -p "$STATE_DIR"
+if [ -f "$CONFIG_FILE" ]; then
+  # Update jarPath in existing config
+  JAR_ESC=$(echo "$ARCHON_JAR" | sed 's/\\/\\\\/g')
+  if grep -q '"jarPath"' "$CONFIG_FILE"; then
+    sed -i "s|\"jarPath\":\"[^\"]*\"|\"jarPath\":\"$JAR_ESC\"|" "$CONFIG_FILE"
+  else
+    # Append jarPath
+    sed -i "s|}|, \"jarPath\":\"$JAR_ESC\"}|" "$CONFIG_FILE"
+  fi
+fi
+
+# --- Run ---
+"$JAVA" -jar "$ARCHON_JAR" "$@"

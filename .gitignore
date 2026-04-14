@@ -24,7 +24,9 @@ Thumbs.db
 *.zip
 
 # Claude Code & GStack (user-specific)
-/.claude/
+/.claude/*
+!/.claude/skills/
+!/.claude/skills/archon/
 .gstack/
 docs/superpowers/
 archon-viz-web/archon-self-data.js

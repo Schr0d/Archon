@@ -27,13 +27,18 @@ Runs a full analysis and presents a structured report with domain map, hotspots,
 
 Detects JDK 17 on your system and verifies the shadow JAR works. Run once per machine.
 
+### `/archon upgrade` — Update skill files from GitHub
+
+Downloads the latest skill files from the repo. The repo is the source of truth — local skill files pull updates via reverse inheritance.
+
 ## How It Works
 
 The skill uses three components:
 
 - **`SKILL.md`** — Skill definition with `/archon diff`, `/archon analyze`, `/archon setup` commands
-- **`bin/archon-detect`** — Cross-platform JDK 17 detection (Windows/macOS/Linux). Caches result at `~/.gstack/projects/$SLUG/archon-config.json`
+- **`bin/archon-detect`** — Cross-platform JDK 17 detection (Windows/macOS/Linux). Caches result at `~/.archon/config.json`
 - **`bin/archon-run`** — JAR invocation wrapper. Auto-finds or builds the shadow JAR. Handles JDK selection.
+- **`bin/archon-update-check`** — Periodic version check. Detects JAR version mismatch, GitHub remote updates, and JDK availability changes. All state in `~/.archon/` with zero external dependencies.
 
 ## Key Technical Notes
 
@@ -73,10 +78,11 @@ The skill uses three components:
 
 ```
 ~/.claude/skills/archon/
-  SKILL.md          — Skill definition
+  SKILL.md                  — Skill definition
   bin/
-    archon-detect   — JDK 17 auto-detection
-    archon-run      — JAR invocation wrapper
+    archon-detect           — JDK 17 auto-detection
+    archon-run              — JAR invocation wrapper
+    archon-update-check     — Periodic version check
 ```
 
 ## See Also

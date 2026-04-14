@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# archon-detect — Auto-detect JDK 17 for Archon CLI
+# Usage: source <(archon-detect) to get JAVA_HOME and JAVA_EXE in scope
+# Caches result at ~/.archon/config.json
+
+set -euo pipefail
+
+# --- State directory (self-contained, no external dependencies) ---
+STATE_DIR="$HOME/.archon"
+CONFIG_FILE="$STATE_DIR/config.json"
+mkdir -p "$STATE_DIR"
+
+# --- Check cache ---
+if [ -f "$CONFIG_FILE" ]; then
+  CACHED_JAVA=$(grep -o '"javaHome":"[^"]*"' "$CONFIG_FILE" | head -1 | sed 's/"javaHome":"//;s/"//')
+  CACHED_JAR=$(grep -o '"jarPath":"[^"]*"' "$CONFIG_FILE" | head -1 | sed 's/"jarPath":"//;s/"//')
+  if [ -n "$CACHED_JAVA" ] && [ -x "${CACHED_JAVA}/bin/java" ]; then
+    if "${CACHED_JAVA}/bin/java" -version 2>&1 | grep -q "17"; then
+      echo "export ARCHON_JAVA_HOME=\"$CACHED_JAVA\""
+      if [ -n "$CACHED_JAR" ] && [ -f "$CACHED_JAR" ]; then
+        echo "export ARCHON_JAR=\"$CACHED_JAR\""
+      fi
+      echo "# archon-detect: cached JDK 17 at $CACHED_JAVA"
+      exit 0
+    fi
+  fi
+fi
+
+# --- Detect JDK 17 using array (handles spaces in paths) ---
+CANDIDATES=()
+
+# 1. JAVA_HOME if it points to JDK 17
+if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/java" ]; then
+  CANDIDATES+=("$JAVA_HOME")
+fi
+
+# 2. Common paths
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    for dir in \
+      "/c/Program Files/Eclipse Adoptium"/jdk-17.* \
+      "/c/Program Files/Microsoft"/jdk-17.* \
+      "/c/Program Files/Java"/jdk-17.* \
+      "/c/Program Files/Amazon Corretto"/jdk17.* ; do
+      [ -d "$dir" ] && CANDIDATES+=("$dir")
+    done
+    ;;
+  Darwin)
+    for dir in /Library/Java/JavaVirtualMachines/jdk-17*/Contents/Home; do
+      [ -d "$dir" ] && CANDIDATES+=("$dir")
+    done
+    ;;
+  Linux)
+    for dir in /usr/lib/jvm/java-17*; do
+      [ -d "$dir" ] && CANDIDATES+=("$dir")
+    done
+    ;;
+esac
+
+# 3. Path-based java
+SYSTEM_JAVA=$(command -v java 2>/dev/null || true)
+if [ -n "$SYSTEM_JAVA" ]; then
+  SYS_VER=$("$SYSTEM_JAVA" -version 2>&1 | head -1 || true)
+  if echo "$SYS_VER" | grep -q '"17\.'; then
+    RESOLVED=$(dirname "$(dirname "$SYSTEM_JAVA")")
+    CANDIDATES+=("$RESOLVED")
+  fi
+fi
+
+# --- Test each candidate ---
+FOUND=""
+for candidate in "${CANDIDATES[@]}"; do
+  if [ -x "$candidate/bin/java" ]; then
+    VER=$("$candidate/bin/java" -version 2>&1 | head -1 || true)
+    if echo "$VER" | grep -q '"17\.'; then
+      FOUND="$candidate"
+      break
+    fi
+  fi
+done
+
+if [ -z "$FOUND" ]; then
+  echo "# archon-detect: ERROR — JDK 17 not found" >&2
+  echo "# Install JDK 17 from https://adoptium.net/" >&2
+  echo "# Or set JAVA_HOME to your JDK 17 installation" >&2
+  exit 1
+fi
+
+echo "export ARCHON_JAVA_HOME=\"$FOUND\""
+echo "# archon-detect: found JDK 17 at $FOUND"
+
+# --- Update cache ---
+NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
+FOUND_ESC=$(echo "$FOUND" | sed 's/\\/\\\\/g')
+echo "{\"javaHome\":\"$FOUND_ESC\",\"lastVerified\":\"$NOW\"}" > "$CONFIG_FILE"
