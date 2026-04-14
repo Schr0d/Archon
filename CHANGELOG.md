@@ -8,23 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0.2] - 2026-04-14
 
 ### Added
-- **Declaration-based plugin SPI** — Language plugins now return `ModuleDeclaration` and `DependencyDeclaration` records instead of building graphs directly. Graph construction is centralized in `DeclarationGraphBuilder`, eliminating duplicated conversion logic across 3+ call sites.
-- **Namespace prefix validation** — `ModuleDeclaration.id` and `DependencyDeclaration.sourceId/targetId` now validate that IDs contain a namespace prefix (e.g. `java:`, `py:`), preventing silent edge drops from unprefixed IDs.
-- **BlindSpot equality** — Added `equals()`/`hashCode()` to `BlindSpot` so instances can be safely collected in `Set` and `Map`.
-- **DeclarationGraphBuilder** — Shared utility for converting declaration lists into a `DependencyGraph` with warnings collection instead of System.err.
-- **Tests** — Added `DeclarationGraphBuilderTest` (8 tests), `DependencyGraphTest` additions for `mergeInto`/`knownNodeIds`, `ParseResultTest` additions for null graph contract. EdgeSkipWarningTest now verifies warnings via parse errors instead of stderr capture.
+- **Declaration-based plugin SPI** — You can now write language plugins that return `ModuleDeclaration` and `DependencyDeclaration` records instead of building graphs directly. Graph construction is centralized in `DeclarationGraphBuilder`, so new plugins have less boilerplate and fewer places to go wrong.
+- **Namespace prefix validation** — Plugin IDs without a namespace prefix (e.g. `java:`, `py:`) now fail fast with a clear error instead of silently dropping edges.
+- **BlindSpot equality** — `BlindSpot` instances can be collected in `Set` and `Map` (added `equals()`/`hashCode()`).
+- **DeclarationGraphBuilder** — Shared utility for converting declaration lists into a `DependencyGraph`. Warnings go into the result object instead of `System.err`.
+- **Tests** — 233 tests passing. Added `DeclarationGraphBuilderTest` (8 tests), `DependencyGraphTest` additions for `mergeInto`/`knownNodeIds`, `ParseResultTest` additions for null graph contract. `EdgeSkipWarningTest` now verifies warnings via parse errors instead of stderr capture.
 
 ### Changed
-- **ParseOrchestrator** uses `DeclarationGraphBuilder` for graph construction. Edge-skip warnings are collected in the result's error list instead of printed to System.err.
-- **DiffCommand** uses `DeclarationGraphBuilder` for base graph construction, eliminating ~40 lines of duplicated conversion logic.
+- **ParseOrchestrator** collects edge-skip warnings in the result's error list instead of printing to `System.err`. Easier to test, easier to consume.
+- **DiffCommand** uses the shared `DeclarationGraphBuilder` instead of its own duplicated conversion logic (~40 lines removed).
 - **JavaParserPlugin** uses `DeclarationGraphBuilder`, removing its private `buildGraphFromDeclarations` method.
-- **ModuleDetector** moved from `archon-java` to `archon-core/util`, eliminating the `cli -> java` compile-time dependency and removing ~20 lines of reflection in `AnalysisPipeline`.
-- **archon-cli build.gradle** changed `implementation(project(":archon-java"))` to `runtimeOnly`, so CLI no longer has compile-time dependency on Java plugin.
+- **ModuleDetector** moved from `archon-java` to `archon-core/util`. The CLI no longer has a compile-time dependency on the Java plugin (changed to `runtimeOnly`), and `AnalysisPipeline` no longer needs reflection to access it.
 
 ### Removed
-- **DomainStrategy interface** and all implementations (`JavaDomainStrategy`, `JsDomainStrategy`, `PythonDomainStrategy`) — dead code, never called in production pipeline.
-- **GraphBuilder** — dead code, superseded by `DependencyGraph.MutableBuilder`.
-- **Duplicate enum types** in `plugin` package now mapped via shared `DeclarationGraphBuilder` enum mappers.
+- **DomainStrategy interface** and all implementations (`JavaDomainStrategy`, `JsDomainStrategy`, `PythonDomainStrategy`). Dead code that was never called in the production pipeline.
+- **GraphBuilder** class. Dead code, superseded by `DependencyGraph.MutableBuilder`.
+- **Duplicate enum types** in the `plugin` package. Now mapped through shared `DeclarationGraphBuilder` enum mappers so plugin code uses its own enums and the builder translates.
 
 ## [0.6.0.1] - 2026-04-13
 
