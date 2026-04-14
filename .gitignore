@@ -23,10 +23,16 @@ Thumbs.db
 *.tar.gz
 *.zip
 
+# Generated exports (root only)
+/*.html
+/*.json
+/*.mmd
+archon-viz-web/archon-self-data*
+
 # Claude Code & GStack (user-specific)
 /.claude/*
 !/.claude/skills/
 !/.claude/skills/archon/
 .gstack/
+.superpowers/
 docs/superpowers/
-archon-viz-web/archon-self-data.js
