@@ -3,7 +3,10 @@ package com.archon.js;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
-import com.archon.core.graph.DependencyGraph;
+import com.archon.core.plugin.ModuleDeclaration;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.NodeType;
+import com.archon.core.plugin.Confidence;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
@@ -47,7 +50,6 @@ class JsPluginTest {
             Path.of("/src"),
             Set.of("ts")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         String tsCode = """
             export interface ButtonProps {
@@ -62,8 +64,7 @@ class JsPluginTest {
         ParseResult result = plugin.parseFromContent(
             "src/components/Button.tsx",
             tsCode,
-            context,
-            builder
+            context
         );
 
         assertNotNull(result, "ParseResult should not be null");
@@ -84,14 +85,12 @@ class JsPluginTest {
             Path.of("/src"),
             Set.of("js")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         // Empty content should not throw
         ParseResult result = plugin.parseFromContent(
             "test.js",
             "",
-            context,
-            builder
+            context
         );
 
         assertNotNull(result, "ParseResult should not be null even for empty content");
@@ -105,13 +104,11 @@ class JsPluginTest {
             Path.of("/project/src"),
             Set.of("tsx")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         ParseResult result = plugin.parseFromContent(
             "/project/src/components/Header.tsx",
             "export const Header = () => <h1>Header</h1>;",
-            context,
-            builder
+            context
         );
 
         Set<String> modules = result.getSourceModules();
@@ -130,13 +127,11 @@ class JsPluginTest {
             Path.of("/src"),
             Set.of("ts")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         ParseResult result = plugin.parseFromContent(
             "test.ts",
             "export const test = 1;",
-            context,
-            builder
+            context
         );
 
         // Should NOT report blind spots for simple exports (actual implementation)
@@ -148,5 +143,72 @@ class JsPluginTest {
             "Should have source modules");
         assertTrue(result.getSourceModules().iterator().next().contains("test"),
             "Source module should contain 'test'");
+    }
+
+    @Test
+    @DisplayName("JsPlugin returns module declarations alongside graph")
+    void testReturnsModuleDeclarations() {
+        JsPlugin plugin = new JsPlugin();
+        ParseContext context = new ParseContext(
+            Path.of("/src"),
+            Set.of("ts")
+        );
+
+        ParseResult result = plugin.parseFromContent(
+            "src/components/Button.tsx",
+            "export const Button = () => <button />;",
+            context
+        );
+
+        // Verify module declarations are populated
+        assertFalse(result.getModuleDeclarations().isEmpty(),
+            "Should return at least one module declaration");
+
+        ModuleDeclaration decl = result.getModuleDeclarations().get(0);
+        assertTrue(decl.id().startsWith("js:"),
+            "Declaration ID should be prefixed: " + decl.id());
+        assertEquals(NodeType.MODULE, decl.type(),
+            "Declaration type should be MODULE");
+        assertEquals(Confidence.HIGH, decl.confidence(),
+            "Declaration confidence should be HIGH");
+        assertEquals("src/components/Button.tsx", decl.sourcePath(),
+            "Declaration sourcePath should match file path");
+    }
+
+    @Test
+    @DisplayName("JsPlugin returns dependency declarations for imports")
+    void testReturnsDependencyDeclarations() {
+        JsPlugin plugin = new JsPlugin();
+        ParseContext context = new ParseContext(
+            Path.of("/src"),
+            Set.of("ts")
+        );
+
+        String code = """
+            import { utils } from './utils';
+            export const Button = () => <button />;
+            """;
+
+        ParseResult result = plugin.parseFromContent(
+            "src/components/Button.tsx",
+            code,
+            context
+        );
+
+        // Verify dependency declarations are populated
+        assertFalse(result.getDeclarations().isEmpty(),
+            "Should return at least one dependency declaration");
+
+        DependencyDeclaration decl = result.getDeclarations().get(0);
+        assertTrue(decl.sourceId().startsWith("js:"),
+            "Source ID should be prefixed: " + decl.sourceId());
+        assertTrue(decl.targetId().startsWith("js:"),
+            "Target ID should be prefixed: " + decl.targetId());
+        assertEquals(com.archon.core.plugin.EdgeType.IMPORTS, decl.edgeType(),
+            "Edge type should be IMPORTS");
+        assertEquals(Confidence.HIGH, decl.confidence(),
+            "Confidence should be HIGH");
+        assertFalse(decl.dynamic(),
+            "Static import should not be dynamic");
     }
 }
