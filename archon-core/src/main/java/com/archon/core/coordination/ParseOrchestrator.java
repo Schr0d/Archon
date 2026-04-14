@@ -1,6 +1,5 @@
 package com.archon.core.coordination;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.Node;
@@ -52,8 +51,8 @@ public class ParseOrchestrator {
      * Parse source tree using all registered plugins.
      *
      * <p>Files are partitioned by extension and routed to the appropriate plugin.
-     * Each plugin adds nodes with language-prefixed IDs (e.g., "java:com.example.Foo").
-     * After all plugins complete, namespace prefixes are stripped to create a unified graph.
+     * Each plugin returns a ParseResult containing its own graph with language-prefixed IDs.
+     * The orchestrator merges all graphs and strips namespace prefixes to create a unified graph.
      *
      * @param sourceFiles List of source file paths to parse
      * @param context Parse context with source root and extensions
@@ -101,9 +100,12 @@ public class ParseOrchestrator {
                     ParseResult result = plugin.parseFromContent(
                         file.toString(),
                         content,
-                        context,
-                        prefixedBuilder
+                        context
                     );
+
+                    // Merge plugin's graph into the shared prefixed builder
+                    mergeGraphIntoBuilder(result.getGraph(), prefixedBuilder);
+
                     allSourceModules.addAll(result.getSourceModules());
                     allBlindSpots.addAll(result.getBlindSpots());
                     allErrors.addAll(result.getParseErrors());
@@ -117,6 +119,18 @@ public class ParseOrchestrator {
         DependencyGraph finalGraph = DependencyGraph.stripNamespacePrefixesAndBuild(prefixedBuilder);
 
         return new ParseResult(finalGraph, allSourceModules, allBlindSpots, allErrors);
+    }
+
+    /**
+     * Merges all nodes and edges from a source graph into the target builder.
+     */
+    private void mergeGraphIntoBuilder(DependencyGraph source, DependencyGraph.MutableBuilder target) {
+        for (String nodeId : source.getNodeIds()) {
+            source.getNode(nodeId).ifPresent(target::addNode);
+        }
+        for (Edge edge : source.getAllEdges()) {
+            target.addEdge(edge);
+        }
     }
 
     /**

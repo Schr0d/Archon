@@ -1,8 +1,6 @@
 package com.archon.core.plugin;
 
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.analysis.DomainStrategy;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -16,7 +14,6 @@ import java.util.Set;
  *   <li>fileExtensions() must return non-empty set of supported extensions</li>
  *   <li>parseFromContent() must add nodes with namespace prefix (e.g., "java:")</li>
  *   <li>parseFromContent() must handle syntax errors gracefully (return ParseErrors)</li>
- *   <li>getDomainStrategy() may return Optional.empty() for fallback detection</li>
  * </ul>
  *
  * <h3>Namespace Prefixing:</h3>
@@ -38,22 +35,13 @@ public interface LanguagePlugin {
     Set<String> fileExtensions();
 
     /**
-     * Returns domain assignment strategy for this language.
-     * Optional.empty() indicates the plugin has no domain concept —
-     * ParseOrchestrator will use fallback pivot detection.
-     *
-     * @return domain strategy, or empty for fallback behavior
-     */
-    Optional<DomainStrategy> getDomainStrategy();
-
-    /**
-     * Parse a single source file and add its nodes/edges to the builder.
+     * Parse a single source file and return declarations.
      *
      * <p>This method is called for each file matching the plugin's extensions.
      * Implementations must:
      * <ul>
-     *   <li>Add namespace-prefixed nodes: builder.addNode("java:com.example.Foo", ...)</li>
-     *   <li>Add namespace-prefixed edges: builder.addEdge("java:Foo", "IMPORTS", "java:Bar")</li>
+     *   <li>Return ModuleDeclarations with namespace-prefixed IDs (e.g., "java:com.example.Foo")</li>
+     *   <li>Return DependencyDeclarations with namespace-prefixed source/target IDs</li>
      *   <li>Report dynamic patterns as BlindSpots (reflection, computed imports)</li>
      *   <li>Handle syntax errors by adding to parseErrors, not throwing</li>
      * </ul>
@@ -61,14 +49,12 @@ public interface LanguagePlugin {
      * @param filePath Full path to the source file
      * @param content File content as string
      * @param context Parse context with source root and extensions
-     * @param builder Mutable builder for accumulating graph nodes/edges
-     * @return ParseResult with built graph, source modules, blind spots, errors
+     * @return ParseResult with graph, source modules, blind spots, errors, declarations
      */
     ParseResult parseFromContent(
         String filePath,
         String content,
-        ParseContext context,
-        DependencyGraph.MutableBuilder builder
+        ParseContext context
     );
 
     /**

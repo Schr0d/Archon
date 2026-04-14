@@ -14,6 +14,8 @@ public class ParseResult {
     private final Set<String> sourceModules;
     private final List<BlindSpot> blindSpots;
     private final List<String> parseErrors;
+    private final List<ModuleDeclaration> moduleDeclarations;
+    private final List<DependencyDeclaration> declarations;
 
     public ParseResult(
         DependencyGraph graph,
@@ -29,10 +31,23 @@ public class ParseResult {
         List<BlindSpot> blindSpots,
         List<String> parseErrors
     ) {
+        this(graph, sourceModules, blindSpots, parseErrors, List.of(), List.of());
+    }
+
+    public ParseResult(
+        DependencyGraph graph,
+        Set<String> sourceModules,
+        List<BlindSpot> blindSpots,
+        List<String> parseErrors,
+        List<ModuleDeclaration> moduleDeclarations,
+        List<DependencyDeclaration> declarations
+    ) {
         this.graph = graph;
         this.sourceModules = Set.copyOf(sourceModules);
         this.blindSpots = List.copyOf(blindSpots);
         this.parseErrors = List.copyOf(parseErrors);
+        this.moduleDeclarations = List.copyOf(moduleDeclarations);
+        this.declarations = List.copyOf(declarations);
     }
 
     public DependencyGraph getGraph() {
@@ -49,6 +64,14 @@ public class ParseResult {
 
     public List<String> getParseErrors() {
         return parseErrors;
+    }
+
+    public List<ModuleDeclaration> getModuleDeclarations() {
+        return moduleDeclarations;
+    }
+
+    public List<DependencyDeclaration> getDeclarations() {
+        return declarations;
     }
 
     public boolean hasErrors() {

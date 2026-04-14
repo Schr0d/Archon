@@ -1,6 +1,5 @@
 package com.archon.core.coordination;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
@@ -14,11 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -123,7 +118,7 @@ class ParseOrchestratorTest {
     }
 
     /**
-     * Test plugin that adds prefixed nodes and edges.
+     * Test plugin that builds its own graph with prefixed nodes and edges.
      * Simulates language plugins that namespace their nodes.
      */
     static class TestPlugin implements LanguagePlugin {
@@ -146,17 +141,13 @@ class ParseOrchestratorTest {
         }
 
         @Override
-        public Optional<DomainStrategy> getDomainStrategy() {
-            return Optional.empty();
-        }
-
-        @Override
         public ParseResult parseFromContent(
             String filePath,
             String content,
-            ParseContext context,
-            DependencyGraph.MutableBuilder builder
+            ParseContext context
         ) {
+            DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+
             // Phase 1: Add all nodes with prefix
             for (String module : unprefixedModules) {
                 String prefixedId = prefix + ":" + module;

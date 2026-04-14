@@ -21,18 +21,15 @@ class PluginDiscovererTest {
         }
 
         @Override
-        public java.util.Optional<com.archon.core.analysis.DomainStrategy> getDomainStrategy() {
-            return java.util.Optional.empty();
-        }
-
-        @Override
         public ParseResult parseFromContent(
             String filePath,
             String content,
-            ParseContext context,
-            com.archon.core.graph.DependencyGraph.MutableBuilder builder
+            ParseContext context
         ) {
-            return new ParseResult(builder.build(), Set.of(), List.of());
+            return new ParseResult(
+                new com.archon.core.graph.DependencyGraph.MutableBuilder().build(),
+                Set.of(), List.of()
+            );
         }
     }
 
@@ -46,18 +43,15 @@ class PluginDiscovererTest {
         }
 
         @Override
-        public java.util.Optional<com.archon.core.analysis.DomainStrategy> getDomainStrategy() {
-            return java.util.Optional.empty();
-        }
-
-        @Override
         public ParseResult parseFromContent(
             String filePath,
             String content,
-            ParseContext context,
-            com.archon.core.graph.DependencyGraph.MutableBuilder builder
+            ParseContext context
         ) {
-            return new ParseResult(builder.build(), Set.of(), List.of());
+            return new ParseResult(
+                new com.archon.core.graph.DependencyGraph.MutableBuilder().build(),
+                Set.of(), List.of()
+            );
         }
     }
 
@@ -71,18 +65,15 @@ class PluginDiscovererTest {
         }
 
         @Override
-        public java.util.Optional<com.archon.core.analysis.DomainStrategy> getDomainStrategy() {
-            return java.util.Optional.empty();
-        }
-
-        @Override
         public ParseResult parseFromContent(
             String filePath,
             String content,
-            ParseContext context,
-            com.archon.core.graph.DependencyGraph.MutableBuilder builder
+            ParseContext context
         ) {
-            return new ParseResult(builder.build(), Set.of(), List.of());
+            return new ParseResult(
+                new com.archon.core.graph.DependencyGraph.MutableBuilder().build(),
+                Set.of(), List.of()
+            );
         }
     }
 
