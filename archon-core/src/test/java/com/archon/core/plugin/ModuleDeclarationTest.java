@@ -41,6 +41,16 @@ class ModuleDeclarationTest {
     }
 
     @Test
+    void testNullConfidenceThrowsNPE() {
+        assertThrows(NullPointerException.class, () -> new ModuleDeclaration(
+            "java:com.example.Foo",
+            NodeType.CLASS,
+            "path",
+            null
+        ));
+    }
+
+    @Test
     void testBlankIdThrowsIAE() {
         assertThrows(IllegalArgumentException.class, () -> new ModuleDeclaration(
             "   ",

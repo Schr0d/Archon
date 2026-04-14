@@ -61,6 +61,18 @@ class DependencyDeclarationTest {
     }
 
     @Test
+    void testNullConfidenceThrowsNPE() {
+        assertThrows(NullPointerException.class, () -> new DependencyDeclaration(
+            "java:com.example.Foo",
+            "java:com.example.Bar",
+            EdgeType.IMPORTS,
+            null,
+            null,
+            false
+        ));
+    }
+
+    @Test
     void testBlankSourceIdThrowsIAE() {
         assertThrows(IllegalArgumentException.class, () -> new DependencyDeclaration(
             "   ",

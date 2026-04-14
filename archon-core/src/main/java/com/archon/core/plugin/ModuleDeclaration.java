@@ -22,6 +22,7 @@ public record ModuleDeclaration(
     public ModuleDeclaration {
         Objects.requireNonNull(id, "id must not be null");
         Objects.requireNonNull(type, "type must not be null");
+        Objects.requireNonNull(confidence, "confidence must not be null");
         if (id.isBlank()) throw new IllegalArgumentException("id must not be blank");
     }
 }

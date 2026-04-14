@@ -27,6 +27,7 @@ public record DependencyDeclaration(
         Objects.requireNonNull(sourceId, "sourceId must not be null");
         Objects.requireNonNull(targetId, "targetId must not be null");
         Objects.requireNonNull(edgeType, "edgeType must not be null");
+        Objects.requireNonNull(confidence, "confidence must not be null");
         if (sourceId.isBlank()) throw new IllegalArgumentException("sourceId must not be blank");
         if (targetId.isBlank()) throw new IllegalArgumentException("targetId must not be blank");
     }
