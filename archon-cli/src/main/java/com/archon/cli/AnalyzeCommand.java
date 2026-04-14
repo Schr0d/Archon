@@ -127,6 +127,29 @@ public class AnalyzeCommand implements Callable<Integer> {
 
         long distinctDomains = domainMap.values().stream().distinct().count();
         Thresholds thresholds = ThresholdCalculator.calculate(graph.nodeCount(), (int) distinctDomains);
+
+        // Step 3: Cycle detection
+        CycleDetector cycleDetector = new CycleDetector();
+        List<List<String>> cycles = cycleDetector.detectCycles(graph);
+
+        // Step 4: Coupling hotspots
+        CouplingAnalyzer couplingAnalyzer = new CouplingAnalyzer();
+        List<Node> hotspots = couplingAnalyzer.findHotspots(graph, thresholds.getCouplingThreshold());
+
+        // Step 5: Blind spots
+        List<BlindSpot> blindSpots = result.getBlindSpots();
+
+        // Agent format output (short-circuits all other output)
+        boolean useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
+        if (useAgentFormat) {
+            AgentOutputFormatter agentFmt = new AgentOutputFormatter();
+            String output = agentFmt.format(graph, domainMap, cycles, hotspots, blindSpots, projectPath);
+            System.out.println(output);
+            return (!cycles.isEmpty()) ? 1 : 0;
+        }
+
+        // --- Text output below (only reached if not agent format) ---
+
         if (distinctDomains > 0) {
             System.out.println("Domains detected: " + distinctDomains + " (" + domainMap.size() + " classes mapped)");
             if (verbose) {
@@ -136,9 +159,6 @@ public class AnalyzeCommand implements Callable<Integer> {
             }
         }
 
-        // Step 3: Cycle detection
-        CycleDetector cycleDetector = new CycleDetector();
-        List<List<String>> cycles = cycleDetector.detectCycles(graph);
         if (cycles.isEmpty()) {
             System.out.println("\nCycles: none");
         } else {
@@ -148,9 +168,6 @@ public class AnalyzeCommand implements Callable<Integer> {
             }
         }
 
-        // Step 4: Coupling hotspots
-        CouplingAnalyzer couplingAnalyzer = new CouplingAnalyzer();
-        List<Node> hotspots = couplingAnalyzer.findHotspots(graph, thresholds.getCouplingThreshold());
         if (hotspots.isEmpty()) {
             System.out.println("\nCoupling hotspots: none (in-degree <= " + thresholds.getCouplingThreshold() + ")");
         } else {
@@ -166,8 +183,6 @@ public class AnalyzeCommand implements Callable<Integer> {
             }
         }
 
-        // Step 5: Blind spots
-        List<BlindSpot> blindSpots = result.getBlindSpots();
         if (blindSpots.isEmpty()) {
             System.out.println("\nBlind spots: none");
         } else {
@@ -176,15 +191,6 @@ public class AnalyzeCommand implements Callable<Integer> {
                 System.out.println("  [" + spot.getType() + "] " + spot.getLocation()
                     + " \u2014 " + spot.getDescription());
             }
-        }
-
-        // Agent format output (short-circuits all other output)
-        boolean useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
-        if (useAgentFormat) {
-            AgentOutputFormatter agentFmt = new AgentOutputFormatter();
-            String output = agentFmt.format(graph, domainMap, cycles, hotspots, blindSpots, projectPath);
-            System.out.println(output);
-            return (!cycles.isEmpty()) ? 1 : 0;
         }
 
         // Step 6: DOT export
