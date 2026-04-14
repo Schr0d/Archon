@@ -596,9 +596,13 @@ class JsPluginTest {
             sourceRoot.resolve("src/components/Header.vue").toString(), "", ctx
         );
 
-        // The plugin normalizes backslashes to forward slashes in the source key
-        // The toRelativePath also normalizes, so the lookup should work
-        // Even if the JSON has backslashes, parseDependencyCruiserJson normalizes them
+        // Backslashes in JSON source/resolve should be normalized to forward slashes
+        assertFalse(result.getSourceModules().isEmpty(),
+            "Should find module after backslash normalization");
+        assertEquals("js:src/components/Header.vue", result.getSourceModules().iterator().next());
+        assertEquals(1, result.getDeclarations().size(), "Should have one dependency after normalization");
+        assertEquals("js:src/utils/helpers.js", result.getDeclarations().get(0).targetId(),
+            "Dependency target should use forward slashes");
     }
 
     // ---- Multiple modules in one project ----

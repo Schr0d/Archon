@@ -41,6 +41,9 @@ import java.util.concurrent.TimeUnit;
  * </ul>
  *
  * <p>Reports unresolved modules as blind spots.
+ *
+ * <p><b>Thread safety:</b> This class is NOT thread-safe. It maintains mutable state
+ * (cached results/errors) designed for single-threaded use by {@code ParseOrchestrator}.
  */
 public class JsPlugin implements LanguagePlugin {
 
@@ -185,8 +188,20 @@ public class JsPlugin implements LanguagePlugin {
 
             Process process = pb.start();
 
-            // Read stderr while waiting
-            String stderr = new String(process.getErrorStream().readAllBytes());
+            // Close stdin to prevent subprocess from hanging waiting for input
+            process.getOutputStream().close();
+
+            // Read stderr asynchronously to avoid blocking the timeout
+            // (readAllBytes before waitFor can hang if npx writes verbose output)
+            StringBuilder stderrBuilder = new StringBuilder();
+            Thread stderrReader = new Thread(() -> {
+                try {
+                    byte[] bytes = process.getErrorStream().readAllBytes();
+                    stderrBuilder.append(new String(bytes));
+                } catch (Exception ignored) {}
+            });
+            stderrReader.setDaemon(true);
+            stderrReader.start();
 
             boolean finished = process.waitFor(SUBPROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
@@ -195,6 +210,10 @@ public class JsPlugin implements LanguagePlugin {
                     "dependency-cruiser timed out after " + SUBPROCESS_TIMEOUT_SECONDS + " seconds"
                 );
             }
+
+            // Wait for stderr reader to finish (it should complete quickly after process exits)
+            stderrReader.join(5000);
+            String stderr = stderrBuilder.toString();
 
             int exitCode = process.exitValue();
             if (exitCode != 0) {
