@@ -318,9 +318,8 @@ public class DiffCommand implements Callable<Integer> {
             }
         }
 
-        // Step 2: Parse base versions of changed files using orchestrator
-        // We need to use parseFromContent for each file with the appropriate plugin
-        ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
+        // Step 2: Parse base versions of changed files using individual plugins
+        // Each plugin's parseFromContent creates its own builder internally and returns a ParseResult
         DependencyGraph.MutableBuilder tempBuilder = new DependencyGraph.MutableBuilder();
 
         for (Map.Entry<Path, String> entry : baseContents.entrySet()) {
@@ -341,9 +340,16 @@ public class DiffCommand implements Callable<Integer> {
                 ParseResult result = plugin.parseFromContent(
                     file.toString(),
                     content,
-                    context,
-                    tempBuilder
+                    context
                 );
+                // Merge the parsed graph into the temp builder (with namespace prefixes)
+                DependencyGraph parsedGraph = result.getGraph();
+                for (String nodeId : parsedGraph.getNodeIds()) {
+                    parsedGraph.getNode(nodeId).ifPresent(tempBuilder::addNode);
+                }
+                for (Edge edge : parsedGraph.getAllEdges()) {
+                    tempBuilder.addEdge(edge);
+                }
                 // Errors are ignored for base graph parsing
             }
         }
