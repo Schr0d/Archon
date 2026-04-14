@@ -156,42 +156,6 @@ class CrossPluginEdgeResolutionTest {
     }
 
     /**
-     * Declaration-based test plugin.
-     */
-    static class DeclarationPlugin implements LanguagePlugin {
-        private final String extension;
-        private final List<ModuleDeclaration> moduleDeclarations;
-        private final List<DependencyDeclaration> dependencyDeclarations;
-        private final Set<String> sourceModules;
-
-        DeclarationPlugin(
-            String extension,
-            List<ModuleDeclaration> moduleDeclarations,
-            List<DependencyDeclaration> dependencyDeclarations,
-            Set<String> sourceModules
-        ) {
-            this.extension = extension;
-            this.moduleDeclarations = moduleDeclarations;
-            this.dependencyDeclarations = dependencyDeclarations;
-            this.sourceModules = sourceModules;
-        }
-
-        @Override
-        public Set<String> fileExtensions() {
-            return Set.of(extension);
-        }
-
-        @Override
-        public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
-            DependencyGraph emptyGraph = new DependencyGraph.MutableBuilder().build();
-            return new ParseResult(
-                emptyGraph, sourceModules, List.of(), List.of(),
-                moduleDeclarations, dependencyDeclarations
-            );
-        }
-    }
-
-    /**
      * Legacy test plugin that returns a graph instead of declarations.
      */
     static class LegacyPlugin implements LanguagePlugin {

@@ -8,6 +8,10 @@ import java.util.Set;
  * Encapsulates source tree metadata without exposing full parse parameters.
  */
 public class ParseContext {
+
+    /** Maximum file size for parsing (1 MB). */
+    public static final long MAX_FILE_SIZE = 1024L * 1024L;
+
     private final Path sourceRoot;
     private final Set<String> fileExtensions;
 

@@ -45,8 +45,8 @@ public class PythonPlugin implements LanguagePlugin {
     private static final String NAMESPACE = "py";
     private static final Set<String> EXTENSIONS = Set.of("py", "pyi", "pyw");
 
-    // Maximum file size to parse (1MB) - prevents OOM on malformed files
-    private static final int MAX_FILE_SIZE = 1024 * 1024;
+    // Maximum file size to parse - prevents OOM on malformed files
+    private static final long MAX_FILE_SIZE = ParseContext.MAX_FILE_SIZE;
 
     private final PythonModuleResolver moduleResolver;
 

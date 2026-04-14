@@ -21,20 +21,9 @@ class ImpactPropagatorTest {
         return Edge.builder().source(from).target(to).type(EdgeType.IMPORTS).build();
     }
 
-    private DependencyGraph buildGraph(Node[] nodes, Edge[] edges) {
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-        for (Node n : nodes) {
-            builder.addNode(n);
-        }
-        for (Edge e : edges) {
-            builder.addEdge(e);
-        }
-        return builder.build();
-    }
-
     @Test
     void propagate_singleHop_findsDirectDependents() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B")},
             new Edge[]{edge("B", "A")}
         );
@@ -49,7 +38,7 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_threeHops_respectsDepthLimit() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C"), node("D")},
             new Edge[]{edge("B", "A"), edge("C", "B"), edge("D", "C")}
         );
@@ -63,7 +52,7 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_diamondDependency_countsNodesOnce() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C"), node("D")},
             new Edge[]{edge("B", "A"), edge("C", "A"), edge("D", "B"), edge("D", "C")}
         );
@@ -76,7 +65,7 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_isolatedNode_returnsEmpty() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A")},
             new Edge[]{}
         );
@@ -89,7 +78,7 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_targetNotFound_throwsException() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A")},
             new Edge[]{}
         );
@@ -100,7 +89,7 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_crossDomainEdges_counted() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B")},
             new Edge[]{edge("B", "A")}
         );
@@ -113,7 +102,7 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_sameDomainEdges_noCrossDomainCount() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B")},
             new Edge[]{edge("B", "A")}
         );

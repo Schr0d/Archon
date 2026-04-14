@@ -21,17 +21,6 @@ class CouplingAnalyzerTest {
         return Edge.builder().source(from).target(to).type(EdgeType.IMPORTS).build();
     }
 
-    private DependencyGraph buildGraph(Node[] nodes, Edge[] edges) {
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-        for (Node n : nodes) {
-            builder.addNode(n);
-        }
-        for (Edge e : edges) {
-            builder.addEdge(e);
-        }
-        return builder.build();
-    }
-
     @Test
     void findHotspots_emptyGraph_returnsEmptyList() {
         DependencyGraph graph = new DependencyGraph.MutableBuilder().build();
@@ -43,7 +32,7 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_singleHotspot_returnsIt() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C"), node("D"), node("E"), node("F")},
             new Edge[]{edge("B", "A"), edge("C", "A"), edge("D", "A"), edge("E", "A"), edge("F", "A")}
         );
@@ -57,7 +46,7 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_sortedByInDegreeDescending() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C1"), node("C2"), node("C3"),
                        node("D1"), node("D2"), node("D3"), node("D4"), node("D5")},
             new Edge[]{edge("C1", "A"), edge("C2", "A"), edge("C3", "A"),
@@ -73,7 +62,7 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_belowThreshold_filteredOut() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C")},
             new Edge[]{edge("B", "A"), edge("C", "A")}
         );
@@ -85,7 +74,7 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_allNodesAreHotspots() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("X1"), node("X2"), node("X3"), node("X4"),
                        node("Y1"), node("Y2"), node("Y3"), node("Y4")},
             new Edge[]{edge("X1", "A"), edge("X2", "A"), edge("X3", "A"),

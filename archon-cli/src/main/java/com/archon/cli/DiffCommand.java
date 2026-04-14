@@ -343,13 +343,7 @@ public class DiffCommand implements Callable<Integer> {
                     context
                 );
                 // Merge the parsed graph into the temp builder (with namespace prefixes)
-                DependencyGraph parsedGraph = result.getGraph();
-                for (String nodeId : parsedGraph.getNodeIds()) {
-                    parsedGraph.getNode(nodeId).ifPresent(tempBuilder::addNode);
-                }
-                for (Edge edge : parsedGraph.getAllEdges()) {
-                    tempBuilder.addEdge(edge);
-                }
+                DependencyGraph.mergeInto(result.getGraph(), tempBuilder);
                 // Errors are ignored for base graph parsing
             }
         }
@@ -358,12 +352,7 @@ public class DiffCommand implements Callable<Integer> {
         DependencyGraph changedGraph = DependencyGraph.stripNamespacePrefixesAndBuild(tempBuilder);
 
         // Merge changed graph into base builder
-        for (String nodeId : changedGraph.getNodeIds()) {
-            baseBuilder.addNode(changedGraph.getNode(nodeId).orElseThrow());
-        }
-        for (Edge edge : changedGraph.getAllEdges()) {
-            baseBuilder.addEdge(edge);
-        }
+        DependencyGraph.mergeInto(changedGraph, baseBuilder);
 
         return baseBuilder.build();
     }

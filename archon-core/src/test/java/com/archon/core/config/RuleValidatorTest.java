@@ -1,5 +1,6 @@
 package com.archon.core.config;
 
+import com.archon.core.analysis.GraphTestBuilders;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
@@ -24,20 +25,9 @@ class RuleValidatorTest {
         return Edge.builder().source(from).target(to).type(EdgeType.IMPORTS).build();
     }
 
-    private DependencyGraph buildGraph(Node[] nodes, Edge[] edges) {
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-        for (Node n : nodes) {
-            builder.addNode(n);
-        }
-        for (Edge e : edges) {
-            builder.addEdge(e);
-        }
-        return builder.build();
-    }
-
     @Test
     void validate_noViolations_returnsEmptyList() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("com.a.Service"), node("com.b.Client")},
             new Edge[]{edge("com.b.Client", "com.a.Service")}
         );
@@ -53,7 +43,7 @@ class RuleValidatorTest {
 
     @Test
     void validate_cycleDetected_reportsViolation() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B")},
             new Edge[]{edge("A", "B"), edge("B", "A")}
         );
@@ -72,7 +62,7 @@ class RuleValidatorTest {
 
     @Test
     void validate_maxCrossDomainExceeded_reportsViolation() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("com.a.Core"), node("com.b.One"), node("com.c.Two"), node("com.d.Three")},
             new Edge[]{edge("com.b.One", "com.a.Core"), edge("com.c.Two", "com.a.Core"), edge("com.d.Three", "com.a.Core")}
         );
@@ -94,7 +84,7 @@ class RuleValidatorTest {
     @Test
     void validate_maxCallDepthExceeded_reportsViolation() {
         // Chain: D -> C -> B -> A (depth 3 from A's dependents perspective)
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C"), node("D")},
             new Edge[]{edge("B", "A"), edge("C", "B"), edge("D", "C")}
         );
@@ -109,7 +99,7 @@ class RuleValidatorTest {
 
     @Test
     void validate_forbidCoreEntityLeakage_reportsViolation() throws Exception {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("com.sys.SysUser"), node("com.auth.Handler")},
             new Edge[]{edge("com.auth.Handler", "com.sys.SysUser")}
         );

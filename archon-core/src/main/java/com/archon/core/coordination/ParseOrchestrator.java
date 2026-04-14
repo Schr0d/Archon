@@ -98,7 +98,7 @@ public class ParseOrchestrator {
                 try {
                     // Check file size BEFORE reading to prevent OOM
                     long fileSize = Files.size(file);
-                    long maxFileSize = 1024 * 1024; // 1MB limit
+                    long maxFileSize = ParseContext.MAX_FILE_SIZE;
                     if (fileSize > maxFileSize) {
                         allErrors.add("Skipped " + file + ": file too large (" +
                             (fileSize / 1024) + " KB, max " + (maxFileSize / 1024) + " KB)");
@@ -124,7 +124,7 @@ public class ParseOrchestrator {
                         allDependencyDeclarations.addAll(result.getDeclarations());
                     } else {
                         // Legacy path: merge the returned graph
-                        mergeGraphIntoBuilder(result.getGraph(), legacyPrefixedBuilder);
+                        DependencyGraph.mergeInto(result.getGraph(), legacyPrefixedBuilder);
                         hasLegacyResults = true;
                     }
                 } catch (IOException e) {
@@ -182,7 +182,7 @@ public class ParseOrchestrator {
         // If there are legacy results, merge them first
         if (legacyBuilder != null) {
             DependencyGraph legacyGraph = legacyBuilder.build();
-            mergeGraphIntoBuilder(legacyGraph, prefixedBuilder);
+            DependencyGraph.mergeInto(legacyGraph, prefixedBuilder);
         }
 
         // Phase 1: Build node map from declarations (dedup by ID, keep first seen)
@@ -239,21 +239,6 @@ public class ParseOrchestrator {
 
     private static com.archon.core.graph.Confidence mapConfidence(Confidence pluginConfidence) {
         return com.archon.core.graph.Confidence.valueOf(pluginConfidence.name());
-    }
-
-    // --- Legacy helpers ---
-
-    /**
-     * Merges all nodes and edges from a source graph into the target builder.
-     * Used for backward compatibility with plugins that return graphs instead of declarations.
-     */
-    private void mergeGraphIntoBuilder(DependencyGraph source, DependencyGraph.MutableBuilder target) {
-        for (String nodeId : source.getNodeIds()) {
-            source.getNode(nodeId).ifPresent(target::addNode);
-        }
-        for (Edge edge : source.getAllEdges()) {
-            target.addEdge(edge);
-        }
     }
 
     // --- File routing helpers ---

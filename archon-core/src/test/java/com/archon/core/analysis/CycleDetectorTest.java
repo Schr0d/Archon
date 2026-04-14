@@ -21,20 +21,9 @@ class CycleDetectorTest {
         return Edge.builder().source(from).target(to).type(EdgeType.IMPORTS).build();
     }
 
-    private DependencyGraph buildGraph(Node[] nodes, Edge[] edges) {
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-        for (Node n : nodes) {
-            builder.addNode(n);
-        }
-        for (Edge e : edges) {
-            builder.addEdge(e);
-        }
-        return builder.build();
-    }
-
     @Test
     void detectCycles_noCycle_returnsEmptyList() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B")},
             new Edge[]{edge("A", "B")}
         );
@@ -46,7 +35,7 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_simpleCycle_detectsAB() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B")},
             new Edge[]{edge("A", "B"), edge("B", "A")}
         );
@@ -59,7 +48,7 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_longCycle_detectsABC() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C")},
             new Edge[]{edge("A", "B"), edge("B", "C"), edge("C", "A")}
         );
@@ -72,7 +61,7 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_multipleIndependentCycles_detectsBoth() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C"), node("D")},
             new Edge[]{edge("A", "B"), edge("B", "A"), edge("C", "D"), edge("D", "C")}
         );
@@ -93,7 +82,7 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_diamondNoCycle_returnsEmptyList() {
-        DependencyGraph graph = buildGraph(
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
             new Node[]{node("A"), node("B"), node("C"), node("D")},
             new Edge[]{edge("A", "B"), edge("A", "C"), edge("B", "D"), edge("C", "D")}
         );

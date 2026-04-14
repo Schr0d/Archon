@@ -11,9 +11,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -21,18 +19,11 @@ import java.util.Set;
  * Walks JavaParser AST and extracts nodes + edges into a DependencyGraph.MutableBuilder.
  * Only creates graph nodes for classes that exist in the user's source tree,
  * silently skipping external dependencies (JDK, libraries, etc.).
- *
- * <p>Also collects ModuleDeclaration and DependencyDeclaration lists alongside
- * the graph-building path for the declaration-based architecture.
  */
 public class AstVisitor {
 
     private final Set<String> sourceClasses;
     private final Set<String> addedNodes = new HashSet<>();
-
-    // Declaration collection lists
-    private final List<com.archon.core.plugin.ModuleDeclaration> moduleDeclarations = new ArrayList<>();
-    private final List<com.archon.core.plugin.DependencyDeclaration> declarations = new ArrayList<>();
 
     /**
      * Creates an AstVisitor that only creates nodes for classes in the given set.
@@ -53,20 +44,6 @@ public class AstVisitor {
         for (TypeDeclaration<?> typeDecl : cu.getTypes()) {
             processTypeDeclaration(typeDecl, packageName, graphBuilder);
         }
-    }
-
-    /**
-     * Returns the collected module declarations.
-     */
-    public List<com.archon.core.plugin.ModuleDeclaration> getModuleDeclarations() {
-        return moduleDeclarations;
-    }
-
-    /**
-     * Returns the collected dependency declarations.
-     */
-    public List<com.archon.core.plugin.DependencyDeclaration> getDeclarations() {
-        return declarations;
     }
 
     /**
@@ -92,7 +69,16 @@ public class AstVisitor {
 
         // The class being parsed is always a source class — always add its node
         if (!addedNodes.contains(fqcn)) {
-            graphBuilder.addNode(Node.builder().id(fqcn).type(NodeType.CLASS).build());
+            com.archon.core.graph.NodeType nodeType;
+            if (typeDecl instanceof EnumDeclaration) {
+                nodeType = com.archon.core.graph.NodeType.ENUM;
+            } else if (typeDecl instanceof ClassOrInterfaceDeclaration) {
+                ClassOrInterfaceDeclaration cid = (ClassOrInterfaceDeclaration) typeDecl;
+                nodeType = cid.isInterface() ? com.archon.core.graph.NodeType.INTERFACE : com.archon.core.graph.NodeType.CLASS;
+            } else {
+                nodeType = com.archon.core.graph.NodeType.CLASS;
+            }
+            graphBuilder.addNode(Node.builder().id(fqcn).type(nodeType).build());
             addedNodes.add(fqcn);
         }
 

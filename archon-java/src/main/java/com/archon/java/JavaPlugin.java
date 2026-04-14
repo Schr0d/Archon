@@ -155,10 +155,13 @@ public class JavaPlugin implements LanguagePlugin {
                 sourceModules.add(prefixedId);
                 localGraph.getNode(fqcn).ifPresent(node -> {
                     addedPrefixedIds.add(prefixedId);
+                    // Map graph NodeType to plugin NodeType
+                    com.archon.core.plugin.NodeType pluginNodeType =
+                        com.archon.core.plugin.NodeType.valueOf(node.getType().name());
                     // Collect module declaration
                     moduleDeclarations.add(new ModuleDeclaration(
                         prefixedId,
-                        com.archon.core.plugin.NodeType.CLASS,
+                        pluginNodeType,
                         filePath,
                         com.archon.core.plugin.Confidence.HIGH
                     ));

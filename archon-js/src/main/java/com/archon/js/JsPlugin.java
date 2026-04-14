@@ -54,8 +54,8 @@ public class JsPlugin implements LanguagePlugin {
         return EXTENSIONS;
     }
 
-    // Maximum file size to parse (1MB) - prevents OOM on malformed files
-    private static final int MAX_FILE_SIZE = 1024 * 1024;
+    // Maximum file size to parse - prevents OOM on malformed files
+    private static final long MAX_FILE_SIZE = ParseContext.MAX_FILE_SIZE;
 
     @Override
     public ParseResult parseFromContent(

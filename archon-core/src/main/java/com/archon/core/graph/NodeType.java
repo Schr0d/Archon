@@ -5,6 +5,8 @@ package com.archon.core.graph;
  */
 public enum NodeType {
     CLASS,
+    INTERFACE,
+    ENUM,
     MODULE,
     PACKAGE,
     SERVICE,

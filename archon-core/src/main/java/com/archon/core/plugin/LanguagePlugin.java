@@ -17,9 +17,10 @@ import java.util.Set;
  * </ul>
  *
  * <h3>Namespace Prefixing:</h3>
- * All node IDs added to MutableBuilder must be prefixed with the language identifier
- * followed by colon (e.g., "java:com.example.Foo", "js:src/components/Header").
- * ParseOrchestrator strips these prefixes before adding to the final graph.
+ * All declaration IDs (ModuleDeclaration.id, DependencyDeclaration source/target) must be
+ * prefixed with the language identifier followed by colon (e.g., "java:com.example.Foo",
+ * "js:src/components/Header"). ParseOrchestrator strips these prefixes before adding to
+ * the final graph.
  *
  * @see PluginDiscoverer for ServiceLoader discovery
  * @see ParseOrchestrator for multi-plugin coordination

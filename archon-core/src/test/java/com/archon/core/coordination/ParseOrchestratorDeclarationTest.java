@@ -1,6 +1,8 @@
 package com.archon.core.coordination;
 
 import com.archon.core.graph.DependencyGraph;
+import com.archon.core.graph.Node;
+import com.archon.core.graph.Edge;
 import com.archon.core.plugin.*;
 
 import org.junit.jupiter.api.Test;
@@ -244,41 +246,115 @@ class ParseOrchestratorDeclarationTest {
             graph.getNode("MyController").orElseThrow().getType());
     }
 
-    /**
-     * Simple declaration-based test plugin.
-     * Returns preconfigured ModuleDeclaration and DependencyDeclaration records.
-     */
-    static class DeclarationPlugin implements LanguagePlugin {
-        private final String extension;
-        private final List<ModuleDeclaration> moduleDeclarations;
-        private final List<DependencyDeclaration> dependencyDeclarations;
-        private final Set<String> sourceModules;
+    @Test
+    void testNoPluginForExtensionSkipsFile(@TempDir Path tempDir) throws IOException {
+        // Plugin only handles "java" files
+        DeclarationPlugin plugin = new DeclarationPlugin(
+            "java",
+            List.of(
+                new ModuleDeclaration("java:com.example.Foo", NodeType.CLASS, "Foo.java", Confidence.HIGH)
+            ),
+            List.of(),
+            Set.of("com.example.Foo")
+        );
 
-        DeclarationPlugin(
-            String extension,
-            List<ModuleDeclaration> moduleDeclarations,
-            List<DependencyDeclaration> dependencyDeclarations,
-            Set<String> sourceModules
-        ) {
-            this.extension = extension;
-            this.moduleDeclarations = moduleDeclarations;
-            this.dependencyDeclarations = dependencyDeclarations;
-            this.sourceModules = sourceModules;
-        }
+        // Pass a .rs file that no plugin handles
+        Path rustFile = tempDir.resolve("main.rs");
+        Files.writeString(rustFile, "fn main() {}");
 
-        @Override
-        public Set<String> fileExtensions() {
-            return Set.of(extension);
-        }
+        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(plugin));
+        ParseResult result = orchestrator.parse(
+            List.of(rustFile),
+            new ParseContext(tempDir, Set.of("java"))
+        );
 
-        @Override
-        public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
-            // Return empty graph + declarations
-            DependencyGraph emptyGraph = new DependencyGraph.MutableBuilder().build();
-            return new ParseResult(
-                emptyGraph, sourceModules, List.of(), List.of(),
-                moduleDeclarations, dependencyDeclarations
-            );
-        }
+        // Should complete without exception, graph is empty (file was skipped)
+        assertNotNull(result, "Result should not be null");
+        assertEquals(0, result.getGraph().nodeCount(), "Graph should have no nodes");
+        assertEquals(0, result.getGraph().edgeCount(), "Graph should have no edges");
+        assertFalse(result.hasErrors(), "Should have no errors");
     }
+
+    @Test
+    void testLegacyFallbackPath(@TempDir Path tempDir) throws IOException {
+        // Plugin returns empty declarations but a non-empty graph (legacy path)
+        LanguagePlugin legacyPlugin = new LanguagePlugin() {
+            @Override
+            public Set<String> fileExtensions() {
+                return Set.of("java");
+            }
+
+            @Override
+            public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
+                DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+                builder.addNode(Node.builder()
+                    .id("java:com.legacy.Service")
+                    .type(com.archon.core.graph.NodeType.CLASS)
+                    .sourcePath("Service.java")
+                    .build());
+                builder.addNode(Node.builder()
+                    .id("java:com.legacy.Dao")
+                    .type(com.archon.core.graph.NodeType.CLASS)
+                    .sourcePath("Dao.java")
+                    .build());
+                builder.addEdge(Edge.builder()
+                    .source("java:com.legacy.Service")
+                    .target("java:com.legacy.Dao")
+                    .type(com.archon.core.graph.EdgeType.IMPORTS)
+                    .build());
+
+                // Empty declarations triggers legacy fallback
+                return new ParseResult(
+                    builder.build(), Set.of("com.legacy.Service", "com.legacy.Dao"),
+                    List.of(), List.of(), List.of(), List.of()
+                );
+            }
+        };
+
+        Path javaFile = tempDir.resolve("Service.java");
+        Files.writeString(javaFile, "// legacy test file");
+
+        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(legacyPlugin));
+        ParseResult result = orchestrator.parse(
+            List.of(javaFile),
+            new ParseContext(tempDir, Set.of("java"))
+        );
+
+        DependencyGraph graph = result.getGraph();
+
+        // Legacy graph nodes should be present with prefixes stripped
+        assertEquals(2, graph.nodeCount(), "Should have 2 nodes from legacy graph");
+        assertTrue(graph.containsNode("com.legacy.Service"), "Service node should exist");
+        assertTrue(graph.containsNode("com.legacy.Dao"), "Dao node should exist");
+
+        // Legacy edge should be present with stripped IDs
+        assertEquals(1, graph.edgeCount(), "Should have 1 edge from legacy graph");
+        assertTrue(graph.getEdge("com.legacy.Service", "com.legacy.Dao").isPresent(),
+            "Edge from Service to Dao should exist");
+    }
+
+    @Test
+    void testEmptySourceFilesReturnsEmptyGraph(@TempDir Path tempDir) {
+        DeclarationPlugin plugin = new DeclarationPlugin(
+            "java",
+            List.of(
+                new ModuleDeclaration("java:com.example.Foo", NodeType.CLASS, "Foo.java", Confidence.HIGH)
+            ),
+            List.of(),
+            Set.of("com.example.Foo")
+        );
+
+        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(plugin));
+        ParseResult result = orchestrator.parse(
+            List.of(),
+            new ParseContext(tempDir, Set.of("java"))
+        );
+
+        DependencyGraph graph = result.getGraph();
+
+        // No files passed — graph should be empty
+        assertEquals(0, graph.nodeCount(), "Graph should have 0 nodes");
+        assertEquals(0, graph.edgeCount(), "Graph should have 0 edges");
+    }
+
 }

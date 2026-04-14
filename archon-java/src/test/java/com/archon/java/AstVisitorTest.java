@@ -118,7 +118,7 @@ class AstVisitorTest {
     }
 
     @Test
-    void visit_interfaceDeclaration_addsClassNode() {
+    void visit_interfaceDeclaration_addsInterfaceNode() {
         String source = "package com.fuwa.system.service;\npublic interface ISysUserService {}";
         CompilationUnit cu = parse(source);
         DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
@@ -129,7 +129,7 @@ class AstVisitorTest {
 
         DependencyGraph graph = builder.build();
         assertTrue(graph.getNode("com.fuwa.system.service.ISysUserService").isPresent());
-        assertEquals(NodeType.CLASS, graph.getNode("com.fuwa.system.service.ISysUserService").get().getType());
+        assertEquals(NodeType.INTERFACE, graph.getNode("com.fuwa.system.service.ISysUserService").get().getType());
     }
 
     @Test

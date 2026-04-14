@@ -8,6 +8,8 @@ package com.archon.core.plugin;
  */
 public enum NodeType {
     CLASS,
+    INTERFACE,
+    ENUM,
     MODULE,
     PACKAGE,
     SERVICE,
