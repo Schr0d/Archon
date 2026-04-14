@@ -1,6 +1,5 @@
 package com.archon.js;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
@@ -18,7 +17,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -39,12 +37,10 @@ public class JsPlugin implements LanguagePlugin {
     private static final String NAMESPACE = "js";
     private static final Set<String> EXTENSIONS = Set.of("js", "jsx", "ts", "tsx", "vue");
 
-    private final JsDomainStrategy domainStrategy;
     private final JsAstVisitor astVisitor;
     private final VueFileExtractor vueExtractor;
 
     public JsPlugin() {
-        this.domainStrategy = new JsDomainStrategy();
         this.astVisitor = new JsAstVisitor();
         this.vueExtractor = new VueFileExtractor();
     }
@@ -52,11 +48,6 @@ public class JsPlugin implements LanguagePlugin {
     @Override
     public Set<String> fileExtensions() {
         return EXTENSIONS;
-    }
-
-    @Override
-    public Optional<DomainStrategy> getDomainStrategy() {
-        return Optional.of(domainStrategy);
     }
 
     // Maximum file size to parse (1MB) - prevents OOM on malformed files

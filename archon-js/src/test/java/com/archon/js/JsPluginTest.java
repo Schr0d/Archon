@@ -1,6 +1,5 @@
 package com.archon.js;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
@@ -38,17 +37,6 @@ class JsPluginTest {
         assertTrue(extensions.contains("tsx"), "Should support .tsx files");
         assertTrue(extensions.contains("vue"), "Should support .vue files");
         assertEquals(5, extensions.size(), "Should have exactly 5 extensions");
-    }
-
-    @Test
-    @DisplayName("JsPlugin returns JsDomainStrategy")
-    void testGetDomainStrategyReturnsJsDomainStrategy() {
-        JsPlugin plugin = new JsPlugin();
-        var strategy = plugin.getDomainStrategy();
-
-        assertTrue(strategy.isPresent(), "DomainStrategy should be present");
-        assertTrue(strategy.get() instanceof JsDomainStrategy,
-            "Should return JsDomainStrategy instance");
     }
 
     @Test

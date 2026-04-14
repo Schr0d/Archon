@@ -1,7 +1,6 @@
 package com.archon.cli;
 
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +19,14 @@ class ImpactCommandTest {
         command = new ImpactCommand();
     }
 
+    private DependencyGraph buildGraph(Node... nodes) {
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        for (Node node : nodes) {
+            builder.addNode(node);
+        }
+        return builder.build();
+    }
+
     @Nested
     @DisplayName("resolveTarget")
     class ResolveTarget {
@@ -27,9 +34,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("exact match returns target")
         void exactMatch_returnsTarget() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("com.example.Service").type(NodeType.CLASS).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("com.example.Service").type(NodeType.CLASS).build()
+            );
 
             String result = command.resolveTarget(graph, "com.example.Service");
 
@@ -39,9 +46,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("Java suffix match returns node ID")
         void javaSuffixMatch_returnsNodeId() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("com.example.RouterStore").type(NodeType.CLASS).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("com.example.RouterStore").type(NodeType.CLASS).build()
+            );
 
             String result = command.resolveTarget(graph, "RouterStore");
 
@@ -51,9 +58,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("path suffix match returns node ID")
         void pathSuffixMatch_returnsNodeId() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("stores/routerStore").type(NodeType.MODULE).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("stores/routerStore").type(NodeType.MODULE).build()
+            );
 
             String result = command.resolveTarget(graph, "routerStore");
 
@@ -63,9 +70,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("namespace prefix js: strips and matches")
         void namespacePrefixJs_stripsAndMatches() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("js:stores/routerStore").type(NodeType.MODULE).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("js:stores/routerStore").type(NodeType.MODULE).build()
+            );
 
             String result = command.resolveTarget(graph, "routerStore");
 
@@ -75,9 +82,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("namespace prefix py: strips and matches")
         void namespacePrefixPy_stripsAndMatches() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("py:src/utils/helpers").type(NodeType.MODULE).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("py:src/utils/helpers").type(NodeType.MODULE).build()
+            );
 
             String result = command.resolveTarget(graph, "helpers");
 
@@ -87,9 +94,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("namespace prefix java: strips and matches")
         void namespacePrefixJava_stripsAndMatches() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("java:com.example.Service").type(NodeType.CLASS).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("java:com.example.Service").type(NodeType.CLASS).build()
+            );
 
             String result = command.resolveTarget(graph, "Service");
 
@@ -99,9 +106,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("exact match with prefix returns target")
         void exactMatchWithPrefix_returnsTarget() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("js:stores/routerStore").type(NodeType.MODULE).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("js:stores/routerStore").type(NodeType.MODULE).build()
+            );
 
             String result = command.resolveTarget(graph, "js:stores/routerStore");
 
@@ -111,9 +118,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("no match returns null")
         void noMatch_returnsNull() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("com.example.Other").type(NodeType.CLASS).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("com.example.Other").type(NodeType.CLASS).build()
+            );
 
             String result = command.resolveTarget(graph, "NonExistent");
 
@@ -123,10 +130,10 @@ class ImpactCommandTest {
         @Test
         @DisplayName("multiple matches returns first")
         void multipleMatches_returnsFirst() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("com.foo.Service").type(NodeType.CLASS).build())
-                .addNode(Node.builder().id("com.bar.Service").type(NodeType.CLASS).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("com.foo.Service").type(NodeType.CLASS).build(),
+                Node.builder().id("com.bar.Service").type(NodeType.CLASS).build()
+            );
 
             String result = command.resolveTarget(graph, "Service");
 
@@ -138,9 +145,9 @@ class ImpactCommandTest {
         @Test
         @DisplayName("deeply nested path matches")
         void deeplyNestedPath_matches() {
-            DependencyGraph graph = GraphBuilder.builder()
-                .addNode(Node.builder().id("js:components/features/auth/stores/userStore").type(NodeType.MODULE).build())
-                .build();
+            DependencyGraph graph = buildGraph(
+                Node.builder().id("js:components/features/auth/stores/userStore").type(NodeType.MODULE).build()
+            );
 
             String result = command.resolveTarget(graph, "userStore");
 

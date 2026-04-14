@@ -1,6 +1,5 @@
 package com.archon.java;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.GraphBuilder;
 import com.archon.core.plugin.LanguagePlugin;
@@ -16,7 +15,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -88,11 +86,6 @@ public class JavaPlugin implements LanguagePlugin {
     @Override
     public Set<String> fileExtensions() {
         return EXTENSIONS;
-    }
-
-    @Override
-    public Optional<DomainStrategy> getDomainStrategy() {
-        return Optional.of(new JavaDomainStrategy());
     }
 
     @Override

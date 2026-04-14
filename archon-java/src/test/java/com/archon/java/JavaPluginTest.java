@@ -26,13 +26,6 @@ class JavaPluginTest {
     }
 
     @Test
-    void testGetDomainStrategy() {
-        JavaPlugin plugin = new JavaPlugin();
-        assertTrue(plugin.getDomainStrategy().isPresent());
-        assertTrue(plugin.getDomainStrategy().get() instanceof JavaDomainStrategy);
-    }
-
-    @Test
     void testParseSimpleClass() {
         JavaPlugin plugin = new JavaPlugin();
         DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();

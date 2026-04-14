@@ -8,7 +8,6 @@ import com.archon.core.git.GitAdapter;
 import com.archon.core.git.GitException;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.RiskLevel;
 import com.archon.core.plugin.LanguagePlugin;
@@ -305,7 +304,7 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Step 1: Copy unchanged nodes and edges from head graph
-        GraphBuilder baseBuilder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder baseBuilder = new DependencyGraph.MutableBuilder();
         for (String nodeId : headGraph.getNodeIds()) {
             if (!changedFileNodes.contains(nodeId)) {
                 baseBuilder.addNode(headGraph.getNode(nodeId).orElseThrow());

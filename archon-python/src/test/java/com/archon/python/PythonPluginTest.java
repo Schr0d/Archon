@@ -1,6 +1,5 @@
 package com.archon.python;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
@@ -32,17 +31,6 @@ class PythonPluginTest {
         assertTrue(extensions.contains("pyi"), "Should support .pyi files");
         assertTrue(extensions.contains("pyw"), "Should support .pyw files");
         assertEquals(3, extensions.size(), "Should have exactly 3 extensions");
-    }
-
-    @Test
-    @DisplayName("PythonPlugin returns PythonDomainStrategy")
-    void testGetDomainStrategy() {
-        PythonPlugin plugin = new PythonPlugin();
-        var strategy = plugin.getDomainStrategy();
-
-        assertTrue(strategy.isPresent(), "DomainStrategy should be present");
-        assertTrue(strategy.get() instanceof PythonDomainStrategy,
-            "Should return PythonDomainStrategy instance");
     }
 
     @Test

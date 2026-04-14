@@ -1,6 +1,5 @@
 package com.archon.python;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
@@ -16,7 +15,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -43,22 +41,15 @@ public class PythonPlugin implements LanguagePlugin {
     // Maximum file size to parse (1MB) - prevents OOM on malformed files
     private static final int MAX_FILE_SIZE = 1024 * 1024;
 
-    private final PythonDomainStrategy domainStrategy;
     private final PythonModuleResolver moduleResolver;
 
     public PythonPlugin() {
-        this.domainStrategy = new PythonDomainStrategy();
         this.moduleResolver = new PythonModuleResolver();
     }
 
     @Override
     public Set<String> fileExtensions() {
         return EXTENSIONS;
-    }
-
-    @Override
-    public Optional<DomainStrategy> getDomainStrategy() {
-        return Optional.of(domainStrategy);
     }
 
     @Override

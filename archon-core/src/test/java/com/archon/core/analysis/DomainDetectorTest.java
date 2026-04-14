@@ -2,7 +2,6 @@ package com.archon.core.analysis;
 
 import com.archon.core.graph.Confidence;
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import org.junit.jupiter.api.Test;
@@ -15,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DomainDetectorTest {
 
     private DependencyGraph buildGraph(String... fqns) {
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
         for (String fqn : fqns) {
             builder.addNode(Node.builder().id(fqn).type(NodeType.CLASS).build());
         }
@@ -71,7 +70,7 @@ class DomainDetectorTest {
 
     @Test
     void assignDomains_emptyGraph_returnsEmptyResult() {
-        DependencyGraph graph = GraphBuilder.builder().build();
+        DependencyGraph graph = new DependencyGraph.MutableBuilder().build();
 
         DomainResult result = new DomainDetector().assignDomains(graph, Map.of());
 
