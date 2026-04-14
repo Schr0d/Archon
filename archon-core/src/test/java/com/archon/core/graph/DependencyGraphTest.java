@@ -8,10 +8,10 @@ public class DependencyGraphTest {
 
     @Test
     void addEdge_targetNodeMissing_edgeSkipped() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(Node.builder().id("A").type(NodeType.CLASS).build())
-            .addEdge(Edge.builder().source("A").target("Missing").type(EdgeType.IMPORTS).build())
-            .build();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
+        builder.addNode(Node.builder().id("A").type(NodeType.CLASS).build());
+        builder.addEdge(Edge.builder().source("A").target("Missing").type(EdgeType.IMPORTS).build());
+        DependencyGraph graph = builder.build();
 
         assertEquals(1, graph.nodeCount());
         assertEquals(0, graph.edgeCount());
@@ -19,7 +19,7 @@ public class DependencyGraphTest {
 
     @Test
     void addEdge_sourceNodeMissing_throws() {
-        GraphBuilder builder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         assertThrows(IllegalArgumentException.class, () ->
             builder.addEdge(Edge.builder().source("Missing").target("A").type(EdgeType.IMPORTS).build())

@@ -242,6 +242,14 @@ public class DependencyGraph {
             return this;
         }
 
+        /**
+         * Returns the set of node IDs currently in the builder.
+         * Useful for checking edge target existence before adding edges.
+         */
+        public Set<String> knownNodeIds() {
+            return Collections.unmodifiableSet(nodes.keySet());
+        }
+
         public DependencyGraph build() {
             // Compute in/out degrees
             nodes.values().forEach(node -> {
