@@ -3,7 +3,6 @@ package com.archon.core.analysis;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import org.junit.jupiter.api.Test;
@@ -11,8 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import com.archon.core.analysis.ArchLayer;
-import com.archon.core.analysis.LayerClassifier;
 
 class ImpactPropagatorTest {
 
@@ -26,10 +23,10 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_singleHop_findsDirectDependents() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addEdge(edge("B", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B")},
+            new Edge[]{edge("B", "A")}
+        );
 
         ImpactResult result = new ImpactPropagator().propagate(
             graph, "A", 3, Map.of("A", "domain1", "B", "domain1"));
@@ -41,12 +38,10 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_threeHops_respectsDepthLimit() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addNode(node("C")).addNode(node("D"))
-            .addEdge(edge("B", "A")).addEdge(edge("C", "B"))
-            .addEdge(edge("D", "C"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C"), node("D")},
+            new Edge[]{edge("B", "A"), edge("C", "B"), edge("D", "C")}
+        );
 
         ImpactResult result = new ImpactPropagator().propagate(
             graph, "A", 2, Map.of("A", "d1", "B", "d1", "C", "d1", "D", "d1"));
@@ -57,12 +52,10 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_diamondDependency_countsNodesOnce() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addNode(node("C")).addNode(node("D"))
-            .addEdge(edge("B", "A")).addEdge(edge("C", "A"))
-            .addEdge(edge("D", "B")).addEdge(edge("D", "C"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C"), node("D")},
+            new Edge[]{edge("B", "A"), edge("C", "A"), edge("D", "B"), edge("D", "C")}
+        );
 
         ImpactResult result = new ImpactPropagator().propagate(
             graph, "A", 3, Map.of("A", "d1", "B", "d1", "C", "d1", "D", "d1"));
@@ -72,9 +65,10 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_isolatedNode_returnsEmpty() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A")},
+            new Edge[]{}
+        );
 
         ImpactResult result = new ImpactPropagator().propagate(
             graph, "A", 3, Map.of("A", "d1"));
@@ -84,9 +78,10 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_targetNotFound_throwsException() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A")},
+            new Edge[]{}
+        );
 
         assertThrows(IllegalArgumentException.class, () ->
             new ImpactPropagator().propagate(graph, "NonExistent", 3, Map.of()));
@@ -94,10 +89,10 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_crossDomainEdges_counted() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addEdge(edge("B", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B")},
+            new Edge[]{edge("B", "A")}
+        );
 
         ImpactResult result = new ImpactPropagator().propagate(
             graph, "A", 3, Map.of("A", "domain2", "B", "domain1"));
@@ -107,10 +102,10 @@ class ImpactPropagatorTest {
 
     @Test
     void propagate_sameDomainEdges_noCrossDomainCount() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addEdge(edge("B", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B")},
+            new Edge[]{edge("B", "A")}
+        );
 
         ImpactResult result = new ImpactPropagator().propagate(
             graph, "A", 3, Map.of("A", "domain1", "B", "domain1"));

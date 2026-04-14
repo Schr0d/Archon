@@ -18,7 +18,7 @@ import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
 import com.archon.core.viz.DotExporter;
-import com.archon.java.ModuleDetector;
+import com.archon.core.util.ModuleDetector;
 import com.archon.viz.JsonSerializer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;

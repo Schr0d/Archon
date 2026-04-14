@@ -1,15 +1,18 @@
 package com.archon.python;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
-import com.archon.core.graph.DependencyGraph;
+import com.archon.core.plugin.ModuleDeclaration;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.NodeType;
+import com.archon.core.plugin.EdgeType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 
 @DisplayName("PythonPlugin Tests")
@@ -35,17 +38,6 @@ class PythonPluginTest {
     }
 
     @Test
-    @DisplayName("PythonPlugin returns PythonDomainStrategy")
-    void testGetDomainStrategy() {
-        PythonPlugin plugin = new PythonPlugin();
-        var strategy = plugin.getDomainStrategy();
-
-        assertTrue(strategy.isPresent(), "DomainStrategy should be present");
-        assertTrue(strategy.get() instanceof PythonDomainStrategy,
-            "Should return PythonDomainStrategy instance");
-    }
-
-    @Test
     @DisplayName("PythonPlugin.parseFromContent returns ParseResult with namespace-prefixed modules")
     void testParseFromContentReturnsPrefixedModules() {
         PythonPlugin plugin = new PythonPlugin();
@@ -53,7 +45,6 @@ class PythonPluginTest {
             Path.of("/project/src"),
             Set.of("py")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         String pyCode = """
             import os
@@ -63,8 +54,7 @@ class PythonPluginTest {
         ParseResult result = plugin.parseFromContent(
             "src/utils/helpers.py",
             pyCode,
-            context,
-            builder
+            context
         );
 
         assertNotNull(result, "ParseResult should not be null");
@@ -85,14 +75,12 @@ class PythonPluginTest {
             Path.of("/src"),
             Set.of("py")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         // Empty content should not throw
         ParseResult result = plugin.parseFromContent(
             "test.py",
             "",
-            context,
-            builder
+            context
         );
 
         assertNotNull(result, "ParseResult should not be null even for empty content");
@@ -106,13 +94,11 @@ class PythonPluginTest {
             Path.of("/project/src"),
             Set.of("py")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         ParseResult result = plugin.parseFromContent(
             "/project/src/utils/helpers.py",
             "import os",
-            context,
-            builder
+            context
         );
 
         Set<String> modules = result.getSourceModules();
@@ -131,13 +117,11 @@ class PythonPluginTest {
             Path.of("/project/src"),
             Set.of("pyi")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         ParseResult result = plugin.parseFromContent(
             "/project/src/utils/helpers.pyi",
             "from typing import List",
-            context,
-            builder
+            context
         );
 
         Set<String> modules = result.getSourceModules();
@@ -156,7 +140,6 @@ class PythonPluginTest {
             Path.of("/project/src"),
             Set.of("py")
         );
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         String pyCode = """
             import os
@@ -167,8 +150,7 @@ class PythonPluginTest {
         ParseResult result = plugin.parseFromContent(
             "src/utils/helpers.py",
             pyCode,
-            context,
-            builder
+            context
         );
 
         // Should have source module
@@ -178,5 +160,155 @@ class PythonPluginTest {
         // Blind spots should report stdlib filtering
         // (This will be tested more specifically once blind spot reporting is implemented)
         assertNotNull(result, "ParseResult should exist");
+    }
+
+    // === Declaration tests ===
+
+    @Test
+    @DisplayName("parseFromContent returns ModuleDeclaration with py: prefix")
+    void testModuleDeclarationsReturned() {
+        PythonPlugin plugin = new PythonPlugin();
+        ParseContext context = new ParseContext(
+            Path.of("/project/src"),
+            Set.of("py")
+        );
+
+        ParseResult result = plugin.parseFromContent(
+            "/project/src/utils/helpers.py",
+            "import requests",
+            context
+        );
+
+        List<ModuleDeclaration> modDecls = result.getModuleDeclarations();
+        assertFalse(modDecls.isEmpty(), "Should return at least one module declaration");
+
+        ModuleDeclaration decl = modDecls.get(0);
+        assertTrue(decl.id().startsWith("py:"),
+            "Module declaration ID should be prefixed with 'py:': " + decl.id());
+        assertEquals(NodeType.MODULE, decl.type(),
+            "Module declaration type should be MODULE");
+        assertEquals("/project/src/utils/helpers.py", decl.sourcePath(),
+            "Source path should match the input file path");
+    }
+
+    @Test
+    @DisplayName("parseFromContent returns DependencyDeclaration for non-stdlib imports")
+    void testDependencyDeclarationsReturned() {
+        PythonPlugin plugin = new PythonPlugin();
+        ParseContext context = new ParseContext(
+            Path.of("/project/src"),
+            Set.of("py")
+        );
+
+        String pyCode = """
+            import requests
+            from flask import Flask
+            """;
+
+        ParseResult result = plugin.parseFromContent(
+            "/project/src/app.py",
+            pyCode,
+            context
+        );
+
+        List<DependencyDeclaration> depDecls = result.getDeclarations();
+        assertFalse(depDecls.isEmpty(),
+            "Should return dependency declarations for non-stdlib imports");
+        // Should have 2 declarations: requests and flask
+        assertEquals(2, depDecls.size(),
+            "Should have 2 dependency declarations (requests + flask)");
+
+        for (DependencyDeclaration decl : depDecls) {
+            assertTrue(decl.sourceId().startsWith("py:"),
+                "Source ID should be prefixed: " + decl.sourceId());
+            assertTrue(decl.targetId().startsWith("py:"),
+                "Target ID should be prefixed: " + decl.targetId());
+            assertEquals(EdgeType.IMPORTS, decl.edgeType(),
+                "Edge type should be IMPORTS");
+            assertFalse(decl.dynamic(),
+                "Regex-parsed imports should not be dynamic");
+            assertNotNull(decl.evidence(),
+                "Evidence should not be null");
+        }
+    }
+
+    @Test
+    @DisplayName("parseFromContent excludes stdlib imports from declarations")
+    void testStdlibExcludedFromDeclarations() {
+        PythonPlugin plugin = new PythonPlugin();
+        ParseContext context = new ParseContext(
+            Path.of("/project/src"),
+            Set.of("py")
+        );
+
+        String pyCode = """
+            import os
+            import requests
+            from pathlib import Path
+            """;
+
+        ParseResult result = plugin.parseFromContent(
+            "/project/src/app.py",
+            pyCode,
+            context
+        );
+
+        List<DependencyDeclaration> depDecls = result.getDeclarations();
+        // Only 'requests' should be in declarations; os and pathlib are stdlib
+        assertEquals(1, depDecls.size(),
+            "Should have 1 dependency declaration (only requests, not os/pathlib)");
+        assertTrue(depDecls.get(0).targetId().contains("requests"),
+            "The only declaration should be for requests: " + depDecls.get(0).targetId());
+    }
+
+    @Test
+    @DisplayName("parseFromContent returns empty declarations for empty content")
+    void testEmptyDeclarationsForEmptyContent() {
+        PythonPlugin plugin = new PythonPlugin();
+        ParseContext context = new ParseContext(
+            Path.of("/project/src"),
+            Set.of("py")
+        );
+
+        ParseResult result = plugin.parseFromContent(
+            "empty.py",
+            "",
+            context
+        );
+
+        // Empty content should still produce a module declaration for the file itself
+        List<ModuleDeclaration> modDecls = result.getModuleDeclarations();
+        assertEquals(1, modDecls.size(),
+            "Empty file should still have one module declaration");
+
+        // No dependency declarations for empty file
+        List<DependencyDeclaration> depDecls = result.getDeclarations();
+        assertTrue(depDecls.isEmpty(),
+            "Empty file should have no dependency declarations");
+    }
+
+    @Test
+    @DisplayName("declarations populated from plugin parse")
+    void testDeclarationsPopulated() {
+        PythonPlugin plugin = new PythonPlugin();
+        ParseContext context = new ParseContext(
+            Path.of("/project/src"),
+            Set.of("py")
+        );
+
+        ParseResult result = plugin.parseFromContent(
+            "/project/src/app.py",
+            "import requests",
+            context
+        );
+
+        // Module declarations should be populated
+        assertFalse(result.getModuleDeclarations().isEmpty(),
+            "Should have module declarations");
+
+        // Find the source node declaration
+        boolean foundSource = result.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().startsWith("py:"));
+        assertTrue(foundSource, "Declarations should contain a py:-prefixed module");
     }
 }

@@ -1,9 +1,9 @@
 package com.archon.core.config;
 
+import com.archon.core.analysis.GraphTestBuilders;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import org.junit.jupiter.api.Test;
@@ -27,10 +27,10 @@ class RuleValidatorTest {
 
     @Test
     void validate_noViolations_returnsEmptyList() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("com.a.Service")).addNode(node("com.b.Client"))
-            .addEdge(edge("com.b.Client", "com.a.Service"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("com.a.Service"), node("com.b.Client")},
+            new Edge[]{edge("com.b.Client", "com.a.Service")}
+        );
 
         ArchonConfig config = ArchonConfig.defaults();
         Map<String, String> domainMap = Map.of("com.a.Service", "domainA", "com.b.Client", "domainB");
@@ -43,10 +43,10 @@ class RuleValidatorTest {
 
     @Test
     void validate_cycleDetected_reportsViolation() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addEdge(edge("A", "B")).addEdge(edge("B", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B")},
+            new Edge[]{edge("A", "B"), edge("B", "A")}
+        );
 
         ArchonConfig config = ArchonConfig.defaults();
         List<List<String>> cycles = List.of(List.of("A", "B"));
@@ -62,13 +62,10 @@ class RuleValidatorTest {
 
     @Test
     void validate_maxCrossDomainExceeded_reportsViolation() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("com.a.Core"))
-            .addNode(node("com.b.One")).addNode(node("com.c.Two")).addNode(node("com.d.Three"))
-            .addEdge(edge("com.b.One", "com.a.Core"))
-            .addEdge(edge("com.c.Two", "com.a.Core"))
-            .addEdge(edge("com.d.Three", "com.a.Core"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("com.a.Core"), node("com.b.One"), node("com.c.Two"), node("com.d.Three")},
+            new Edge[]{edge("com.b.One", "com.a.Core"), edge("com.c.Two", "com.a.Core"), edge("com.d.Three", "com.a.Core")}
+        );
 
         ArchonConfig config = ArchonConfig.defaults(); // maxCrossDomain = 2
         Map<String, String> domainMap = Map.of(
@@ -87,12 +84,10 @@ class RuleValidatorTest {
     @Test
     void validate_maxCallDepthExceeded_reportsViolation() {
         // Chain: D -> C -> B -> A (depth 3 from A's dependents perspective)
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addNode(node("C")).addNode(node("D"))
-            .addEdge(edge("B", "A")).addEdge(edge("C", "B"))
-            .addEdge(edge("D", "C"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C"), node("D")},
+            new Edge[]{edge("B", "A"), edge("C", "B"), edge("D", "C")}
+        );
 
         ArchonConfig config = ArchonConfig.defaults(); // maxCallDepth = 3
 
@@ -104,10 +99,10 @@ class RuleValidatorTest {
 
     @Test
     void validate_forbidCoreEntityLeakage_reportsViolation() throws Exception {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("com.sys.SysUser")).addNode(node("com.auth.Handler"))
-            .addEdge(edge("com.auth.Handler", "com.sys.SysUser"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("com.sys.SysUser"), node("com.auth.Handler")},
+            new Edge[]{edge("com.auth.Handler", "com.sys.SysUser")}
+        );
 
         Path yaml = Files.createTempFile("archon-test", ".yml");
         Files.writeString(yaml, """
@@ -135,7 +130,7 @@ class RuleValidatorTest {
 
     @Test
     void validate_emptyGraph_noViolations() {
-        DependencyGraph graph = GraphBuilder.builder().build();
+        DependencyGraph graph = new DependencyGraph.MutableBuilder().build();
         ArchonConfig config = ArchonConfig.defaults();
 
         List<RuleViolation> violations = new RuleValidator().validate(

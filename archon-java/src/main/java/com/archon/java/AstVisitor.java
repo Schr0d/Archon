@@ -1,32 +1,39 @@
 package com.archon.java;
 
-import com.archon.core.graph.Confidence;
-import com.archon.core.graph.Edge;
-import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
-import com.archon.core.graph.Node;
-import com.archon.core.graph.NodeType;
+import com.archon.core.plugin.Confidence;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.EdgeType;
+import com.archon.core.plugin.ModuleDeclaration;
+import com.archon.core.plugin.NodeType;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * Walks JavaParser AST and extracts nodes + edges into a GraphBuilder.
- * Only creates graph nodes for classes that exist in the user's source tree,
- * silently skipping external dependencies (JDK, libraries, etc.).
+ * Walks JavaParser AST and extracts declarations into ModuleDeclaration and
+ * DependencyDeclaration lists. Only creates declarations for classes that exist
+ * in the user's source tree, silently skipping external dependencies.
+ *
+ * <p>All IDs carry the "java:" namespace prefix.
  */
 public class AstVisitor {
 
+    private static final String NAMESPACE = "java";
+
     private final Set<String> sourceClasses;
-    private final Set<String> addedNodes = new HashSet<>();
+    private final Set<String> addedNodeIds = new HashSet<>();
+    private final List<ModuleDeclaration> moduleDeclarations = new ArrayList<>();
+    private final List<DependencyDeclaration> dependencyDeclarations = new ArrayList<>();
 
     /**
-     * Creates an AstVisitor that only creates nodes for classes in the given set.
+     * Creates an AstVisitor that only creates declarations for classes in the given set.
      * @param sourceClasses fully-qualified class names that exist in the source tree
      */
     public AstVisitor(Set<String> sourceClasses) {
@@ -35,59 +42,91 @@ public class AstVisitor {
 
     /**
      * Visit a CompilationUnit and extract class declarations, imports, and type hierarchies.
+     *
+     * @param cu        the compilation unit
+     * @param filePath  source file path (stored in ModuleDeclaration.sourcePath)
      */
-    public void visit(CompilationUnit cu, GraphBuilder graphBuilder) {
+    public void visit(CompilationUnit cu, String filePath) {
         String packageName = cu.getPackageDeclaration()
             .map(pd -> pd.getName().asString())
             .orElse("");
 
         for (TypeDeclaration<?> typeDecl : cu.getTypes()) {
-            processTypeDeclaration(typeDecl, packageName, graphBuilder);
+            processTypeDeclaration(typeDecl, packageName, filePath, cu);
         }
     }
 
+    public List<ModuleDeclaration> getModuleDeclarations() {
+        return moduleDeclarations;
+    }
+
+    public List<DependencyDeclaration> getDependencyDeclarations() {
+        return dependencyDeclarations;
+    }
+
     /**
-     * Ensures a node exists in the graph builder, but only for source-tree classes.
+     * Ensures a module declaration exists, but only for source-tree classes.
      * External classes (not in sourceClasses) are silently skipped.
-     * @return true if the node is a source class (exists or just added), false if external
+     * @return true if the node is a source class, false if external
      */
-    private boolean ensureNodeExists(String fqcn, GraphBuilder graphBuilder) {
+    private boolean ensureNodeExists(String fqcn, String filePath) {
         if (!sourceClasses.contains(fqcn)) {
-            return false; // external class — skip node and edge
+            return false;
         }
-        if (!addedNodes.contains(fqcn)) {
-            graphBuilder.addNode(Node.builder().id(fqcn).type(NodeType.CLASS).build());
-            addedNodes.add(fqcn);
+        String prefixedId = NAMESPACE + ":" + fqcn;
+        if (!addedNodeIds.contains(prefixedId)) {
+            moduleDeclarations.add(new ModuleDeclaration(
+                prefixedId,
+                NodeType.CLASS,
+                filePath,
+                Confidence.HIGH
+            ));
+            addedNodeIds.add(prefixedId);
         }
         return true;
     }
 
     private void processTypeDeclaration(TypeDeclaration<?> typeDecl, String packageName,
-                                         GraphBuilder graphBuilder) {
+                                         String filePath, CompilationUnit cu) {
         String fqcn = packageName.isEmpty() ? typeDecl.getName().asString()
             : packageName + "." + typeDecl.getName().asString();
 
-        // The class being parsed is always a source class — always add its node
-        if (!addedNodes.contains(fqcn)) {
-            graphBuilder.addNode(Node.builder().id(fqcn).type(NodeType.CLASS).build());
-            addedNodes.add(fqcn);
+        // The class being parsed is always a source class — always add its declaration
+        String prefixedId = NAMESPACE + ":" + fqcn;
+        if (!addedNodeIds.contains(prefixedId)) {
+            NodeType nodeType;
+            if (typeDecl instanceof EnumDeclaration) {
+                nodeType = NodeType.ENUM;
+            } else if (typeDecl instanceof ClassOrInterfaceDeclaration) {
+                ClassOrInterfaceDeclaration cid = (ClassOrInterfaceDeclaration) typeDecl;
+                nodeType = cid.isInterface() ? NodeType.INTERFACE : NodeType.CLASS;
+            } else {
+                nodeType = NodeType.CLASS;
+            }
+            moduleDeclarations.add(new ModuleDeclaration(
+                prefixedId,
+                nodeType,
+                filePath,
+                Confidence.HIGH
+            ));
+            addedNodeIds.add(prefixedId);
         }
 
         // Process imports FIRST (as IMPORTS edges), then extends/implements will
-        // overwrite with more specific edge types for the same source→target pair.
-        Optional<CompilationUnit> cuOpt = typeDecl.findCompilationUnit();
-        if (cuOpt.isPresent()) {
-            for (com.github.javaparser.ast.ImportDeclaration importDecl : cuOpt.get().getImports()) {
+        // overwrite with more specific edge types for the same source->target pair.
+        if (cu != null) {
+            for (com.github.javaparser.ast.ImportDeclaration importDecl : cu.getImports()) {
                 if (!importDecl.isAsterisk() && !importDecl.isStatic()) {
                     String importName = importDecl.getName().asString();
-                    if (ensureNodeExists(importName, graphBuilder)) {
-                        graphBuilder.addEdge(Edge.builder()
-                            .source(fqcn)
-                            .target(importName)
-                            .type(EdgeType.IMPORTS)
-                            .confidence(Confidence.HIGH)
-                            .evidence("import " + importName)
-                            .build());
+                    if (ensureNodeExists(importName, filePath)) {
+                        dependencyDeclarations.add(new DependencyDeclaration(
+                            prefixedId,
+                            NAMESPACE + ":" + importName,
+                            EdgeType.IMPORTS,
+                            Confidence.HIGH,
+                            "import " + importName,
+                            false
+                        ));
                     }
                 }
             }
@@ -99,27 +138,29 @@ public class AstVisitor {
 
             for (com.github.javaparser.ast.type.ClassOrInterfaceType extended : classDecl.getExtendedTypes()) {
                 String superFqcn = resolveType(extended.getName().asString(), packageName, classDecl);
-                if (ensureNodeExists(superFqcn, graphBuilder)) {
-                    graphBuilder.addEdge(Edge.builder()
-                        .source(fqcn)
-                        .target(superFqcn)
-                        .type(EdgeType.EXTENDS)
-                        .confidence(Confidence.HIGH)
-                        .evidence("extends " + extended.getName().asString())
-                        .build());
+                if (ensureNodeExists(superFqcn, filePath)) {
+                    dependencyDeclarations.add(new DependencyDeclaration(
+                        prefixedId,
+                        NAMESPACE + ":" + superFqcn,
+                        EdgeType.EXTENDS,
+                        Confidence.HIGH,
+                        "extends " + extended.getName().asString(),
+                        false
+                    ));
                 }
             }
 
             for (com.github.javaparser.ast.type.ClassOrInterfaceType implemented : classDecl.getImplementedTypes()) {
                 String ifaceFqcn = resolveType(implemented.getName().asString(), packageName, classDecl);
-                if (ensureNodeExists(ifaceFqcn, graphBuilder)) {
-                    graphBuilder.addEdge(Edge.builder()
-                        .source(fqcn)
-                        .target(ifaceFqcn)
-                        .type(EdgeType.IMPLEMENTS)
-                        .confidence(Confidence.HIGH)
-                        .evidence("implements " + implemented.getName().asString())
-                        .build());
+                if (ensureNodeExists(ifaceFqcn, filePath)) {
+                    dependencyDeclarations.add(new DependencyDeclaration(
+                        prefixedId,
+                        NAMESPACE + ":" + ifaceFqcn,
+                        EdgeType.IMPLEMENTS,
+                        Confidence.HIGH,
+                        "implements " + implemented.getName().asString(),
+                        false
+                    ));
                 }
             }
         }
@@ -132,14 +173,14 @@ public class AstVisitor {
                     .filter(bd -> bd instanceof ClassOrInterfaceDeclaration)
                     .map(bd -> (ClassOrInterfaceDeclaration) bd)
                     .toList()) {
-                processTypeDeclaration(inner, packageName, graphBuilder);
+                processTypeDeclaration(inner, packageName, filePath, cu);
             }
             for (EnumDeclaration inner : classDecl.getMembers()
                     .stream()
                     .filter(bd -> bd instanceof EnumDeclaration)
                     .map(bd -> (EnumDeclaration) bd)
                     .toList()) {
-                processTypeDeclaration(inner, packageName, graphBuilder);
+                processTypeDeclaration(inner, packageName, filePath, cu);
             }
         }
     }

@@ -1,6 +1,6 @@
 package com.archon.java;
 
-import com.archon.core.graph.BlindSpot;
+import com.archon.core.plugin.BlindSpot;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -31,7 +31,7 @@ class BlindSpotDetectorTest {
 
         assertFalse(spots.isEmpty());
         assertTrue(spots.stream().anyMatch(s -> s.getType().equals("reflection")));
-        assertTrue(spots.stream().anyMatch(s -> s.getPattern().contains("Class.forName")));
+        assertTrue(spots.stream().anyMatch(s -> s.getDescription().contains("Class.forName")));
     }
 
     @Test
@@ -49,7 +49,7 @@ class BlindSpotDetectorTest {
         List<BlindSpot> spots = detector.detect(javaFile);
 
         assertTrue(spots.stream().anyMatch(s -> s.getType().equals("reflection")
-            && s.getPattern().contains("Method.invoke")));
+            && s.getDescription().contains("Method.invoke")));
     }
 
     @Test
@@ -66,7 +66,7 @@ class BlindSpotDetectorTest {
         List<BlindSpot> spots = detector.detect(javaFile);
 
         assertTrue(spots.stream().anyMatch(s -> s.getType().equals("event-driven")
-            && s.getPattern().contains("@EventListener")));
+            && s.getDescription().contains("@EventListener")));
     }
 
     @Test
@@ -86,7 +86,7 @@ class BlindSpotDetectorTest {
         List<BlindSpot> spots = detector.detect(tempDir);
 
         assertTrue(spots.stream().anyMatch(s -> s.getType().equals("mybatis-xml")
-            && s.getPattern().contains("SysUserMapper.xml")));
+            && s.getDescription().contains("SysUserMapper.xml")));
     }
 
     @Test

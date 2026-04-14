@@ -3,7 +3,6 @@ package com.archon.core.analysis;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import org.junit.jupiter.api.Test;
@@ -24,11 +23,10 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_noCycle_returnsEmptyList() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .addNode(node("B"))
-            .addEdge(edge("A", "B"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B")},
+            new Edge[]{edge("A", "B")}
+        );
 
         List<List<String>> cycles = new CycleDetector().detectCycles(graph);
 
@@ -37,12 +35,10 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_simpleCycle_detectsAB() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .addNode(node("B"))
-            .addEdge(edge("A", "B"))
-            .addEdge(edge("B", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B")},
+            new Edge[]{edge("A", "B"), edge("B", "A")}
+        );
 
         List<List<String>> cycles = new CycleDetector().detectCycles(graph);
 
@@ -52,14 +48,10 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_longCycle_detectsABC() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .addNode(node("B"))
-            .addNode(node("C"))
-            .addEdge(edge("A", "B"))
-            .addEdge(edge("B", "C"))
-            .addEdge(edge("C", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C")},
+            new Edge[]{edge("A", "B"), edge("B", "C"), edge("C", "A")}
+        );
 
         List<List<String>> cycles = new CycleDetector().detectCycles(graph);
 
@@ -69,16 +61,10 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_multipleIndependentCycles_detectsBoth() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .addNode(node("B"))
-            .addNode(node("C"))
-            .addNode(node("D"))
-            .addEdge(edge("A", "B"))
-            .addEdge(edge("B", "A"))
-            .addEdge(edge("C", "D"))
-            .addEdge(edge("D", "C"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C"), node("D")},
+            new Edge[]{edge("A", "B"), edge("B", "A"), edge("C", "D"), edge("D", "C")}
+        );
 
         List<List<String>> cycles = new CycleDetector().detectCycles(graph);
 
@@ -87,7 +73,7 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_emptyGraph_returnsEmptyList() {
-        DependencyGraph graph = GraphBuilder.builder().build();
+        DependencyGraph graph = new DependencyGraph.MutableBuilder().build();
 
         List<List<String>> cycles = new CycleDetector().detectCycles(graph);
 
@@ -96,16 +82,10 @@ class CycleDetectorTest {
 
     @Test
     void detectCycles_diamondNoCycle_returnsEmptyList() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .addNode(node("B"))
-            .addNode(node("C"))
-            .addNode(node("D"))
-            .addEdge(edge("A", "B"))
-            .addEdge(edge("A", "C"))
-            .addEdge(edge("B", "D"))
-            .addEdge(edge("C", "D"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C"), node("D")},
+            new Edge[]{edge("A", "B"), edge("A", "C"), edge("B", "D"), edge("C", "D")}
+        );
 
         List<List<String>> cycles = new CycleDetector().detectCycles(graph);
 

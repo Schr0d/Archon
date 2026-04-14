@@ -2,16 +2,17 @@ package com.archon.cli;
 
 import com.archon.core.analysis.*;
 import com.archon.core.config.ArchonConfig;
+import com.archon.core.coordination.DeclarationGraphBuilder;
 import com.archon.core.coordination.ParseOrchestrator;
 import com.archon.core.git.CliGitAdapter;
 import com.archon.core.git.GitAdapter;
 import com.archon.core.git.GitException;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
-import com.archon.core.graph.GraphBuilder;
-import com.archon.core.graph.Node;
 import com.archon.core.graph.RiskLevel;
+import com.archon.core.plugin.DependencyDeclaration;
 import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
@@ -305,7 +306,7 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Step 1: Copy unchanged nodes and edges from head graph
-        GraphBuilder baseBuilder = GraphBuilder.builder();
+        DependencyGraph.MutableBuilder baseBuilder = new DependencyGraph.MutableBuilder();
         for (String nodeId : headGraph.getNodeIds()) {
             if (!changedFileNodes.contains(nodeId)) {
                 baseBuilder.addNode(headGraph.getNode(nodeId).orElseThrow());
@@ -319,10 +320,10 @@ public class DiffCommand implements Callable<Integer> {
             }
         }
 
-        // Step 2: Parse base versions of changed files using orchestrator
-        // We need to use parseFromContent for each file with the appropriate plugin
-        ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
-        DependencyGraph.MutableBuilder tempBuilder = new DependencyGraph.MutableBuilder();
+        // Step 2: Parse base versions of changed files using individual plugins
+        // Collect declarations from each plugin and build graph from them
+        List<ModuleDeclaration> allModuleDecls = new ArrayList<>();
+        List<DependencyDeclaration> allDepDecls = new ArrayList<>();
 
         for (Map.Entry<Path, String> entry : baseContents.entrySet()) {
             Path file = entry.getKey();
@@ -342,23 +343,22 @@ public class DiffCommand implements Callable<Integer> {
                 ParseResult result = plugin.parseFromContent(
                     file.toString(),
                     content,
-                    context,
-                    tempBuilder
+                    context
                 );
-                // Errors are ignored for base graph parsing
+                // Collect declarations from the plugin
+                allModuleDecls.addAll(result.getModuleDeclarations());
+                allDepDecls.addAll(result.getDeclarations());
             }
         }
 
-        // Build temp graph and strip namespace prefixes
-        DependencyGraph changedGraph = DependencyGraph.stripNamespacePrefixesAndBuild(tempBuilder);
+        // Build graph from declarations using the shared utility
+        DeclarationGraphBuilder.BuildResult buildResult = DeclarationGraphBuilder.build(
+            allModuleDecls, allDepDecls
+        );
+        DependencyGraph changedGraph = buildResult.graph();
 
         // Merge changed graph into base builder
-        for (String nodeId : changedGraph.getNodeIds()) {
-            baseBuilder.addNode(changedGraph.getNode(nodeId).orElseThrow());
-        }
-        for (Edge edge : changedGraph.getAllEdges()) {
-            baseBuilder.addEdge(edge);
-        }
+        DependencyGraph.mergeInto(changedGraph, baseBuilder);
 
         return baseBuilder.build();
     }

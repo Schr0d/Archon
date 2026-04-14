@@ -1,25 +1,19 @@
 package com.archon.java;
 
-import com.archon.core.analysis.DomainStrategy;
-import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.GraphBuilder;
+import com.archon.core.plugin.DependencyDeclaration;
 import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * LanguagePlugin implementation for Java.
@@ -34,7 +28,6 @@ import java.util.stream.Collectors;
  */
 public class JavaPlugin implements LanguagePlugin {
 
-    private static final String NAMESPACE = "java";
     private static final Set<String> EXTENSIONS = Set.of("java");
 
     private final JavaParser javaParser;
@@ -81,6 +74,7 @@ public class JavaPlugin implements LanguagePlugin {
     /**
      * Reset the internal FQCN cache. Should be called before parsing a new project.
      */
+    @Override
     public void reset() {
         allSourceFqcns.clear();
     }
@@ -91,16 +85,10 @@ public class JavaPlugin implements LanguagePlugin {
     }
 
     @Override
-    public Optional<DomainStrategy> getDomainStrategy() {
-        return Optional.of(new JavaDomainStrategy());
-    }
-
-    @Override
     public ParseResult parseFromContent(
         String filePath,
         String content,
-        ParseContext context,
-        DependencyGraph.MutableBuilder builder
+        ParseContext context
     ) {
         List<String> parseErrors = new ArrayList<>();
         List<com.archon.core.plugin.BlindSpot> blindSpots = new ArrayList<>();
@@ -116,7 +104,6 @@ public class JavaPlugin implements LanguagePlugin {
                     .orElse("Unknown parse error");
                 parseErrors.add(filePath + ":0 - " + message);
                 return new ParseResult(
-                    GraphBuilder.builder().build(),
                     sourceModules,
                     blindSpots,
                     parseErrors
@@ -130,62 +117,38 @@ public class JavaPlugin implements LanguagePlugin {
                 .map(pd -> pd.getName().asString())
                 .orElse("");
 
-            Set<String> fileFqcns = new HashSet<>();
             for (com.github.javaparser.ast.body.TypeDeclaration<?> typeDecl : cu.getTypes()) {
                 String fqcn = packageName.isEmpty()
                     ? typeDecl.getName().asString()
                     : packageName + "." + typeDecl.getName().asString();
-                fileFqcns.add(fqcn);
-                allSourceFqcns.add(fqcn); // Add to global set for edge resolution
+                allSourceFqcns.add(fqcn);
             }
 
-            // Create AstVisitor with all known source classes
+            // Collect all source modules for this file
+            for (com.github.javaparser.ast.body.TypeDeclaration<?> typeDecl : cu.getTypes()) {
+                String fqcn = packageName.isEmpty()
+                    ? typeDecl.getName().asString()
+                    : packageName + "." + typeDecl.getName().asString();
+                sourceModules.add("java:" + fqcn);
+            }
+
+            // Create AstVisitor with all known source classes — it collects declarations directly
             AstVisitor astVisitor = new AstVisitor(allSourceFqcns);
+            astVisitor.visit(cu, filePath);
 
-            // Create a temporary builder to capture nodes/edges from this file
-            GraphBuilder tempBuilder = GraphBuilder.builder();
-            astVisitor.visit(cu, tempBuilder);
-
-            // Build the temp graph to extract nodes and edges
-            DependencyGraph tempGraph = tempBuilder.build();
-
-            // Add nodes with namespace prefix to the shared builder
-            Set<String> addedPrefixedIds = new HashSet<>();
-            for (String fqcn : fileFqcns) {
-                String prefixedId = NAMESPACE + ":" + fqcn;
-                sourceModules.add(prefixedId);
-                tempGraph.getNode(fqcn).ifPresent(node -> {
-                    builder.addNode(com.archon.core.graph.Node.builder()
-                        .id(prefixedId)
-                        .type(node.getType())
-                        .build());
-                    addedPrefixedIds.add(prefixedId);
-                });
-            }
-
-            // Add edges with namespace prefix to the shared builder
-            // Only add edges where both source and target nodes were added to the builder
-            for (com.archon.core.graph.Edge edge : tempGraph.getAllEdges()) {
-                String prefixedSource = NAMESPACE + ":" + edge.getSource();
-                String prefixedTarget = NAMESPACE + ":" + edge.getTarget();
-                // Only add edges where source node exists in the builder
-                if (addedPrefixedIds.contains(prefixedSource)) {
-                    builder.addEdge(com.archon.core.graph.Edge.builder()
-                        .source(prefixedSource)
-                        .target(prefixedTarget)
-                        .type(edge.getType())
-                        .confidence(edge.getConfidence())
-                        .evidence(edge.getEvidence())
-                        .build());
-                }
-            }
+            return new ParseResult(
+                sourceModules,
+                blindSpots,
+                parseErrors,
+                astVisitor.getModuleDeclarations(),
+                astVisitor.getDependencyDeclarations()
+            );
 
         } catch (Exception e) {
             parseErrors.add(filePath + ":0 - Failed to parse: " + e.getMessage());
         }
 
         return new ParseResult(
-            builder.build(),
             sourceModules,
             blindSpots,
             parseErrors

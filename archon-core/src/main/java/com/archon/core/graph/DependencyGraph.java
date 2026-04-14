@@ -206,6 +206,18 @@ public class DependencyGraph {
     }
 
     /**
+     * Merges all nodes and edges from a source graph into a target MutableBuilder.
+     */
+    public static void mergeInto(DependencyGraph source, MutableBuilder target) {
+        for (String nodeId : source.getNodeIds()) {
+            source.getNode(nodeId).ifPresent(target::addNode);
+        }
+        for (Edge edge : source.getAllEdges()) {
+            target.addEdge(edge);
+        }
+    }
+
+    /**
      * Mutable builder for constructing DependencyGraph instances.
      * Graph is frozen (immutable) after build().
      */
@@ -240,6 +252,14 @@ public class DependencyGraph {
             reverseAdj.computeIfAbsent(tgt, k -> new LinkedHashSet<>()).add(src);
             edges.computeIfAbsent(src, k -> new LinkedHashMap<>()).put(tgt, edge);
             return this;
+        }
+
+        /**
+         * Returns the set of node IDs currently in the builder.
+         * Useful for checking edge target existence before adding edges.
+         */
+        public Set<String> knownNodeIds() {
+            return Collections.unmodifiableSet(nodes.keySet());
         }
 
         public DependencyGraph build() {

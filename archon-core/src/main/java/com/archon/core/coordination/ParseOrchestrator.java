@@ -1,9 +1,6 @@
 package com.archon.core.coordination;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.Edge;
-import com.archon.core.graph.Node;
 import com.archon.core.plugin.*;
 
 import java.io.IOException;
@@ -15,25 +12,24 @@ import java.util.stream.Collectors;
 /**
  * Orchestrates multiple LanguagePlugin implementations to build a unified graph.
  *
- * <h3>Two-Phase Construction:</h3>
+ * <p>Plugins return {@link ModuleDeclaration} and {@link DependencyDeclaration} records.
+ * The orchestrator collects all declarations from all files and builds the graph
+ * in a single pass:
  * <ol>
- *   <li><strong>Phase 1 (Nodes):</strong> All plugins add all their nodes to the builder.
- *       Each node ID is prefixed with the language namespace (e.g., "java:").</li>
- *   <li><strong>Phase 2 (Edges):</strong> All plugins add their edges.
- *       Edges reference prefixed node IDs; orchestrator strips prefixes before final build.</li>
+ *   <li>Create a node for each unique ModuleDeclaration.id (dedup by ID, keep first seen)</li>
+ *   <li>For each DependencyDeclaration, create an edge (skip if target not in node map, log warning)</li>
+ *   <li>Strip namespace prefixes before building</li>
  * </ol>
- *
- * <p>This two-phase approach prevents edge loss when Plugin A adds an edge
- * to a node that Plugin B hasn't added yet. All nodes exist before any edges are added.
  *
  * <h3>Namespace Handling:</h3>
  * <ul>
- *   <li>Plugins add nodes with prefix: builder.addNode("java:com.example.Foo", ...)</li>
- *   <li>Plugins add edges with prefix: builder.addEdge("java:Foo", "IMPORTS", "java:Bar")</li>
+ *   <li>Plugins add declarations with prefixed IDs: "java:com.example.Foo"</li>
  *   <li>Orchestrator strips prefixes before building final graph</li>
  * </ul>
  *
  * @see LanguagePlugin for plugin contract
+ * @see ModuleDeclaration for node declarations
+ * @see DependencyDeclaration for edge declarations
  */
 public class ParseOrchestrator {
 
@@ -52,27 +48,27 @@ public class ParseOrchestrator {
      * Parse source tree using all registered plugins.
      *
      * <p>Files are partitioned by extension and routed to the appropriate plugin.
-     * Each plugin adds nodes with language-prefixed IDs (e.g., "java:com.example.Foo").
-     * After all plugins complete, namespace prefixes are stripped to create a unified graph.
+     * Each plugin returns a ParseResult containing declarations. The orchestrator
+     * builds a unified graph from all declarations, strips namespace prefixes,
+     * and returns the result.
      *
      * @param sourceFiles List of source file paths to parse
      * @param context Parse context with source root and extensions
      * @return Unified ParseResult from all plugins
      */
     public ParseResult parse(List<Path> sourceFiles, ParseContext context) {
-        // Create a temporary builder for collecting prefixed nodes/edges
-        DependencyGraph.MutableBuilder prefixedBuilder = new DependencyGraph.MutableBuilder();
-
         // Track which plugin handles which extension
         Map<String, LanguagePlugin> extensionToPlugin = buildExtensionMap();
 
         // Partition files by extension
         Map<String, List<Path>> filesByExtension = partitionFilesByExtension(sourceFiles);
 
-        // Track all results from all plugins
-        Set<String> allSourceModules = new HashSet<>();
+        // Collect all declarations and results from all plugins
+        Set<String> allSourceModules = new LinkedHashSet<>();
         List<BlindSpot> allBlindSpots = new ArrayList<>();
         List<String> allErrors = new ArrayList<>();
+        List<ModuleDeclaration> allModuleDeclarations = new ArrayList<>();
+        List<DependencyDeclaration> allDependencyDeclarations = new ArrayList<>();
 
         // Parse files with their respective plugins
         for (Map.Entry<String, List<Path>> entry : filesByExtension.entrySet()) {
@@ -88,9 +84,9 @@ public class ParseOrchestrator {
 
             for (Path file : entry.getValue()) {
                 try {
-                    // Fix #2: Check file size BEFORE reading to prevent OOM
+                    // Check file size BEFORE reading to prevent OOM
                     long fileSize = Files.size(file);
-                    long maxFileSize = 1024 * 1024; // 1MB limit
+                    long maxFileSize = ParseContext.MAX_FILE_SIZE;
                     if (fileSize > maxFileSize) {
                         allErrors.add("Skipped " + file + ": file too large (" +
                             (fileSize / 1024) + " KB, max " + (maxFileSize / 1024) + " KB)");
@@ -101,23 +97,43 @@ public class ParseOrchestrator {
                     ParseResult result = plugin.parseFromContent(
                         file.toString(),
                         content,
-                        context,
-                        prefixedBuilder
+                        context
                     );
+
                     allSourceModules.addAll(result.getSourceModules());
                     allBlindSpots.addAll(result.getBlindSpots());
                     allErrors.addAll(result.getParseErrors());
+
+                    // Collect declarations from all plugins
+                    allModuleDeclarations.addAll(result.getModuleDeclarations());
+                    allDependencyDeclarations.addAll(result.getDeclarations());
                 } catch (IOException e) {
                     allErrors.add("Failed to read " + file + ": " + e.getMessage());
                 }
             }
         }
 
-        // Strip namespace prefixes and rebuild graph
-        DependencyGraph finalGraph = DependencyGraph.stripNamespacePrefixesAndBuild(prefixedBuilder);
+        // Build the final graph from declarations
+        DependencyGraph finalGraph;
 
-        return new ParseResult(finalGraph, allSourceModules, allBlindSpots, allErrors);
+        if (!allModuleDeclarations.isEmpty() || !allDependencyDeclarations.isEmpty()) {
+            DeclarationGraphBuilder.BuildResult result = DeclarationGraphBuilder.build(
+                allModuleDeclarations, allDependencyDeclarations
+            );
+            finalGraph = result.graph();
+            allErrors.addAll(result.warnings());
+        } else {
+            // No results at all — return empty graph
+            finalGraph = new DependencyGraph.MutableBuilder().build();
+        }
+
+        return new ParseResult(
+            finalGraph, allSourceModules, allBlindSpots, allErrors,
+            allModuleDeclarations, allDependencyDeclarations
+        );
     }
+
+    // --- File routing helpers ---
 
     /**
      * Builds a mapping from file extension to the plugin that handles it.

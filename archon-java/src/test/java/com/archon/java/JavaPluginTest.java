@@ -1,9 +1,10 @@
 package com.archon.java;
 
-import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.NodeType;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -16,9 +17,18 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class JavaPluginTest {
 
+    private JavaPlugin plugin;
+    private ParseContext context;
+
+    @BeforeEach
+    void setUp() {
+        plugin = new JavaPlugin();
+        plugin.reset();
+        context = new ParseContext(Path.of("/tmp"), Set.of("java"));
+    }
+
     @Test
     void testFileExtensions() {
-        JavaPlugin plugin = new JavaPlugin();
         Set<String> extensions = plugin.fileExtensions();
 
         assertTrue(extensions.contains("java"));
@@ -26,17 +36,7 @@ class JavaPluginTest {
     }
 
     @Test
-    void testGetDomainStrategy() {
-        JavaPlugin plugin = new JavaPlugin();
-        assertTrue(plugin.getDomainStrategy().isPresent());
-        assertTrue(plugin.getDomainStrategy().get() instanceof JavaDomainStrategy);
-    }
-
-    @Test
     void testParseSimpleClass() {
-        JavaPlugin plugin = new JavaPlugin();
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-
         String javaCode = """
             package com.example;
 
@@ -45,12 +45,10 @@ class JavaPluginTest {
             }
             """;
 
-        ParseContext context = new ParseContext(Path.of("/tmp"), Set.of("java"));
         ParseResult result = plugin.parseFromContent(
             "Foo.java",
             javaCode,
-            context,
-            builder
+            context
         );
 
         // Check that no errors were reported
@@ -60,13 +58,15 @@ class JavaPluginTest {
         // Check that source modules were extracted
         assertFalse(result.getSourceModules().isEmpty());
         assertTrue(result.getSourceModules().contains("java:com.example.Foo"));
+
+        // Check module declarations
+        assertFalse(result.getModuleDeclarations().isEmpty());
+        assertTrue(result.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().equals("java:com.example.Foo")));
     }
 
     @Test
     void testParseClassWithImport() {
-        JavaPlugin plugin = new JavaPlugin();
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-
         String javaCode = """
             package com.example;
 
@@ -77,12 +77,10 @@ class JavaPluginTest {
             }
             """;
 
-        ParseContext context = new ParseContext(Path.of("/tmp"), Set.of("java"));
         ParseResult result = plugin.parseFromContent(
             "Foo.java",
             javaCode,
-            context,
-            builder
+            context
         );
 
         // Check that no errors were reported
@@ -91,16 +89,13 @@ class JavaPluginTest {
         // Check source module
         assertTrue(result.getSourceModules().contains("java:com.example.Foo"));
 
-        // Build and check the graph has the node with namespace prefix
-        DependencyGraph graph = builder.build();
-        assertTrue(graph.containsNode("java:com.example.Foo"));
+        // Check the module declaration has the namespace-prefixed ID
+        assertTrue(result.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().equals("java:com.example.Foo")));
     }
 
     @Test
     void testParseClassWithExtends() {
-        JavaPlugin plugin = new JavaPlugin();
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-
         String parentCode = """
             package com.example;
 
@@ -117,29 +112,26 @@ class JavaPluginTest {
             }
             """;
 
-        ParseContext context = new ParseContext(Path.of("/tmp"), Set.of("java"));
-
         // Parse parent first
-        plugin.parseFromContent("Parent.java", parentCode, context, builder);
+        ParseResult parentResult = plugin.parseFromContent("Parent.java", parentCode, context);
         // Parse child
-        ParseResult result = plugin.parseFromContent("Child.java", childCode, context, builder);
+        ParseResult childResult = plugin.parseFromContent("Child.java", childCode, context);
 
-        assertFalse(result.hasErrors());
+        assertFalse(childResult.hasErrors());
 
-        // Build and check nodes are prefixed
-        DependencyGraph graph = builder.build();
-        assertTrue(graph.containsNode("java:com.example.Parent"));
-        assertTrue(graph.containsNode("java:com.example.Child"));
+        // Check module declarations for both classes
+        assertTrue(childResult.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().equals("java:com.example.Child")));
 
-        // Check edge exists with prefixed IDs
-        assertTrue(graph.getEdge("java:com.example.Child", "java:com.example.Parent").isPresent());
+        // Check dependency declaration for extends edge
+        assertFalse(childResult.getDeclarations().isEmpty());
+        assertTrue(childResult.getDeclarations().stream()
+            .anyMatch(dd -> dd.sourceId().equals("java:com.example.Child")
+                && dd.targetId().equals("java:com.example.Parent")));
     }
 
     @Test
     void testParseWithSyntaxError() {
-        JavaPlugin plugin = new JavaPlugin();
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-
         String invalidCode = """
             package com.example;
 
@@ -147,12 +139,10 @@ class JavaPluginTest {
                 // Missing closing brace
             """;
 
-        ParseContext context = new ParseContext(Path.of("/tmp"), Set.of("java"));
         ParseResult result = plugin.parseFromContent(
             "Broken.java",
             invalidCode,
-            context,
-            builder
+            context
         );
 
         // Should have errors
@@ -161,9 +151,6 @@ class JavaPluginTest {
 
     @Test
     void testNamespacePrefixing() {
-        JavaPlugin plugin = new JavaPlugin();
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
-
         String javaCode = """
             package test;
 
@@ -172,19 +159,68 @@ class JavaPluginTest {
             }
             """;
 
-        ParseContext context = new ParseContext(Path.of("/tmp"), Set.of("java"));
-        plugin.parseFromContent("TestClass.java", javaCode, context, builder);
+        ParseResult result = plugin.parseFromContent("TestClass.java", javaCode, context);
 
-        DependencyGraph graph = builder.build();
-
-        // Verify all node IDs have "java:" prefix
-        for (String nodeId : graph.getNodeIds()) {
-            assertTrue(nodeId.startsWith("java:"),
-                "Node ID should be prefixed with 'java:': " + nodeId);
+        // Verify all node IDs in source modules have "java:" prefix
+        for (String moduleId : result.getSourceModules()) {
+            assertTrue(moduleId.startsWith("java:"),
+                "Module ID should be prefixed with 'java:': " + moduleId);
         }
 
-        // Verify the unprefixed version doesn't exist
-        assertFalse(graph.containsNode("test.TestClass"));
-        assertTrue(graph.containsNode("java:test.TestClass"));
+        // Verify the module declaration is correct
+        assertTrue(result.getSourceModules().contains("java:test.TestClass"));
+
+        // Verify module declarations have namespace prefix
+        assertTrue(result.getModuleDeclarations().stream()
+            .anyMatch(md -> md.id().equals("java:test.TestClass")));
+    }
+
+    @Test
+    void testModuleDeclarationsReturned() {
+        String javaCode = """
+            package com.example;
+
+            public class MyClass {
+                public void method() { }
+            }
+            """;
+
+        ParseResult result = plugin.parseFromContent("MyClass.java", javaCode, context);
+
+        // Should have module declarations
+        assertEquals(1, result.getModuleDeclarations().size());
+        ModuleDeclaration md = result.getModuleDeclarations().get(0);
+        assertEquals("java:com.example.MyClass", md.id());
+        assertEquals(com.archon.core.plugin.NodeType.CLASS, md.type());
+        assertEquals("MyClass.java", md.sourcePath());
+        assertEquals(com.archon.core.plugin.Confidence.HIGH, md.confidence());
+    }
+
+    @Test
+    void testDependencyDeclarationsReturned() {
+        String fooCode = """
+            package com.example;
+            import com.example.Bar;
+            public class Foo { }
+            """;
+        String barCode = """
+            package com.example;
+            public class Bar { }
+            """;
+
+        // Parse Bar first so it's in the source set
+        plugin.parseFromContent("Bar.java", barCode, context);
+        ParseResult result = plugin.parseFromContent("Foo.java", fooCode, context);
+
+        // Should have dependency declarations
+        assertFalse(result.getDeclarations().isEmpty());
+        DependencyDeclaration dd = result.getDeclarations().stream()
+            .filter(d -> d.targetId().equals("java:com.example.Bar"))
+            .findFirst()
+            .orElseThrow();
+        assertEquals("java:com.example.Foo", dd.sourceId());
+        assertEquals(com.archon.core.plugin.EdgeType.IMPORTS, dd.edgeType());
+        assertEquals(com.archon.core.plugin.Confidence.HIGH, dd.confidence());
+        assertFalse(dd.dynamic());
     }
 }

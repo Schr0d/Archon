@@ -1,14 +1,12 @@
 package com.archon.python;
 
-import com.archon.core.analysis.DomainStrategy;
-import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.Edge;
-import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
-import com.archon.core.graph.Node;
-import com.archon.core.graph.NodeType;
 import com.archon.core.plugin.BlindSpot;
+import com.archon.core.plugin.Confidence;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.EdgeType;
 import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ModuleDeclaration;
+import com.archon.core.plugin.NodeType;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 
@@ -40,14 +38,12 @@ public class PythonPlugin implements LanguagePlugin {
     private static final String NAMESPACE = "py";
     private static final Set<String> EXTENSIONS = Set.of("py", "pyi", "pyw");
 
-    // Maximum file size to parse (1MB) - prevents OOM on malformed files
-    private static final int MAX_FILE_SIZE = 1024 * 1024;
+    // Maximum file size to parse - prevents OOM on malformed files
+    private static final long MAX_FILE_SIZE = ParseContext.MAX_FILE_SIZE;
 
-    private final PythonDomainStrategy domainStrategy;
     private final PythonModuleResolver moduleResolver;
 
     public PythonPlugin() {
-        this.domainStrategy = new PythonDomainStrategy();
         this.moduleResolver = new PythonModuleResolver();
     }
 
@@ -57,30 +53,27 @@ public class PythonPlugin implements LanguagePlugin {
     }
 
     @Override
-    public Optional<DomainStrategy> getDomainStrategy() {
-        return Optional.of(domainStrategy);
-    }
-
-    @Override
     public ParseResult parseFromContent(
         String filePath,
         String content,
-        ParseContext context,
-        DependencyGraph.MutableBuilder builder
+        ParseContext context
     ) {
         List<String> parseErrors = new ArrayList<>();
         List<BlindSpot> blindSpots = new ArrayList<>();
         Set<String> sourceModules = new HashSet<>();
+        List<ModuleDeclaration> moduleDecls = new ArrayList<>();
+        List<DependencyDeclaration> depDecls = new ArrayList<>();
 
         // Check file size to prevent OOM on malformed inputs
         if (content.length() > MAX_FILE_SIZE) {
             parseErrors.add(filePath + ":0 - File too large to parse (" +
                 (content.length() / 1024) + " KB, max " + (MAX_FILE_SIZE / 1024) + " KB)");
             return new ParseResult(
-                GraphBuilder.builder().build(),
                 sourceModules,
                 blindSpots,
-                parseErrors
+                parseErrors,
+                moduleDecls,
+                depDecls
             );
         }
 
@@ -90,20 +83,21 @@ public class PythonPlugin implements LanguagePlugin {
             String prefixedId = NAMESPACE + ":" + moduleName;
             sourceModules.add(prefixedId);
 
-            // Create a node for this module
-            Node node = Node.builder()
-                .id(prefixedId)
-                .type(NodeType.MODULE)
-                .sourcePath(filePath)
-                .build();
-            builder.addNode(node);
+            // Collect module declaration
+            moduleDecls.add(new ModuleDeclaration(
+                prefixedId,
+                NodeType.MODULE,
+                filePath,
+                Confidence.HIGH
+            ));
 
             // Extract imports using PythonImportExtractor
             Set<String> imports = PythonImportExtractor.extractImports(content);
 
-            // Add edges for each import
+            // Collect dependency declarations for each import
             for (String importModule : imports) {
                 String targetModuleName = importModule;
+                String evidence = importModule;
 
                 // Check if it's a relative import (starts with dots)
                 if (importModule.startsWith(".")) {
@@ -130,7 +124,6 @@ public class PythonPlugin implements LanguagePlugin {
 
                 // Filter out stdlib modules
                 if (PythonStdlib.isStdlib(targetModuleName)) {
-                    // Stdlib filtering — skip edge, optionally report as info
                     continue;
                 }
 
@@ -138,26 +131,26 @@ public class PythonPlugin implements LanguagePlugin {
                 // Convert dot notation (from imports) to slash notation (to match node IDs from file paths)
                 String targetId = NAMESPACE + ":" + targetModuleName.replace(".", "/");
 
-                Edge edge = Edge.builder()
-                    .source(prefixedId)
-                    .target(targetId)
-                    .type(EdgeType.IMPORTS)
-                    .build();
-
-                builder.addEdge(edge);
+                depDecls.add(new DependencyDeclaration(
+                    prefixedId,
+                    targetId,
+                    EdgeType.IMPORTS,
+                    Confidence.HIGH,
+                    evidence,
+                    false
+                ));
             }
 
         } catch (Exception e) {
             parseErrors.add(filePath + ":0 - Failed to parse: " + e.getMessage());
         }
 
-        // Return result with the graph built from this file
-        // ParseOrchestrator combines all results from different files
         return new ParseResult(
-            builder.build(),
             sourceModules,
             blindSpots,
-            parseErrors
+            parseErrors,
+            moduleDecls,
+            depDecls
         );
     }
 

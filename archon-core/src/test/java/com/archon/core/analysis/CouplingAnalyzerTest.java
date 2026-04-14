@@ -3,7 +3,6 @@ package com.archon.core.analysis;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
 import com.archon.core.graph.NodeType;
 import org.junit.jupiter.api.Test;
@@ -24,7 +23,7 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_emptyGraph_returnsEmptyList() {
-        DependencyGraph graph = GraphBuilder.builder().build();
+        DependencyGraph graph = new DependencyGraph.MutableBuilder().build();
 
         List<Node> hotspots = new CouplingAnalyzer().findHotspots(graph, 5);
 
@@ -33,14 +32,10 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_singleHotspot_returnsIt() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A"))
-            .addNode(node("B")).addNode(node("C")).addNode(node("D"))
-            .addNode(node("E")).addNode(node("F"))
-            .addEdge(edge("B", "A")).addEdge(edge("C", "A"))
-            .addEdge(edge("D", "A")).addEdge(edge("E", "A"))
-            .addEdge(edge("F", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C"), node("D"), node("E"), node("F")},
+            new Edge[]{edge("B", "A"), edge("C", "A"), edge("D", "A"), edge("E", "A"), edge("F", "A")}
+        );
 
         List<Node> hotspots = new CouplingAnalyzer().findHotspots(graph, 4);
 
@@ -51,15 +46,12 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_sortedByInDegreeDescending() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addNode(node("C1")).addNode(node("C2")).addNode(node("C3"))
-            .addNode(node("D1")).addNode(node("D2")).addNode(node("D3"))
-            .addNode(node("D4")).addNode(node("D5"))
-            .addEdge(edge("C1", "A")).addEdge(edge("C2", "A")).addEdge(edge("C3", "A"))
-            .addEdge(edge("D1", "B")).addEdge(edge("D2", "B"))
-            .addEdge(edge("D3", "B")).addEdge(edge("D4", "B")).addEdge(edge("D5", "B"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C1"), node("C2"), node("C3"),
+                       node("D1"), node("D2"), node("D3"), node("D4"), node("D5")},
+            new Edge[]{edge("C1", "A"), edge("C2", "A"), edge("C3", "A"),
+                       edge("D1", "B"), edge("D2", "B"), edge("D3", "B"), edge("D4", "B"), edge("D5", "B")}
+        );
 
         List<Node> hotspots = new CouplingAnalyzer().findHotspots(graph, 2);
 
@@ -70,10 +62,10 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_belowThreshold_filteredOut() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B")).addNode(node("C"))
-            .addEdge(edge("B", "A")).addEdge(edge("C", "A"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("C")},
+            new Edge[]{edge("B", "A"), edge("C", "A")}
+        );
 
         List<Node> hotspots = new CouplingAnalyzer().findHotspots(graph, 5);
 
@@ -82,15 +74,14 @@ class CouplingAnalyzerTest {
 
     @Test
     void findHotspots_allNodesAreHotspots() {
-        DependencyGraph graph = GraphBuilder.builder()
-            .addNode(node("A")).addNode(node("B"))
-            .addNode(node("X1")).addNode(node("X2")).addNode(node("X3")).addNode(node("X4"))
-            .addNode(node("Y1")).addNode(node("Y2")).addNode(node("Y3")).addNode(node("Y4"))
-            .addEdge(edge("X1", "A")).addEdge(edge("X2", "A")).addEdge(edge("X3", "A"))
-            .addEdge(edge("X4", "A")).addEdge(edge("B", "A")).addEdge(edge("Y1", "A"))
-            .addEdge(edge("Y1", "B")).addEdge(edge("Y2", "B")).addEdge(edge("Y3", "B"))
-            .addEdge(edge("Y4", "B")).addEdge(edge("A", "B")).addEdge(edge("X1", "B"))
-            .build();
+        DependencyGraph graph = GraphTestBuilders.buildGraph(
+            new Node[]{node("A"), node("B"), node("X1"), node("X2"), node("X3"), node("X4"),
+                       node("Y1"), node("Y2"), node("Y3"), node("Y4")},
+            new Edge[]{edge("X1", "A"), edge("X2", "A"), edge("X3", "A"),
+                       edge("X4", "A"), edge("B", "A"), edge("Y1", "A"),
+                       edge("Y1", "B"), edge("Y2", "B"), edge("Y3", "B"),
+                       edge("Y4", "B"), edge("A", "B"), edge("X1", "B")}
+        );
 
         List<Node> hotspots = new CouplingAnalyzer().findHotspots(graph, 5);
 

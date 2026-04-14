@@ -1,13 +1,8 @@
 package com.archon.core.plugin;
 
-import com.archon.core.graph.DependencyGraph;
-import com.archon.core.analysis.DomainStrategy;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
-import java.util.Optional;
 import java.util.Set;
-import java.util.Map;
-import java.util.List;
 
 class LanguagePluginTest {
     @Test
@@ -24,18 +19,8 @@ class LanguagePluginTest {
     }
 
     @Test
-    void testGetDomainStrategyReturnsOptional() {
-        LanguagePlugin plugin = new TestPlugin();
-        Optional<DomainStrategy> strategy = plugin.getDomainStrategy();
-
-        assertNotNull(strategy);
-        assertTrue(strategy.isPresent());
-    }
-
-    @Test
     void testParseFromContentReturnsParseResult() {
         LanguagePlugin plugin = new TestPlugin();
-        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
         ParseContext context = new ParseContext(
             java.nio.file.Path.of("/test/src"),
             Set.of("java")
@@ -44,12 +29,11 @@ class LanguagePluginTest {
         ParseResult result = plugin.parseFromContent(
             "/test/src/Foo.java",
             "public class Foo {}",
-            context,
-            builder
+            context
         );
 
         assertNotNull(result);
-        assertNotNull(result.getGraph());
+        assertNotNull(result.getSourceModules());
     }
 
     // Minimal test implementation
@@ -60,18 +44,12 @@ class LanguagePluginTest {
         }
 
         @Override
-        public Optional<DomainStrategy> getDomainStrategy() {
-            return Optional.of((graph, modules) -> Optional.of(Map.of()));
-        }
-
-        @Override
         public ParseResult parseFromContent(
             String filePath,
             String content,
-            ParseContext context,
-            DependencyGraph.MutableBuilder builder
+            ParseContext context
         ) {
-            return new ParseResult(builder.build(), Set.of(), List.of());
+            return new ParseResult(Set.of(), java.util.List.of(), java.util.List.of());
         }
     }
 }

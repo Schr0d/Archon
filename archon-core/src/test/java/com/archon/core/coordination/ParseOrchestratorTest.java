@@ -1,9 +1,6 @@
 package com.archon.core.coordination;
 
-import com.archon.core.analysis.DomainStrategy;
 import com.archon.core.graph.DependencyGraph;
-import com.archon.core.graph.Node;
-import com.archon.core.graph.NodeType;
 import com.archon.core.plugin.*;
 
 import org.junit.jupiter.api.Test;
@@ -14,11 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -123,7 +116,7 @@ class ParseOrchestratorTest {
     }
 
     /**
-     * Test plugin that adds prefixed nodes and edges.
+     * Test plugin that returns declarations with prefixed node IDs.
      * Simulates language plugins that namespace their nodes.
      */
     static class TestPlugin implements LanguagePlugin {
@@ -146,32 +139,27 @@ class ParseOrchestratorTest {
         }
 
         @Override
-        public Optional<DomainStrategy> getDomainStrategy() {
-            return Optional.empty();
-        }
-
-        @Override
         public ParseResult parseFromContent(
             String filePath,
             String content,
-            ParseContext context,
-            DependencyGraph.MutableBuilder builder
+            ParseContext context
         ) {
-            // Phase 1: Add all nodes with prefix
+            List<ModuleDeclaration> moduleDecls = new ArrayList<>();
+            List<DependencyDeclaration> depDecls = new ArrayList<>();
+
+            // Phase 1: Add all module declarations with prefix
             for (String module : unprefixedModules) {
                 String prefixedId = prefix + ":" + module;
-                Node node = Node.builder()
-                    .id(prefixedId)
-                    .type(NodeType.CLASS)
-                    .sourcePath(filePath)
-                    .build();
-                builder.addNode(node);
+                moduleDecls.add(new ModuleDeclaration(
+                    prefixedId,
+                    com.archon.core.plugin.NodeType.CLASS,
+                    filePath,
+                    com.archon.core.plugin.Confidence.HIGH
+                ));
             }
 
-            // Phase 2: Add all edges with prefix
-            // For simplicity, add edges from first module to all other modules
+            // Phase 2: Add edges from first module to all others
             if (unprefixedModules.size() > 1) {
-                // Sort modules to ensure deterministic ordering
                 List<String> sortedModules = new ArrayList<>(unprefixedModules);
                 Collections.sort(sortedModules);
                 String first = sortedModules.get(0);
@@ -180,52 +168,37 @@ class ParseOrchestratorTest {
                 for (String target : unprefixedModules) {
                     if (!target.equals(first)) {
                         String prefixedTarget = prefix + ":" + target;
-                        builder.addNode(
-                            Node.builder()
-                                .id(prefixedTarget)
-                                .type(NodeType.CLASS)
-                                .sourcePath(filePath)
-                                .build()
-                        );
-                        builder.addEdge(
-                            com.archon.core.graph.Edge.builder()
-                                .source(prefixedSource)
-                                .target(prefixedTarget)
-                                .type(com.archon.core.graph.EdgeType.IMPORTS)
-                                .build()
-                        );
+                        depDecls.add(new DependencyDeclaration(
+                            prefixedSource, prefixedTarget,
+                            com.archon.core.plugin.EdgeType.IMPORTS,
+                            com.archon.core.plugin.Confidence.HIGH,
+                            null, false
+                        ));
                     }
                 }
             }
 
             // Add cross-plugin edges if any
             if (!unprefixedModules.isEmpty() && !crossPluginEdges.isEmpty()) {
-                // Sort modules to ensure deterministic ordering
                 List<String> sortedModules = new ArrayList<>(unprefixedModules);
                 Collections.sort(sortedModules);
                 String first = sortedModules.get(0);
                 String prefixedSource = prefix + ":" + first;
 
                 for (String prefixedTarget : crossPluginEdges) {
-                    // Add the target node if it doesn't exist (for testing)
-                    builder.addNode(
-                        Node.builder()
-                            .id(prefixedTarget)
-                            .type(NodeType.CLASS)
-                            .sourcePath(filePath)
-                            .build()
-                    );
-                    builder.addEdge(
-                        com.archon.core.graph.Edge.builder()
-                            .source(prefixedSource)
-                            .target(prefixedTarget)
-                            .type(com.archon.core.graph.EdgeType.IMPORTS)
-                            .build()
-                    );
+                    depDecls.add(new DependencyDeclaration(
+                        prefixedSource, prefixedTarget,
+                        com.archon.core.plugin.EdgeType.IMPORTS,
+                        com.archon.core.plugin.Confidence.HIGH,
+                        null, false
+                    ));
                 }
             }
 
-            return new ParseResult(builder.build(), unprefixedModules, List.of());
+            return new ParseResult(
+                unprefixedModules, List.of(), List.of(),
+                moduleDecls, depDecls
+            );
         }
     }
 }
