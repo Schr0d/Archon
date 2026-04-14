@@ -2,12 +2,14 @@ package com.archon.python;
 
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
-import com.archon.core.graph.EdgeType;
-import com.archon.core.graph.GraphBuilder;
 import com.archon.core.graph.Node;
-import com.archon.core.graph.NodeType;
 import com.archon.core.plugin.BlindSpot;
+import com.archon.core.plugin.Confidence;
+import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.EdgeType;
 import com.archon.core.plugin.LanguagePlugin;
+import com.archon.core.plugin.ModuleDeclaration;
+import com.archon.core.plugin.NodeType;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 
@@ -15,6 +17,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -32,6 +35,10 @@ import java.util.Set;
  * <p>Filters standard library modules from the dependency graph.
  *
  * <p>Node IDs use "py:" namespace prefix (e.g., "py:src.utils.helpers").
+ *
+ * <p>Returns both a backward-compatible graph and declaration lists
+ * (ModuleDeclaration + DependencyDeclaration) for the ParseOrchestrator
+ * to use in declaration-based graph assembly.
  */
 public class PythonPlugin implements LanguagePlugin {
 
@@ -56,22 +63,26 @@ public class PythonPlugin implements LanguagePlugin {
     public ParseResult parseFromContent(
         String filePath,
         String content,
-        ParseContext context,
-        DependencyGraph.MutableBuilder builder
+        ParseContext context
     ) {
         List<String> parseErrors = new ArrayList<>();
         List<BlindSpot> blindSpots = new ArrayList<>();
         Set<String> sourceModules = new HashSet<>();
+        List<ModuleDeclaration> moduleDecls = new ArrayList<>();
+        List<DependencyDeclaration> depDecls = new ArrayList<>();
+        DependencyGraph.MutableBuilder builder = new DependencyGraph.MutableBuilder();
 
         // Check file size to prevent OOM on malformed inputs
         if (content.length() > MAX_FILE_SIZE) {
             parseErrors.add(filePath + ":0 - File too large to parse (" +
                 (content.length() / 1024) + " KB, max " + (MAX_FILE_SIZE / 1024) + " KB)");
             return new ParseResult(
-                GraphBuilder.builder().build(),
+                builder.build(),
                 sourceModules,
                 blindSpots,
-                parseErrors
+                parseErrors,
+                moduleDecls,
+                depDecls
             );
         }
 
@@ -81,13 +92,21 @@ public class PythonPlugin implements LanguagePlugin {
             String prefixedId = NAMESPACE + ":" + moduleName;
             sourceModules.add(prefixedId);
 
-            // Create a node for this module
+            // Create a node for this module in the backward-compat graph
             Node node = Node.builder()
                 .id(prefixedId)
-                .type(NodeType.MODULE)
+                .type(com.archon.core.graph.NodeType.MODULE)
                 .sourcePath(filePath)
                 .build();
             builder.addNode(node);
+
+            // Collect module declaration
+            moduleDecls.add(new ModuleDeclaration(
+                prefixedId,
+                NodeType.MODULE,
+                filePath,
+                Confidence.HIGH
+            ));
 
             // Extract imports using PythonImportExtractor
             Set<String> imports = PythonImportExtractor.extractImports(content);
@@ -95,6 +114,7 @@ public class PythonPlugin implements LanguagePlugin {
             // Add edges for each import
             for (String importModule : imports) {
                 String targetModuleName = importModule;
+                String evidence = importModule;
 
                 // Check if it's a relative import (starts with dots)
                 if (importModule.startsWith(".")) {
@@ -132,23 +152,34 @@ public class PythonPlugin implements LanguagePlugin {
                 Edge edge = Edge.builder()
                     .source(prefixedId)
                     .target(targetId)
-                    .type(EdgeType.IMPORTS)
+                    .type(com.archon.core.graph.EdgeType.IMPORTS)
                     .build();
 
                 builder.addEdge(edge);
+
+                // Collect dependency declaration
+                depDecls.add(new DependencyDeclaration(
+                    prefixedId,
+                    targetId,
+                    EdgeType.IMPORTS,
+                    Confidence.HIGH,
+                    evidence,
+                    false
+                ));
             }
 
         } catch (Exception e) {
             parseErrors.add(filePath + ":0 - Failed to parse: " + e.getMessage());
         }
 
-        // Return result with the graph built from this file
-        // ParseOrchestrator combines all results from different files
+        // Return result with both graph and declarations populated
         return new ParseResult(
             builder.build(),
             sourceModules,
             blindSpots,
-            parseErrors
+            parseErrors,
+            moduleDecls,
+            depDecls
         );
     }
 
