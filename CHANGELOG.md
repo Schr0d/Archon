@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Auto-detected Spring DI** — No flags needed. Spring DI scanning runs automatically when Java compiled classes are found.
 - **Third-party notices** — Added ArchUnit Apache 2.0 license notice.
 
+### Fixed
+- **ArchUnit debug log spam** — No logging configuration existed for the shadow JAR, causing ArchUnit to spew hundreds of DEBUG lines per invocation. Added logback.xml to suppress noisy libraries and set Archon's own log level to INFO.
+- **Pipe buffer deadlock in `archon diff`** — `CliGitAdapter.execute()` called `waitFor()` before draining the process output stream. When `git show` output exceeded the OS pipe buffer (~4KB on Windows), the subprocess deadlocked for 60 seconds per large file. Now drains output concurrently.
+- **Unbounded module listing** — `archon analyze --target` with a non-matching target would dump all graph nodes to stderr. Now capped at 20 with overflow count.
+- **Missing test coverage for `resolveTarget`** — `ImpactCommandTest` was deleted during command consolidation without replacement tests for the moved `resolveTarget`/`stripNamespacePrefix` methods. Added 5 new tests to `AnalyzeCommandTest`.
+
 ## [0.7.0.0] - 2026-04-15
 
 ### Added
