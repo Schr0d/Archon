@@ -1,6 +1,8 @@
 package com.archon.core.plugin;
 
+import com.archon.core.coordination.PostProcessResult;
 import com.archon.core.graph.DependencyGraph;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -78,5 +80,25 @@ public interface LanguagePlugin {
      */
     default boolean supportsBatchParse() {
         return false;
+    }
+
+    /**
+     * Post-processing hook called after all files have been parsed.
+     *
+     * <p>Runs after the main parse loop completes and all declarations
+     * have been collected. Plugins can use this to add edges that require
+     * a global view (e.g., bytecode scanning for Spring DI).
+     *
+     * <p>Default implementation returns an empty result (backward compatible).
+     *
+     * @param allModules all module declarations from all plugins
+     * @param context    parse context with source root and extensions
+     * @return post-processing result with additional declarations and blind spots
+     */
+    default PostProcessResult postProcess(
+        List<ModuleDeclaration> allModules,
+        ParseContext context
+    ) {
+        return PostProcessResult.empty();
     }
 }
