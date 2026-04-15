@@ -616,7 +616,8 @@ public class DiffCommand implements Callable<Integer> {
      *
      * @return map with true=batch-parse files, false=per-file files
      */
-    private Map<Boolean, List<String>> partitionChangedFiles(List<String> changedFiles,
+    // Package-private for testability
+    Map<Boolean, List<String>> partitionChangedFiles(List<String> changedFiles,
                                                               List<LanguagePlugin> plugins,
                                                               Set<String> extensions) {
         // Build extension -> isBatch map
@@ -652,7 +653,8 @@ public class DiffCommand implements Callable<Integer> {
 
     private static final String LOCK_FILE_NAME = ".archon-restore.json";
 
-    private void writeRestoreLockFile(Path repoRoot, String branch, String sha, String stashRef) {
+    // Package-private for testability
+    void writeRestoreLockFile(Path repoRoot, String branch, String sha, String stashRef) {
         try {
             String branchJson = (branch != null) ? "\"" + branch + "\"" : "null";
             String stashJson = (stashRef != null) ? "\"" + stashRef + "\"" : "null";
@@ -667,7 +669,8 @@ public class DiffCommand implements Callable<Integer> {
         }
     }
 
-    private void deleteRestoreLockFile(Path repoRoot) {
+    // Package-private for testability
+    void deleteRestoreLockFile(Path repoRoot) {
         try {
             Files.deleteIfExists(repoRoot.resolve(LOCK_FILE_NAME));
         } catch (IOException e) {
@@ -733,7 +736,8 @@ public class DiffCommand implements Callable<Integer> {
      * Extract a string value from simple JSON (no nested objects).
      * Returns null for null values or missing keys.
      */
-    private String extractJsonString(String json, String key) {
+    // Package-private for testability
+    String extractJsonString(String json, String key) {
         String search = "\"" + key + "\":";
         int idx = json.indexOf(search);
         if (idx < 0) return null;

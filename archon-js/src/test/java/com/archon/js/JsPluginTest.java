@@ -108,6 +108,15 @@ class JsPluginTest {
         assertTrue(plugin instanceof LanguagePlugin);
     }
 
+    // ---- supportsBatchParse ----
+
+    @Test
+    @DisplayName("supportsBatchParse returns true")
+    void testSupportsBatchParseReturnsTrue() {
+        assertTrue(plugin.supportsBatchParse(),
+            "JsPlugin should support batch parse for dependency-cruiser subprocess mode");
+    }
+
     // ---- Cache mechanism: subprocess runs once ----
 
     @Test
