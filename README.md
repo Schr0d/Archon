@@ -338,7 +338,7 @@ sequenceDiagram
 | Language | Parser | Status |
 |----------|--------|--------|
 | Java | Reflection-based | Built-in |
-| JavaScript/TypeScript | Closure Compiler | Built-in |
+| JavaScript/TypeScript | dependency-cruiser | Built-in |
 | Python | Import parser | Built-in |
 | Vue | SFC script extraction | Built-in |
 
@@ -357,10 +357,10 @@ sequenceDiagram
 ## CLI Commands
 
 ```
-archon view <path> [--format json|text] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
-archon analyze <path> [--verbose]
+archon view <path> [--format json|text|agent] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
+archon analyze <path> [--verbose] [--format agent]
 archon impact <module> <path> [--depth N]
-archon diff <base> <head> <path> [--view]
+archon diff [base head path] [--view] [--format agent]
 ```
 
 ---
@@ -409,7 +409,7 @@ archon-test/     — Shared test fixtures
 - [x] v0.3 — Multi-language SPI
 - [x] v0.4 — Security hardening + Vue support
 - [x] v0.5 — Visualization (web UI)
-- [ ] v0.6 — Cross-language edge detection
+- [x] v0.6 — Cross-language edge detection
 - [ ] v1.0 — Full AI-refactoring pipeline integration
 
 ---

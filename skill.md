@@ -12,6 +12,8 @@ The skill auto-installs when you run `/archon` in Claude Code. It needs JDK 17 (
 
 Shows the blast radius of your current working tree changes. Run this before refactoring to understand what breaks.
 
+Supports zero-argument mode (`/archon diff` with no args compares working tree to HEAD), two-ref mode (`base head`), and `--format agent` for machine-readable JSON output.
+
 **What it does:**
 1. Runs `git diff --name-only HEAD` to find changed files
 2. Runs `archon view . --format json --with-metadata --with-full-analysis` for the full dependency graph
@@ -21,7 +23,7 @@ Shows the blast radius of your current working tree changes. Run this before ref
 
 ### `/archon analyze [path]` — Full dependency analysis
 
-Runs a full analysis and presents a structured report with domain map, hotspots, cross-domain warnings, and cycles.
+Runs a full analysis and presents a structured report with domain map, hotspots, cross-domain warnings, and cycles. Use `--format agent` for machine-readable JSON output with node metadata (PageRank, betweenness, impact score, risk level).
 
 ### `/archon setup` — One-time JDK detection
 
