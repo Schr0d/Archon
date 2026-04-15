@@ -3,6 +3,8 @@ package com.archon.core.coordination;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.plugin.*;
 
+import com.archon.core.coordination.PostProcessResult;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -251,6 +253,89 @@ class ParseOrchestratorTest {
                 unprefixedModules, List.of(), List.of(),
                 moduleDecls, depDecls
             );
+        }
+    }
+
+    @Test
+    void testPostProcessAddsEdgesToGraph(@TempDir Path tempDir) throws IOException {
+        // Plugin knows about two classes but postProcess adds a SPRING_DI edge between them
+        PostProcessingPlugin plugin = new PostProcessingPlugin(
+            "java",
+            Set.of("com.example.Controller", "com.example.ServiceImpl"),
+            List.of(new DependencyDeclaration(
+                "java:com.example.Controller",
+                "java:com.example.ServiceImpl",
+                EdgeType.SPRING_DI,
+                Confidence.HIGH,
+                "@Autowired", false
+            ))
+        );
+
+        Path testFile = tempDir.resolve("Test.java");
+        Files.writeString(testFile, "// test");
+
+        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(plugin));
+        ParseResult result = orchestrator.parse(
+            List.of(testFile),
+            new ParseContext(tempDir, Set.of("java"))
+        );
+
+        DependencyGraph graph = result.getGraph();
+        assertTrue(graph.getEdge("com.example.Controller", "com.example.ServiceImpl").isPresent(),
+            "SPRING_DI edge from postProcess should be in graph");
+        assertEquals(com.archon.core.graph.EdgeType.SPRING_DI,
+            graph.getEdge("com.example.Controller", "com.example.ServiceImpl").get().getType());
+    }
+
+    @Test
+    void testPostProcessEmptyDoesNotRebuildGraph(@TempDir Path tempDir) throws IOException {
+        // Plugin with empty postProcess (default) should not cause issues
+        TestPlugin plugin = new TestPlugin("java", Set.of("com.example.Foo"));
+
+        Path testFile = tempDir.resolve("Test.java");
+        Files.writeString(testFile, "// test");
+
+        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(plugin));
+        ParseResult result = orchestrator.parse(
+            List.of(testFile),
+            new ParseContext(tempDir, Set.of("java"))
+        );
+
+        assertTrue(result.getGraph().containsNode("com.example.Foo"));
+        assertEquals(0, result.getGraph().edgeCount());
+    }
+
+    /**
+     * Test plugin that returns post-process declarations.
+     */
+    static class PostProcessingPlugin implements LanguagePlugin {
+        private final String prefix;
+        private final Set<String> modules;
+        private final List<DependencyDeclaration> postProcessDeclarations;
+
+        PostProcessingPlugin(String prefix, Set<String> modules,
+                             List<DependencyDeclaration> postProcessDeclarations) {
+            this.prefix = prefix;
+            this.modules = modules;
+            this.postProcessDeclarations = postProcessDeclarations;
+        }
+
+        @Override public Set<String> fileExtensions() { return Set.of(prefix); }
+
+        @Override
+        public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
+            List<ModuleDeclaration> moduleDecls = new ArrayList<>();
+            for (String module : modules) {
+                moduleDecls.add(new ModuleDeclaration(
+                    prefix + ":" + module, NodeType.CLASS, filePath, Confidence.HIGH
+                ));
+            }
+            return new ParseResult(modules, List.of(), List.of(), moduleDecls, List.of());
+        }
+
+        @Override
+        public PostProcessResult postProcess(List<ModuleDeclaration> allModules, ParseContext context) {
+            return new PostProcessResult(postProcessDeclarations, List.of());
         }
     }
 }

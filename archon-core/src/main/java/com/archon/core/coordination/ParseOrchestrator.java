@@ -9,6 +9,8 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.archon.core.coordination.PostProcessResult;
+
 /**
  * Orchestrates multiple LanguagePlugin implementations to build a unified graph.
  *
@@ -129,6 +131,29 @@ public class ParseOrchestrator {
         } else {
             // No results at all — return empty graph
             finalGraph = new DependencyGraph.MutableBuilder().build();
+        }
+
+        // Post-processing hook: let plugins add edges based on the full declaration set
+        List<BlindSpot> postProcessBlindSpots = new ArrayList<>();
+        List<DependencyDeclaration> postProcessDeclarations = new ArrayList<>();
+        for (LanguagePlugin plugin : plugins) {
+            try {
+                PostProcessResult ppResult = plugin.postProcess(allModuleDeclarations, context);
+                postProcessDeclarations.addAll(ppResult.declarations());
+                postProcessBlindSpots.addAll(ppResult.blindSpots());
+            } catch (Exception e) {
+                allErrors.add("Post-processor " + plugin.getClass().getSimpleName() +
+                    " failed: " + e.getMessage());
+            }
+        }
+        allBlindSpots.addAll(postProcessBlindSpots);
+        if (!postProcessDeclarations.isEmpty()) {
+            allDependencyDeclarations.addAll(postProcessDeclarations);
+            DeclarationGraphBuilder.BuildResult ppBuildResult = DeclarationGraphBuilder.build(
+                allModuleDeclarations, allDependencyDeclarations
+            );
+            finalGraph = ppBuildResult.graph();
+            allErrors.addAll(ppBuildResult.warnings());
         }
 
         return new ParseResult(
