@@ -154,7 +154,7 @@ public class AnalyzeCommand implements Callable<Integer> {
         }
         System.out.println(langLine);
 
-        // Step 2: Parse with orchestrator
+        // Parse with orchestrator
         System.out.println("Parsing " + root + " (" + sourceFiles.size() + " files) ...");
         ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
         ParseContext context = new ParseContext(root, extensions);
@@ -181,7 +181,7 @@ public class AnalyzeCommand implements Callable<Integer> {
             }
         }
 
-        // Step 2: Domain detection
+        // Domain detection
         DomainDetector domainDetector = new DomainDetector();
         DomainResult domainResult = domainDetector.assignDomains(graph, config.getDomains());
         Map<String, String> domainMap = domainResult.getDomains();
@@ -189,15 +189,15 @@ public class AnalyzeCommand implements Callable<Integer> {
         long distinctDomains = domainMap.values().stream().distinct().count();
         Thresholds thresholds = ThresholdCalculator.calculate(graph.nodeCount(), (int) distinctDomains);
 
-        // Step 3: Cycle detection
+        // Cycle detection
         CycleDetector cycleDetector = new CycleDetector();
         List<List<String>> cycles = cycleDetector.detectCycles(graph);
 
-        // Step 4: Coupling hotspots
+        // Coupling hotspots
         CouplingAnalyzer couplingAnalyzer = new CouplingAnalyzer();
         List<Node> hotspots = couplingAnalyzer.findHotspots(graph, thresholds.getCouplingThreshold());
 
-        // Step 5: Blind spots
+        // Blind spots
         List<BlindSpot> blindSpots = result.getBlindSpots();
 
         // Agent format output (short-circuits all other output)

@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * LanguagePlugin implementation for JavaScript/TypeScript using dependency-cruiser.
@@ -31,8 +33,10 @@ import java.util.concurrent.TimeUnit;
  * spawns {@code dependency-cruiser} for the entire source root, caches the JSON results,
  * and returns declarations from the cache on subsequent calls.
  *
- * <p>Note: the {@code content} parameter of {@code parseFromContent} is intentionally
- * ignored because dependency-cruiser reads source files directly from disk.
+ * <p>When the {@code content} parameter is null or empty (analyze mode), dependency-cruiser
+ * reads source files directly from disk. When content is provided (diff base graph via
+ * git show), it is parsed directly with regex since dependency-cruiser can only analyze
+ * the filesystem, which contains working-tree data.
  *
  * <p>Node IDs use the "js:" namespace prefix with project-relative paths,
  * e.g. {@code js:src/components/Header.vue}.
@@ -65,6 +69,20 @@ public class JsPlugin implements LanguagePlugin {
         "timers", "tls", "tty", "url", "util", "v8", "vm", "worker_threads", "zlib"
     );
 
+    /** Regex for extracting ES module import paths. */
+    private static final Pattern IMPORT_PATTERN = Pattern.compile(
+        "import\\s+(?:type\\s+)?(?:\\{[^}]*\\}|\\*\\s+as\\s+\\w+|\\w+)" +
+        "(?:\\s*,\\s*(?:\\{[^}]*\\}|\\*\\s+as\\s+\\w+|\\w+))*\\s+from\\s+['\"]([^'\"]+)['\"]"
+    );
+    private static final Pattern REEXPORT_PATTERN = Pattern.compile(
+        "export\\s+(?:\\{[^}]*\\}|\\*\\s+as\\s+\\w+)\\s+from\\s+['\"]([^'\"]+)['\"]"
+    );
+    /** Regex for extracting <script> or <script setup> section from Vue SFC. */
+    private static final Pattern VUE_SCRIPT_PATTERN = Pattern.compile(
+        "<script(?:\\s+setup)?(?:\\s+[^>]*)?>([\\s\\S]*?)</script>",
+        Pattern.CASE_INSENSITIVE
+    );
+
     /** Cached results keyed by project-relative path (e.g. "src/components/Header.vue"). */
     private Map<String, ModuleResult> cachedResults;
 
@@ -84,6 +102,13 @@ public class JsPlugin implements LanguagePlugin {
 
     @Override
     public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
+        // When content is provided AND the cache is already populated, this is a diff
+        // base graph call (content from git show, cache has working-tree data).
+        // Parse the provided content directly with regex instead of returning stale cache data.
+        if (content != null && !content.isEmpty() && cachedResults != null) {
+            return parseFromProvidedContent(filePath, content, context);
+        }
+
         List<String> parseErrors = new ArrayList<>();
         List<BlindSpot> blindSpots = new ArrayList<>();
         Set<String> sourceModules = new LinkedHashSet<>();
@@ -145,6 +170,121 @@ public class JsPlugin implements LanguagePlugin {
         }
 
         return new ParseResult(sourceModules, blindSpots, parseErrors, moduleDecls, depDecls);
+    }
+
+    /**
+     * Parses JS/TS content provided directly (e.g. from git show for diff base graph).
+     * Uses regex extraction since dependency-cruiser can only analyze the filesystem.
+     * Imports are resolved relative to the file's location within the source root.
+     */
+    private ParseResult parseFromProvidedContent(String filePath, String content,
+                                                  ParseContext context) {
+        List<BlindSpot> blindSpots = new ArrayList<>();
+        Set<String> sourceModules = new LinkedHashSet<>();
+        List<ModuleDeclaration> moduleDecls = new ArrayList<>();
+        List<DependencyDeclaration> depDecls = new ArrayList<>();
+
+        String relativePath = toRelativePath(filePath, context.getSourceRoot());
+        String prefixedId = NAMESPACE + ":" + relativePath;
+        sourceModules.add(prefixedId);
+
+        moduleDecls.add(new ModuleDeclaration(
+            prefixedId, NodeType.MODULE, relativePath, Confidence.MEDIUM
+        ));
+
+        // For Vue files, extract the <script> section first
+        String contentToParse = content;
+        if (relativePath.endsWith(".vue")) {
+            Matcher scriptMatcher = VUE_SCRIPT_PATTERN.matcher(content);
+            if (scriptMatcher.find()) {
+                contentToParse = scriptMatcher.group(1);
+            } else {
+                // No <script> block, can't extract deps
+                return new ParseResult(sourceModules, blindSpots, new ArrayList<>(), moduleDecls, depDecls);
+            }
+        }
+
+        // Extract import specifiers via regex
+        Set<String> rawImports = new LinkedHashSet<>();
+        Matcher importMatcher = IMPORT_PATTERN.matcher(contentToParse);
+        while (importMatcher.find()) {
+            rawImports.add(importMatcher.group(1));
+        }
+        Matcher reexportMatcher = REEXPORT_PATTERN.matcher(contentToParse);
+        while (reexportMatcher.find()) {
+            rawImports.add(reexportMatcher.group(1));
+        }
+
+        Path sourceRoot = context.getSourceRoot();
+        Path fileDir = sourceRoot.resolve(relativePath).getParent();
+
+        for (String rawImport : rawImports) {
+            // Skip non-relative imports (node_modules, bare specifiers)
+            if (!rawImport.startsWith(".")) {
+                if (!isBuiltin(rawImport)) {
+                    blindSpots.add(new BlindSpot(
+                        "UnresolvedModule", relativePath,
+                        "Non-relative import (not resolved in content mode): " + rawImport
+                    ));
+                }
+                continue;
+            }
+
+            // Resolve relative import to project-relative path
+            String resolved = resolveRelativeImport(rawImport, fileDir, sourceRoot);
+            if (resolved != null) {
+                depDecls.add(new DependencyDeclaration(
+                    prefixedId,
+                    NAMESPACE + ":" + resolved,
+                    EdgeType.IMPORTS,
+                    Confidence.MEDIUM,
+                    "import " + rawImport,
+                    false
+                ));
+            }
+        }
+
+        return new ParseResult(sourceModules, blindSpots, new ArrayList<>(), moduleDecls, depDecls);
+    }
+
+    /**
+     * Resolves a relative import specifier (e.g. "./utils", "../components/Header")
+     * to a project-relative path. Tries common extensions (.js, .ts, .tsx, .vue, .jsx)
+     * and index files.
+     */
+    String resolveRelativeImport(String importSpecifier, Path fileDir, Path sourceRoot) {
+        try {
+            Path resolved = fileDir.resolve(importSpecifier).normalize();
+            String rel = sourceRoot.toAbsolutePath().relativize(resolved).toString().replace('\\', '/');
+
+            // Check if it already has a known extension
+            for (String ext : EXTENSIONS) {
+                if (rel.endsWith("." + ext)) {
+                    return rel;
+                }
+            }
+
+            // Try adding extensions
+            for (String ext : EXTENSIONS) {
+                String candidate = rel + "." + ext;
+                if (sourceRoot.resolve(candidate).toFile().exists()) {
+                    return candidate;
+                }
+            }
+
+            // Try index files
+            for (String ext : EXTENSIONS) {
+                String candidate = rel + "/index." + ext;
+                if (sourceRoot.resolve(candidate).toFile().exists()) {
+                    return candidate;
+                }
+            }
+
+            // Return without extension as best guess (dependency-cruiser usually resolves these)
+            return rel;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

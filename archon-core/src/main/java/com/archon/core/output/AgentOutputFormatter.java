@@ -182,6 +182,7 @@ public class AgentOutputFormatter {
         int count = 0;
         for (List<String> cycle : cycles) {
             if (count >= MAX_CYCLES) break;
+            if (cycle.isEmpty()) continue;
             count++;
 
             String arrowCycle = cycle.stream()

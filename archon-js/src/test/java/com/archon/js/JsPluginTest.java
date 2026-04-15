@@ -738,6 +738,128 @@ class JsPluginTest {
 
     // ---- Helper methods for building test JSON ----
 
+    // ---- Diff content-mode (regex fallback when cache is populated) ----
+
+    @Test
+    @DisplayName("Provided content is parsed with regex when cache is already populated")
+    void testDiffContentModeUsesRegexFallback() throws Exception {
+        // First: populate cache via dependency-cruiser (analyze mode)
+        plugin.setMockJson(buildJson(
+            buildModule("src/App.js", buildDep("src/utils.js", false))
+        ));
+
+        Path sourceRoot = tempDir;
+        Path srcDir = sourceRoot.resolve("src");
+        Files.createDirectories(srcDir);
+        // Create the actual files so resolveRelativeImport can find them
+        Files.writeString(srcDir.resolve("utils.js"), "// utils");
+        Files.writeString(srcDir.resolve("config.js"), "// config");
+
+        ParseContext ctx = new ParseContext(sourceRoot, Set.of("js"));
+
+        // First call populates cache
+        ParseResult analyzeResult = plugin.parseFromContent(
+            sourceRoot.resolve("src/App.js").toString(), "", ctx
+        );
+        assertEquals(1, analyzeResult.getDeclarations().size());
+
+        // Second call WITH content (diff base graph): should parse content via regex
+        String baseContent = "import { foo } from './utils'\nimport { bar } from './config'\n";
+        ParseResult diffResult = plugin.parseFromContent(
+            sourceRoot.resolve("src/App.js").toString(), baseContent, ctx
+        );
+
+        // Should have found 2 import declarations from the base content
+        assertEquals(2, diffResult.getDeclarations().size(),
+            "Should parse 2 imports from provided base content");
+        assertTrue(diffResult.getDeclarations().stream()
+            .anyMatch(d -> d.targetId().equals("js:src/utils.js")),
+            "Should resolve ./utils to js:src/utils.js");
+        assertTrue(diffResult.getDeclarations().stream()
+            .anyMatch(d -> d.targetId().equals("js:src/config.js")),
+            "Should resolve ./config to js:src/config.js");
+    }
+
+    @Test
+    @DisplayName("Empty content still uses cache when populated")
+    void testEmptyContentUsesCache() throws Exception {
+        plugin.setMockJson(buildJson(
+            buildModule("src/App.js", buildDep("src/utils.js", false))
+        ));
+
+        Path sourceRoot = tempDir;
+        ParseContext ctx = new ParseContext(sourceRoot, Set.of("js"));
+
+        // Populate cache
+        plugin.parseFromContent(sourceRoot.resolve("src/App.js").toString(), "", ctx);
+
+        // Call with empty content should still use cache
+        ParseResult result = plugin.parseFromContent(
+            sourceRoot.resolve("src/App.js").toString(), "", ctx
+        );
+        assertEquals(1, result.getDeclarations().size());
+        assertEquals("js:src/App.js", result.getModuleDeclarations().get(0).id());
+    }
+
+    @Test
+    @DisplayName("Content-mode skips non-relative imports")
+    void testContentModeSkipsNonRelativeImports() throws Exception {
+        plugin.setMockJson(buildJson(
+            buildModule("src/App.js", buildDep("src/utils.js", false))
+        ));
+
+        Path sourceRoot = tempDir;
+        Path srcDir = sourceRoot.resolve("src");
+        Files.createDirectories(srcDir);
+        Files.writeString(srcDir.resolve("utils.js"), "// utils");
+
+        ParseContext ctx = new ParseContext(sourceRoot, Set.of("js"));
+        plugin.parseFromContent(sourceRoot.resolve("src/App.js").toString(), "", ctx);
+
+        String baseContent = "import React from 'react'\nimport { foo } from './utils'\n";
+        ParseResult result = plugin.parseFromContent(
+            sourceRoot.resolve("src/App.js").toString(), baseContent, ctx
+        );
+
+        // Only the relative import should produce a dependency declaration
+        assertEquals(1, result.getDeclarations().size());
+        assertEquals("js:src/utils.js", result.getDeclarations().get(0).targetId());
+
+        // react should be a blind spot (non-relative, not a builtin)
+        assertEquals(1, result.getBlindSpots().size());
+        assertTrue(result.getBlindSpots().get(0).getDescription().contains("react"));
+    }
+
+    @Test
+    @DisplayName("Content-mode extracts script section from Vue files")
+    void testContentModeVueScriptExtraction() throws Exception {
+        plugin.setMockJson(buildJson(
+            buildModule("src/components/Header.vue", buildDep("src/utils/api.ts", false))
+        ));
+
+        Path sourceRoot = tempDir;
+        Path compDir = sourceRoot.resolve("src/components");
+        Path utilsDir = sourceRoot.resolve("src/utils");
+        Files.createDirectories(compDir);
+        Files.createDirectories(utilsDir);
+        Files.writeString(utilsDir.resolve("api.ts"), "// api");
+
+        ParseContext ctx = new ParseContext(sourceRoot, Set.of("vue", "ts"));
+        plugin.parseFromContent(sourceRoot.resolve("src/components/Header.vue").toString(), "", ctx);
+
+        String vueContent = "<template><div>{{ msg }}</div></template>\n" +
+            "<script setup>\n" +
+            "import { fetchApi } from '../utils/api'\n" +
+            "</script>\n";
+        ParseResult result = plugin.parseFromContent(
+            sourceRoot.resolve("src/components/Header.vue").toString(), vueContent, ctx
+        );
+
+        // Should extract the import from <script setup>
+        assertEquals(1, result.getDeclarations().size());
+        assertEquals("js:src/utils/api.ts", result.getDeclarations().get(0).targetId());
+    }
+
     private static String buildJson(String... modules) {
         StringBuilder sb = new StringBuilder("{\"modules\":[");
         for (int i = 0; i < modules.length; i++) {

@@ -385,6 +385,7 @@ public class DiffCommand implements Callable<Integer> {
         if (!report.getGraphDiff().getNewCycles().isEmpty()) {
             sb.append("\nNEW CYCLES:\n");
             for (List<String> cycle : report.getGraphDiff().getNewCycles()) {
+                if (cycle.isEmpty()) continue;
                 sb.append("- ").append(String.join(" -> ", cycle))
                   .append(" -> ").append(cycle.get(0)).append("\n");
             }
