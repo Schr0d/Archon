@@ -14,6 +14,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -371,7 +372,7 @@ public class JsPlugin implements LanguagePlugin {
                 );
             }
 
-            String output = Files.readString(tempFile);
+            String output = Files.readString(tempFile, StandardCharsets.UTF_8);
             // Validate it looks like JSON before returning
             if (output.isBlank()) {
                 throw new SubprocessException(
@@ -392,7 +393,7 @@ public class JsPlugin implements LanguagePlugin {
         String os = System.getProperty("os.name", "").toLowerCase();
         if (os.contains("win")) {
             return new ProcessBuilder(
-                "cmd", "/c", "npx", "-y", "dependency-cruiser@latest",
+                "cmd", "/c", "npx", "-y", "dependency-cruiser@17.3.10",
                 sourceRoot.toString(),
                 "--no-config",
                 "--output-type", "json",
@@ -400,7 +401,7 @@ public class JsPlugin implements LanguagePlugin {
             );
         } else {
             return new ProcessBuilder(
-                "npx", "-y", "dependency-cruiser@latest",
+                "npx", "-y", "dependency-cruiser@17.3.10",
                 sourceRoot.toString(),
                 "--no-config",
                 "--output-type", "json",

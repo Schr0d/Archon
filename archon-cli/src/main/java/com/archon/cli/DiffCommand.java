@@ -59,6 +59,9 @@ public class DiffCommand implements Callable<Integer> {
     @Option(names = "--format", description = "Output format: text (default), agent")
     String format;
 
+    /** Cached agent-format flag for use by printStep and other methods. */
+    private boolean useAgentFormat;
+
     @Override
     public Integer call() {
         // Parse optional parameters
@@ -91,7 +94,7 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Detect agent format early to suppress progress messages with ANSI codes
-        boolean useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
+        useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
 
         GitAdapter git = new CliGitAdapter();
         if (!git.isGitAvailable()) {
@@ -552,13 +555,11 @@ public class DiffCommand implements Callable<Integer> {
             savedBranch = git.getCurrentBranch(repoRoot);
             savedSha = git.getHeadSha(repoRoot);
 
-            // Write lock file for crash recovery
-            writeRestoreLockFile(repoRoot, savedBranch, savedSha, null);
-
             // Stash working tree changes
             stashRef = git.stashPush(repoRoot);
 
-            // Update lock file with stash ref
+            // Write lock file once (after stash, so stashRef is accurate)
+            // If process crashes before this point, stash is orphaned but working tree is intact
             writeRestoreLockFile(repoRoot, savedBranch, savedSha, stashRef);
 
             // Checkout base ref
@@ -599,15 +600,20 @@ public class DiffCommand implements Callable<Integer> {
                     System.err.println("Warning: failed to restore branch after batch parse: " + e.getMessage());
                 }
             }
+            boolean stashPopFailed = false;
             if (stashRef != null) {
                 try {
                     git.stashPop(repoRoot);
                 } catch (Exception e) {
                     System.err.println("Warning: failed to restore stashed changes: " + e.getMessage());
+                    System.err.println("Your changes are preserved in git stash. Run 'git stash pop' manually.");
+                    stashPopFailed = true;
                 }
             }
-            // Always delete lock file
-            deleteRestoreLockFile(repoRoot);
+            // Only delete lock file if stash pop succeeded (or there was no stash)
+            if (!stashPopFailed) {
+                deleteRestoreLockFile(repoRoot);
+            }
         }
     }
 
@@ -651,7 +657,12 @@ public class DiffCommand implements Callable<Integer> {
         return partitioned;
     }
 
-    private static final String LOCK_FILE_NAME = ".archon-restore.json";
+    private static final String LOCK_FILE_NAME = "archon-restore.json";
+
+    /** Returns the lock file path inside .git/ (never tracked by git, never appears in git status). */
+    private Path lockFilePath(Path repoRoot) {
+        return repoRoot.resolve(".git").resolve(LOCK_FILE_NAME);
+    }
 
     // Package-private for testability
     void writeRestoreLockFile(Path repoRoot, String branch, String sha, String stashRef) {
@@ -663,7 +674,7 @@ public class DiffCommand implements Callable<Integer> {
                 + ",\"sha\":\"" + sha + "\""
                 + ",\"stashRef\":" + stashJson
                 + ",\"timestamp\":\"" + timestamp + "\"}";
-            Files.writeString(repoRoot.resolve(LOCK_FILE_NAME), json);
+            Files.writeString(lockFilePath(repoRoot), json);
         } catch (IOException e) {
             System.err.println("Warning: failed to write restore lock file: " + e.getMessage());
         }
@@ -672,7 +683,7 @@ public class DiffCommand implements Callable<Integer> {
     // Package-private for testability
     void deleteRestoreLockFile(Path repoRoot) {
         try {
-            Files.deleteIfExists(repoRoot.resolve(LOCK_FILE_NAME));
+            Files.deleteIfExists(lockFilePath(repoRoot));
         } catch (IOException e) {
             System.err.println("Warning: failed to delete restore lock file: " + e.getMessage());
         }
@@ -682,7 +693,7 @@ public class DiffCommand implements Callable<Integer> {
      * Check for a stale lock file from a crashed previous run and restore the working tree.
      */
     private void recoverFromCrash(Path repoRoot, GitAdapter git) {
-        Path lockFile = repoRoot.resolve(LOCK_FILE_NAME);
+        Path lockFile = lockFilePath(repoRoot);
         if (!Files.exists(lockFile)) {
             return;
         }
@@ -915,7 +926,7 @@ public class DiffCommand implements Callable<Integer> {
 
     private void printStep(String message) {
         // Suppress progress output in agent mode to prevent ANSI codes in piped output
-        if (System.console() != null) {
+        if (!useAgentFormat) {
             System.out.println("\u001B[2m  " + message + "\u001B[0m");
         }
     }

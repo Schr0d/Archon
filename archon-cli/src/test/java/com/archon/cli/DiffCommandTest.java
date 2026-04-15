@@ -267,9 +267,12 @@ class DiffCommandTest {
         @Test
         @DisplayName("writeRestoreLockFile creates file and deleteRestoreLockFile removes it")
         void testWriteAndDeleteLockFile(@TempDir Path tempDir) throws Exception {
+            // Lock file lives inside .git/ so it never appears in git status
+            Files.createDirectories(tempDir.resolve(".git"));
+
             command.writeRestoreLockFile(tempDir, "main", "abc123def456", "stash@{0}");
 
-            Path lockFile = tempDir.resolve(".archon-restore.json");
+            Path lockFile = tempDir.resolve(".git").resolve("archon-restore.json");
             assertTrue(Files.exists(lockFile), "Lock file should be created");
 
             String content = Files.readString(lockFile);
@@ -285,9 +288,11 @@ class DiffCommandTest {
         @Test
         @DisplayName("writeRestoreLockFile with null branch writes null")
         void testWriteLockFileNullBranch(@TempDir Path tempDir) throws Exception {
+            Files.createDirectories(tempDir.resolve(".git"));
+
             command.writeRestoreLockFile(tempDir, null, "abc123", null);
 
-            Path lockFile = tempDir.resolve(".archon-restore.json");
+            Path lockFile = tempDir.resolve(".git").resolve("archon-restore.json");
             assertTrue(Files.exists(lockFile));
 
             String content = Files.readString(lockFile);
@@ -298,8 +303,9 @@ class DiffCommandTest {
 
         @Test
         @DisplayName("deleteRestoreLockFile is safe when file does not exist")
-        void testDeleteLockFileNoop(@TempDir Path tempDir) {
-            Path lockFile = tempDir.resolve(".archon-restore.json");
+        void testDeleteLockFileNoop(@TempDir Path tempDir) throws Exception {
+            Files.createDirectories(tempDir.resolve(".git"));
+            Path lockFile = tempDir.resolve(".git").resolve("archon-restore.json");
             assertFalse(Files.exists(lockFile));
 
             // Should not throw
