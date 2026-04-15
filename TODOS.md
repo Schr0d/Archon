@@ -18,25 +18,7 @@
 - **Context:** Success criterion 3 says "a minimal stub plugin passes SpiComplianceTest." This tutorial IS that stub plugin, written out step-by-step.
 - **Depends on:** v0.3 SPI must ship first.
 
-## 3. swc4j startup validation + graceful degradation
-- **What:** At CLI startup, validate swc4j native library loads. If it fails, print clear message and disable JS/TS analysis. Java still works.
-- **Why:** CRITICAL GAP — swc4j is Rust JNI library, may not support all platforms (ARM Windows, older glibc). Missing native lib causes UnsatisfiedLinkError → silent CLI crash.
-- **Status:** Must be addressed as part of archon-js implementation
-- **Pros:** Prevents silent crash on unsupported platforms. Aligns with "Declare Uncertainty" design principle.
-- **Cons:** Adds startup check even for Java-only usage (negligible cost)
-- **Context:** Failure modes audit identified this as the only critical gap. UnsatisfiedLinkError is unrecoverable without a pre-check.
-- **Depends on:** archon-js module must exist.
-
-## 4. Multi-platform shadow JAR distribution for swc4j
-- **What:** Shadow JAR needs platform-specific native libs (.dll/.so/.dylib) for swc4j. Either: fat JAR with all 3 bundled, or platform-specific JAR builds via GitHub Actions matrix.
-- **Why:** The current tool ships as a single shadow JAR. swc4j JNI native libs break this model. Users on ARM Windows, M-series Macs, Alpine Linux will hit UnsatisfiedLinkError.
-- **Status:** Deferred to archon-js packaging phase
-- **Pros:** Single-command install on all platforms
-- **Cons:** CI complexity (cross-platform builds or fat JAR size increase)
-- **Context:** Outside voice review identified this as an unaddressed distribution gap. The graceful degradation (TODO 3) handles runtime failure, but distribution should prevent the failure in the first place.
-- **Depends on:** archon-js module + swc4j dependency.
-
-## 5. Real Python codebase validation target
+## 3. Real Python codebase validation target
 - **What:** Validate archon-python against a real-world Python codebase. User has small projects available at `C:\T480\Documents\codebase\cps_prod_v6` for initial validation.
 - **Why:** 20-25 tests against synthetic fixtures aren't enough. Java was validated against RuoYi (1043 classes), JS/TS against geditor-ui-react (375 modules) and geditor-ui-vue (489 files). Python needs the same. Without this, parsing correctness on real code is unproven.
 - **Status:** AVAILABLE — User has local Python projects for validation. Larger targets (500+ modules) can be found after initial validation succeeds.
@@ -45,7 +27,7 @@
 - **Context:** Design step 8 includes "Test on real Python codebase." This TODO captures the validation target explicitly. Similar to TODO #6 for JS/TS.
 - **Depends on:** archon-python module must parse basic Python first.
 
-## 6. BUG: AnalyzeCommand JSON output not implemented
+## 4. BUG: AnalyzeCommand JSON output not implemented
 - **What:** `AnalyzeCommand` defines `--json`, `--with-metadata`, `--with-full-analysis` flags but doesn't implement JSON output. Flags are parsed but never used.
 - **Why:** User confusion — flags exist in help text but do nothing. Found during integration testing.
 - **Status:** DEFERRED — Low priority since `view --format json` covers all use cases
@@ -54,7 +36,7 @@
 - **Context:** The Claude Code skill uses `view --format json`, not `analyze --json`. Not blocking.
 - **File:** `archon-cli/src/main/java/com/archon/cli/AnalyzeCommand.java`
 
-## 7. Browser automation tests for DOM+SVG visualization
+## 5. Browser automation tests for DOM+SVG visualization
 - **What:** Add Playwright or similar browser automation tests for DOM+SVG graph visualization.
 - **Why:** Manual testing is error-prone. Automated tests catch regressions in interactions (hover impact overlay, click drill-down, drag nodes, socket repositioning, mode transitions).
 - **Status:** Deferred to post-v0.5
@@ -63,7 +45,7 @@
 - **Context:** DOM+SVG viz ships with manual test plan. Add automation if it becomes a pain point.
 - **Depends on:** DOM+SVG visualization must ship first.
 
-## 8. Quick Start Docs (Java 17 Prerequisite)
+## 6. Quick Start Docs (Java 17 Prerequisite)
 - **What:** Add Java 17 prerequisite check to README.md Quick Start section before build commands.
 - **Why:** Platform engineers hitting JDK 1.8 build failures waste time debugging environment issues. Clear prerequisite documentation prevents this friction.
 - **Status:** Deferred — DX review improvement
@@ -72,7 +54,7 @@
 - **Context:** Current README shows build commands without mentioning Java 17 requirement. JDK 1.8 is default system PATH, causing cryptic compilation errors. See design doc `ThinkPad-main-treemap-block-viz-design-20260410.md` section "Quick Start Enhancement."
 - **Depends on:** Documentation update only.
 
-## 9. Error Handling (Java Version Check + Browser Compatibility)
+## 7. Error Handling (Java Version Check + Browser Compatibility)
 - **What:** Add Java version check in ViewCommand and browser compatibility warnings for canvas visualization.
 - **Why:** Platform engineers expect clear, actionable error messages. Current "class file version 61.0" error is cryptic and wastes debugging time.
 - **Status:** Deferred — DX review improvement
@@ -81,7 +63,7 @@
 - **Context:** See design doc `ThinkPad-main-treemap-block-viz-design-20260410.md` section "Debug: Enhanced Error Handling." Includes Java 17 check in ViewCommand with System.getProperty("java.version"), canvas support detection with fallback message, actionable error messages linking to troubleshooting docs.
 - **Depends on:** ViewCommand.java + archon-viz-web/index.html changes.
 
-## 10. Upgrade Path (CHANGELOG.md + --version Flag)
+## 8. Upgrade Path (CHANGELOG.md + --version Flag)
 - **What:** Create CHANGELOG.md, add --version flag to CLI, document migration guide.
 - **Why:** Platform engineers running dependency analysis in production need to know what changed between versions and how to upgrade safely. Current lack of changelog creates upgrade anxiety.
 - **Status:** Deferred — DX review improvement
@@ -90,7 +72,7 @@
 - **Context:** See design doc `ThinkPad-main-treemap-block-viz-design-20260410.md` section "Upgrade Path Improvements." Includes CHANGELOG.md with semantic versioning sections, `archon --version` flag implementation, migration guide for breaking changes.
 - **Depends on:** Documentation + ViewCommand.java changes.
 
-## 11. Documentation Gaps (TROUBLESHOOTING.md + API Docs + CI Examples)
+## 9. Documentation Gaps (TROUBLESHOOTING.md + API Docs + CI Examples)
 - **What:** Create TROUBLESHOOTING.md, add API documentation for ViewServer endpoints, include CI/CD integration examples.
 - **Why:** Platform engineers integrating Archon into CI pipelines need working examples and debugging guidance. Current lack of troubleshooting docs creates friction when things go wrong.
 - **Status:** Deferred — DX review improvement
@@ -99,27 +81,27 @@
 - **Context:** See design doc `ThinkPad-main-treemap-block-viz-design-20260410.md` section "Documentation Gaps." Includes TROUBLESHOOTING.md with common issues and solutions, ViewServer API documentation (/api/graph, /api/node, etc.), GitHub Actions and GitLab CI examples.
 - **Depends on:** Documentation only; ViewServer.java already implements the API.
 
-## 12. Fix DiffCommand --json flag
+## 10. Fix DiffCommand --json flag
 - **What:** Add `--json` and `--quiet` flags to DiffCommand.java. Reuse existing `DiffSerializer.toJson()` and `GraphDiffer` logic. ~15 lines of code.
 - **Why:** DiffCommand has full diff logic but no JSON output mode. The `--json` flag is needed for the Claude Code skill to pipe structured output to Claude for interpretation. Without it, the skill has to parse the full `view --format json` output and compute diff client-side.
-- **Status:** READY — Clear scope, existing code to reuse (`DiffSerializer`, `GraphDiffer`)
-- **Priority:** P1 — Skill currently uses `view --format json` + manual node matching as workaround
+- **Status:** PARTIALLY ADDRESSED — `--format agent` flag added in v0.7.0.0 provides structured JSON output via `AgentOutputFormatter`. A dedicated `--json` flag would still be useful for simpler use cases.
+- **Priority:** P2 — `--format agent` covers most use cases now
 - **Pros:** Enables `/archon diff` to show precise blast radius; minimal code change; leverages existing serialization
-- **Cons:** None meaningful — this is a straightforward flag addition
+- **Cons:** `--format agent` already provides JSON output, so the remaining value is a simpler/leaner JSON format
 - **Context:** The Claude Code skill's `/archon diff` command currently runs `view --format json` and matches changed files to nodes manually. A native `diff --json` would give precise added/removed/changed edges and violations.
 - **File:** `archon-cli/src/main/java/com/archon/cli/DiffCommand.java`
 - **Depends on:** Nothing — all required code exists.
 
-## 13. GitHub Action for archon diff on PRs
+## 11. GitHub Action for archon diff on PRs
 - **What:** Build a GitHub Action that runs `archon diff` on every pull request and posts the impact report as a PR comment.
 - **Why:** The 10x vision is Archon running automatically, not just when invoked manually. A GitHub Action makes dependency analysis part of the code review workflow without any manual step.
 - **Status:** DEFERRED — After dogfooding the Claude Code skill
 - **Pros:** Zero-friction adoption; automatic on every PR; team visibility
 - **Cons:** Docker packaging needed; CI/CD setup; may be slow for large repos
 - **Context:** CEO plan (2026-04-13) deferred to post-dogfooding. Distribution phase 2. The skill must prove useful locally before investing in CI integration.
-- **Depends on:** DiffCommand --json fix (TODO #12)
+- **Depends on:** DiffCommand --json fix (TODO #10)
 
-## 15. Community Setup (CONTRIBUTING.md + Issue Templates + Discussions)
+## 12. Community Setup (CONTRIBUTING.md + Issue Templates + Discussions)
 - **What:** Create CONTRIBUTING.md with development setup, add GitHub issue templates (bug report, feature request), enable GitHub Discussions.
 - **Why:** Platform engineers evaluating tools for enterprise adoption look for project health signals. A professional contribution workflow and active community discussions indicate long-term viability and support.
 - **Status:** Deferred — DX review improvement

@@ -42,4 +42,37 @@ public interface GitAdapter {
      * Check if git is available on the system.
      */
     boolean isGitAvailable();
+
+    /**
+     * Get list of files changed in the working tree (staged + unstaged) vs HEAD.
+     * Returns relative file paths (forward slashes), deduplicated.
+     */
+    default List<String> getWorkingTreeChanges(Path repoRoot) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    /** Stash all changes (staged, unstaged, untracked). Returns stash ref or null if nothing to stash. */
+    default String stashPush(Path repoRoot) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    /** Restore previously stashed changes. */
+    default void stashPop(Path repoRoot) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    /** Checkout a ref, updating the working tree. */
+    default void checkout(Path repoRoot, String ref) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    /** Get current branch name, or null if detached HEAD. */
+    default String getCurrentBranch(Path repoRoot) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    /** Get current HEAD commit SHA. */
+    default String getHeadSha(Path repoRoot) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 }

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0.0] - 2026-04-15
+
+### Added
+- **Accurate JS/TS diff via git stash+checkout** — `archon diff` now produces correct JavaScript and TypeScript dependency changes by temporarily checking out the base commit, running dependency-cruiser against the real file tree, then restoring your working tree. Previous versions returned empty results for JS/TS diffs.
+- **Crash recovery lock file** — If `archon diff` is interrupted during the stash+checkout cycle, the next run detects the stale lock file and restores your working tree automatically.
+- **`--format agent` flag** — Machine-readable JSON output for `archon analyze` and `archon diff`, designed for AI tools and piped workflows. No ANSI codes, no progress bars.
+- **AgentOutputFormatter** — New output module that produces structured JSON with node metadata (PageRank, betweenness, impact score, risk level) for each dependency.
+- **Zero-argument `archon diff`** — Running `archon diff` with no arguments compares your working tree to HEAD, no ref syntax needed.
+- **Git stash/checkout/restore API** — `GitAdapter` now exposes `stashPush`, `stashPop`, `checkout`, `getCurrentBranch`, and `getHeadSha` for safe working tree manipulation.
+- **`supportsBatchParse()` SPI method** — Plugins declare whether they need batch filesystem parsing (like dependency-cruiser) vs per-file content parsing. `DiffCommand` uses this to choose the right base graph strategy.
+- **DX improvements** — Short names for JS/TS path-based node IDs in analyze output. Step-by-step progress messages during diff. Suppressed ANSI in piped mode.
+
+### Changed
+- **JsPlugin rewritten** — Replaced regex-based JS/TS parser with dependency-cruiser subprocess. Uses lazy batch cache for `analyze` mode and regex fallback for `diff` base graph content parsing.
+- **dependency-cruiser pinned to 17.3.10** — Reproducible builds instead of `@latest`.
+- **DiffCommand base graph construction** — Restructured with two paths: batch-parse plugins get stash+checkout treatment, per-file plugins (Java, Python) continue using `git show` + content parsing.
+- **Lock file lives in `.git/`** — Internal state files never appear in `git status` and can't be accidentally committed.
+
+### Fixed
+- **`printStep` ANSI leak in agent mode** — Progress messages with ANSI escape codes no longer appear when output is piped or `--format agent` is set.
+- **UTF-8 charset for dependency-cruiser output** — Temp file reads now explicitly use UTF-8 instead of platform default.
+- **Lock file preserved on stash pop failure** — If `git stash pop` fails (conflicts), the lock file stays so the user can recover manually.
+- **Single lock file write** — Lock file written once after stash (not before) so `stashRef` is accurate.
+- **`shortName` handles JS path IDs** — Node IDs like `js:src/App.vue` now display correctly in text output.
+
 ## [0.6.0.2] - 2026-04-14
 
 ### Added

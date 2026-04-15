@@ -6,7 +6,9 @@ import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -96,6 +98,80 @@ public class CliGitAdapter implements GitAdapter {
         } catch (GitException e) {
             return false;
         }
+    }
+
+    @Override
+    public List<String> getWorkingTreeChanges(Path repoRoot) {
+        // Get unstaged changes vs HEAD
+        List<String> unstaged = execute(
+            repoRoot,
+            "git", "diff", "--name-only", "HEAD"
+        );
+        // Get staged changes vs HEAD
+        List<String> staged = execute(
+            repoRoot,
+            "git", "diff", "--cached", "--name-only", "HEAD"
+        );
+        // Deduplicate
+        Set<String> all = new LinkedHashSet<>();
+        for (String line : unstaged) {
+            if (!line.trim().isEmpty()) all.add(line.trim());
+        }
+        for (String line : staged) {
+            if (!line.trim().isEmpty()) all.add(line.trim());
+        }
+        return new ArrayList<>(all);
+    }
+
+    @Override
+    public String stashPush(Path repoRoot) {
+        List<String> output = execute(
+            repoRoot,
+            "git", "stash", "push", "--include-untracked"
+        );
+        // git stash returns exit code 0 even when tree is clean
+        // Must check output text to distinguish
+        for (String line : output) {
+            if (line.contains("No local changes to save")) {
+                return null;
+            }
+        }
+        return "stash@{0}";
+    }
+
+    @Override
+    public void stashPop(Path repoRoot) {
+        execute(
+            repoRoot,
+            "git", "stash", "pop"
+        );
+    }
+
+    @Override
+    public void checkout(Path repoRoot, String ref) {
+        execute(
+            repoRoot,
+            "git", "checkout", ref
+        );
+    }
+
+    @Override
+    public String getCurrentBranch(Path repoRoot) {
+        List<String> result = execute(
+            repoRoot,
+            "git", "rev-parse", "--abbrev-ref", "HEAD"
+        );
+        if (result.isEmpty()) {
+            throw new GitException("Cannot determine current branch");
+        }
+        String branch = result.get(0).trim();
+        // "HEAD" means detached HEAD
+        return "HEAD".equals(branch) ? null : branch;
+    }
+
+    @Override
+    public String getHeadSha(Path repoRoot) {
+        return resolveRef(repoRoot, "HEAD");
     }
 
     /**

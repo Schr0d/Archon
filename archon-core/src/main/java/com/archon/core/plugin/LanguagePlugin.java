@@ -70,4 +70,13 @@ public interface LanguagePlugin {
     default void reset() {
         // No-op by default; plugins with state should override
     }
+
+    /**
+     * Returns true if this plugin requires batch parsing of an entire source directory
+     * (vs per-file content parsing). Used by DiffCommand to determine the base graph
+     * construction strategy.
+     */
+    default boolean supportsBatchParse() {
+        return false;
+    }
 }

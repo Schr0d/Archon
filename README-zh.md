@@ -33,7 +33,7 @@ Archon 是一个将架构分析直接集成到 AI 驱动代码修改工作流中
 | 语言 | 解析器 | 状态 |
 |----------|--------|--------|
 | Java | 基于反射 | 内置 |
-| JavaScript/TypeScript | Closure Compiler | 内置 |
+| JavaScript/TypeScript | dependency-cruiser | 内置 |
 | Python | 导入解析器 | 内置 |
 | Vue | SFC 脚本提取 | 内置 |
 
@@ -238,10 +238,10 @@ $ java -jar archon.jar diff main HEAD . --ci
 ## CLI 命令
 
 ```
-archon view <path> [--format json|text] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
-archon analyze <path> [--verbose]
+archon view <path> [--format json|text|agent] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
+archon analyze <path> [--verbose] [--format agent]
 archon impact <module> <path> [--depth N]
-archon diff <base> <head> <path> [--view]
+archon diff [base head path] [--view] [--format agent]
 ```
 
 ---
@@ -282,7 +282,7 @@ archon-test/     — 共享测试固件
 - [x] v0.3 — 多语言 SPI
 - [x] v0.4 — 安全加固 + Vue 支持
 - [x] v0.5 — 可视化（Web UI）
-- [ ] v0.6 — 跨语言边检测
+- [x] v0.6 — 跨语言边检测
 - [ ] v1.0 — 完整的 AI 重构流水线集成
 
 ---

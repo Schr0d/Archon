@@ -10,6 +10,8 @@ import com.archon.core.git.GitException;
 import com.archon.core.graph.DependencyGraph;
 import com.archon.core.graph.Edge;
 import com.archon.core.graph.RiskLevel;
+import com.archon.core.output.AgentOutputFormatter;
+import com.archon.core.plugin.BlindSpot;
 import com.archon.core.plugin.DependencyDeclaration;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ModuleDeclaration;
@@ -25,6 +27,7 @@ import picocli.CommandLine.Parameters;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -36,14 +39,10 @@ import java.util.stream.Collectors;
 )
 public class DiffCommand implements Callable<Integer> {
 
-    @Parameters(index = "0", description = "Base git ref (branch, tag, or SHA)")
-    String baseRef;
+    private static final String WORKING_TREE = "WORKING_TREE";
 
-    @Parameters(index = "1", description = "Head git ref (branch, tag, or SHA)")
-    String headRef;
-
-    @Parameters(index = "2", description = "Path to the project root")
-    String projectPath;
+    @Parameters(index = "0..*", arity = "0..3", description = "Base ref, head ref, and project path (all optional)")
+    List<String> params;
 
     @Option(names = "--ci", description = "CI mode: exit 1 on new cycles or HIGH+ risk")
     boolean ciMode;
@@ -57,13 +56,45 @@ public class DiffCommand implements Callable<Integer> {
     @Option(names = "--no-open", description = "Do not open browser automatically (use with --view)")
     boolean noOpen;
 
+    @Option(names = "--format", description = "Output format: text (default), agent")
+    String format;
+
+    /** Cached agent-format flag for use by printStep and other methods. */
+    private boolean useAgentFormat;
+
     @Override
     public Integer call() {
+        // Parse optional parameters
+        String baseRef;
+        String headRef;
+        String projectPath;
+
+        if (params == null || params.isEmpty()) {
+            baseRef = "HEAD";
+            headRef = WORKING_TREE;
+            projectPath = ".";
+        } else if (params.size() == 1) {
+            baseRef = params.get(0);
+            headRef = WORKING_TREE;
+            projectPath = ".";
+        } else if (params.size() == 2) {
+            baseRef = params.get(0);
+            headRef = params.get(1);
+            projectPath = ".";
+        } else {
+            baseRef = params.get(0);
+            headRef = params.get(1);
+            projectPath = params.get(2);
+        }
+
         Path root = Path.of(projectPath);
         if (!root.toFile().exists()) {
             System.err.println("Error: path does not exist: " + projectPath);
             return 1;
         }
+
+        // Detect agent format early to suppress progress messages with ANSI codes
+        useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
 
         GitAdapter git = new CliGitAdapter();
         if (!git.isGitAvailable()) {
@@ -79,29 +110,54 @@ public class DiffCommand implements Callable<Integer> {
             return 1;
         }
 
-        // Resolve refs
-        printStep("Resolving refs...");
-        String baseSha, headSha;
-        try {
-            baseSha = git.resolveRef(repoRoot, baseRef);
-            headSha = git.resolveRef(repoRoot, headRef);
-        } catch (GitException e) {
-            System.err.println("Error: " + e.getMessage());
-            return 1;
-        }
+        // Crash recovery: check for stale lock file from interrupted previous run
+        recoverFromCrash(repoRoot, git);
 
-        // Get changed files
-        printStep("Computing changed files...");
+        // Resolve refs and get changed files
+        boolean isWorkingTree = WORKING_TREE.equals(headRef);
+        String baseSha;
         List<String> changedFiles;
-        try {
-            changedFiles = git.getChangedFiles(repoRoot, baseSha, headSha);
-        } catch (GitException e) {
-            System.err.println("Error getting changed files: " + e.getMessage());
-            return 1;
+
+        if (isWorkingTree) {
+            // Working tree mode: compare HEAD vs staged + unstaged
+            printStep("Resolving refs...");
+            try {
+                baseSha = git.resolveRef(repoRoot, baseRef);
+            } catch (GitException e) {
+                System.err.println("Error: " + e.getMessage());
+                return 1;
+            }
+            printStep("Computing working tree changes...");
+            try {
+                changedFiles = git.getWorkingTreeChanges(repoRoot);
+            } catch (GitException e) {
+                System.err.println("Error getting working tree changes: " + e.getMessage());
+                return 1;
+            }
+        } else {
+            // Normal two-ref mode
+            printStep("Resolving refs...");
+            String headSha;
+            try {
+                baseSha = git.resolveRef(repoRoot, baseRef);
+                headSha = git.resolveRef(repoRoot, headRef);
+            } catch (GitException e) {
+                System.err.println("Error: " + e.getMessage());
+                return 1;
+            }
+
+            printStep("Computing changed files...");
+            try {
+                changedFiles = git.getChangedFiles(repoRoot, baseSha, headSha);
+            } catch (GitException e) {
+                System.err.println("Error getting changed files: " + e.getMessage());
+                return 1;
+            }
         }
 
         if (changedFiles.isEmpty()) {
-            System.out.println("No changes between " + baseRef + " and " + headRef);
+            String desc = isWorkingTree ? "working tree and " + baseRef : baseRef + " and " + headRef;
+            System.out.println("No changes between " + desc);
             return 0;
         }
 
@@ -143,7 +199,7 @@ public class DiffCommand implements Callable<Integer> {
 
         // Parse base graph (from git show for changed files + reuse head for unchanged)
         printStep("Building base graph...");
-        DependencyGraph baseGraph = buildBaseGraph(git, repoRoot, root, changedFiles, headGraph, config, plugins, extensions);
+        DependencyGraph baseGraph = buildBaseGraph(git, repoRoot, root, changedFiles, headGraph, config, plugins, extensions, baseRef);
         printStep("Base graph: " + baseGraph.getNodeIds().size() + " classes, " + baseGraph.edgeCount() + " edges");
 
         // Diff the graphs
@@ -210,9 +266,18 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Build report
+        String displayHeadRef = isWorkingTree ? "working tree" : headRef;
         ChangeImpactReport report = new ChangeImpactReport(
-            baseRef, headRef, changedClasses, graphDiff,
+            baseRef, displayHeadRef, changedClasses, graphDiff,
             changedClassDomains, allImpactedNodes, riskSummary);
+
+        // Agent format output (short-circuits all other output)
+        if (useAgentFormat) {
+            String agentOutput = formatAgentDiff(report, headGraph, domainMap,
+                headResult.getBlindSpots(), projectPath);
+            System.out.println(agentOutput);
+            return ciFailCheck(report) ? 1 : 0;
+        }
 
         // Output
         if (view) {
@@ -244,13 +309,11 @@ public class DiffCommand implements Callable<Integer> {
             }
         } else {
             // Terminal mode - existing output
-            printReport(report, git, repoRoot, baseSha, headSha);
+            printReport(report, git, repoRoot, baseSha, isWorkingTree);
 
             // CI mode
             if (ciMode) {
-                RiskLevel overall = report.getRiskSummary().getOverallRisk();
-                if (!report.getGraphDiff().getNewCycles().isEmpty()
-                    || overall == RiskLevel.HIGH || overall == RiskLevel.VERY_HIGH || overall == RiskLevel.BLOCKED) {
+                if (ciFailCheck(report)) {
                     System.out.println("\n\u001B[31mCI: FAIL — new cycles or HIGH+ risk detected\u001B[0m");
                     return 1;
                 }
@@ -261,33 +324,108 @@ public class DiffCommand implements Callable<Integer> {
         return 0;
     }
 
-    private DependencyGraph buildBaseGraph(GitAdapter git, Path repoRoot, Path projectRoot,
-                                            List<String> changedFiles, DependencyGraph headGraph,
-                                            ArchonConfig config, List<LanguagePlugin> plugins,
-                                            Set<String> extensions) {
-        // Get base content for changed files matching our extensions
-        Map<Path, String> baseContents = new LinkedHashMap<>();
-        for (String file : changedFiles) {
-            int dotIndex = file.lastIndexOf('.');
-            if (dotIndex > 0) {
-                String ext = file.substring(dotIndex + 1);
-                if (extensions.contains(ext)) {
-                    try {
-                        String content = git.getFileContent(repoRoot, baseRef, file);
-                        if (content != null) {
-                            baseContents.put(Path.of(file), content);
-                        }
-                    } catch (GitException ignored) {
-                        // File didn't exist in base — it's a new file
-                    }
+    private boolean ciFailCheck(ChangeImpactReport report) {
+        RiskLevel overall = report.getRiskSummary().getOverallRisk();
+        return !report.getGraphDiff().getNewCycles().isEmpty()
+            || overall == RiskLevel.HIGH || overall == RiskLevel.VERY_HIGH || overall == RiskLevel.BLOCKED;
+    }
+
+    /**
+     * Format diff results as compressed agent output.
+     */
+    private String formatAgentDiff(ChangeImpactReport report, DependencyGraph headGraph,
+                                    Map<String, String> domainMap, List<BlindSpot> blindSpots,
+                                    String projectPath) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("Archon Diff: ").append(report.getBaseRef())
+          .append(" -> ").append(report.getHeadRef()).append("\n");
+
+        Set<String> added = report.getGraphDiff().getAddedNodes();
+        Set<String> removed = report.getGraphDiff().getRemovedNodes();
+        int modifiedCount = report.getChangedClasses().size() - added.size() - removed.size();
+        if (modifiedCount < 0) modifiedCount = 0;
+
+        sb.append("Changed: ").append(report.getChangedClasses().size())
+          .append(" (").append(added.size()).append(" added, ")
+          .append(removed.size()).append(" removed, ")
+          .append(modifiedCount).append(" modified)\n");
+
+        if (!report.getImpactedNodes().isEmpty()) {
+            sb.append("Blast radius: ").append(report.getChangedClasses().size())
+              .append(" changed -> ").append(report.getImpactedNodes().size())
+              .append(" impacted (depth ").append(maxDepth).append(")\n");
+        }
+
+        // Risk
+        sb.append("Risk: ").append(report.getRiskSummary().getOverallRisk()).append("\n");
+
+        // Changed classes
+        if (!report.getChangedClasses().isEmpty()) {
+            sb.append("\nCHANGED:\n");
+            for (String node : added) {
+                sb.append("  + ").append(shortName(node)).append("\n");
+            }
+            for (String node : removed) {
+                sb.append("  - ").append(shortName(node)).append("\n");
+            }
+            for (String cls : report.getChangedClasses()) {
+                if (!added.contains(cls) && !removed.contains(cls)) {
+                    sb.append("  ~ ").append(shortName(cls)).append("\n");
                 }
             }
         }
 
-        if (baseContents.isEmpty()) {
-            // No supported files changed — base graph is same as head
-            return headGraph;
+        // New edges
+        if (!report.getGraphDiff().getAddedEdges().isEmpty()) {
+            sb.append("\nNEW EDGES (").append(report.getGraphDiff().getAddedEdges().size()).append("):\n");
+            for (Edge edge : report.getGraphDiff().getAddedEdges().stream().limit(10).toList()) {
+                sb.append("  ").append(shortName(edge.getSource())).append(" -> ")
+                  .append(shortName(edge.getTarget())).append("\n");
+            }
+            if (report.getGraphDiff().getAddedEdges().size() > 10) {
+                sb.append("  ... +").append(report.getGraphDiff().getAddedEdges().size() - 10).append(" more\n");
+            }
         }
+
+        // New cycles
+        if (!report.getGraphDiff().getNewCycles().isEmpty()) {
+            sb.append("\nNEW CYCLES:\n");
+            for (List<String> cycle : report.getGraphDiff().getNewCycles()) {
+                if (cycle.isEmpty()) continue;
+                sb.append("- ").append(String.join(" -> ", cycle))
+                  .append(" -> ").append(cycle.get(0)).append("\n");
+            }
+        }
+
+        // Blind spots
+        if (blindSpots != null && !blindSpots.isEmpty()) {
+            sb.append("\nBLIND SPOTS:\n");
+            Map<String, List<BlindSpot>> byType = blindSpots.stream()
+                .collect(Collectors.groupingBy(BlindSpot::getType, LinkedHashMap::new, Collectors.toList()));
+            for (Map.Entry<String, List<BlindSpot>> entry : byType.entrySet()) {
+                sb.append("- ").append(entry.getValue().size()).append(" ").append(entry.getKey());
+                String desc = entry.getValue().get(0).getDescription();
+                if (desc != null && !desc.isEmpty()) {
+                    sb.append(": ").append(desc);
+                }
+                sb.append("\n");
+            }
+        }
+
+        sb.append("\nRun `archon diff` before committing to see blast radius.\n");
+
+        return sb.toString();
+    }
+
+    private DependencyGraph buildBaseGraph(GitAdapter git, Path repoRoot, Path projectRoot,
+                                            List<String> changedFiles, DependencyGraph headGraph,
+                                            ArchonConfig config, List<LanguagePlugin> plugins,
+                                            Set<String> extensions, String baseRef) {
+        // Partition changed files into batch-parse vs per-file groups
+        Map<Boolean, List<String>> partitioned = partitionChangedFiles(changedFiles, plugins, extensions);
+        List<String> batchFiles = partitioned.getOrDefault(true, List.of());
+        List<String> perFiles = partitioned.getOrDefault(false, List.of());
 
         // Identify node IDs that belong to changed files
         Set<String> changedFileNodes = new HashSet<>();
@@ -296,8 +434,6 @@ public class DiffCommand implements Callable<Integer> {
             if (dotIndex > 0) {
                 String ext = file.substring(dotIndex + 1);
                 if (extensions.contains(ext)) {
-                    // For Java: match FQCN to file path
-                    // For JS/TS: match module path to file path
                     headGraph.getNodeIds().stream()
                         .filter(id -> fileMatchesNode(file, id, ext))
                         .forEach(changedFileNodes::add);
@@ -313,54 +449,324 @@ public class DiffCommand implements Callable<Integer> {
             }
         }
         for (Edge edge : headGraph.getAllEdges()) {
-            // Only copy edges where both endpoints are unchanged
             if (!changedFileNodes.contains(edge.getSource())
                 && !changedFileNodes.contains(edge.getTarget())) {
                 baseBuilder.addEdge(edge);
             }
         }
 
-        // Step 2: Parse base versions of changed files using individual plugins
-        // Collect declarations from each plugin and build graph from them
-        List<ModuleDeclaration> allModuleDecls = new ArrayList<>();
-        List<DependencyDeclaration> allDepDecls = new ArrayList<>();
-
-        for (Map.Entry<Path, String> entry : baseContents.entrySet()) {
-            Path file = entry.getKey();
-            String content = entry.getValue();
-            String fileName = file.getFileName().toString();
-            int dotIndex = fileName.lastIndexOf('.');
-            String ext = dotIndex > 0 ? fileName.substring(dotIndex + 1) : "";
-
-            // Find the plugin that handles this extension
-            LanguagePlugin plugin = plugins.stream()
-                .filter(p -> p.fileExtensions().contains(ext))
-                .findFirst()
-                .orElse(null);
-
-            if (plugin != null) {
-                ParseContext context = new ParseContext(projectRoot, extensions);
-                ParseResult result = plugin.parseFromContent(
-                    file.toString(),
-                    content,
-                    context
-                );
-                // Collect declarations from the plugin
-                allModuleDecls.addAll(result.getModuleDeclarations());
-                allDepDecls.addAll(result.getDeclarations());
+        // Step 2: Parse base versions of batch-parse plugin files via stash+checkout
+        if (!batchFiles.isEmpty()) {
+            DependencyGraph batchGraph = buildBaseGraphViaCheckout(
+                git, repoRoot, projectRoot, batchFiles, headGraph, extensions, baseRef, plugins
+            );
+            if (batchGraph != null) {
+                DependencyGraph.mergeInto(batchGraph, baseBuilder);
+            } else {
+                // Fallback: use per-file regex path for batch files
+                printStep("Warning: batch-parse checkout failed, falling back to per-file parsing for batch plugins");
+                perFiles = new ArrayList<>(perFiles);
+                perFiles.addAll(batchFiles);
             }
         }
 
-        // Build graph from declarations using the shared utility
-        DeclarationGraphBuilder.BuildResult buildResult = DeclarationGraphBuilder.build(
-            allModuleDecls, allDepDecls
-        );
-        DependencyGraph changedGraph = buildResult.graph();
+        // Step 3: Parse base versions of per-file plugin files using git show
+        if (!perFiles.isEmpty()) {
+            Map<Path, String> baseContents = new LinkedHashMap<>();
+            for (String file : perFiles) {
+                int dotIndex = file.lastIndexOf('.');
+                if (dotIndex > 0) {
+                    String ext = file.substring(dotIndex + 1);
+                    if (extensions.contains(ext)) {
+                        try {
+                            String content = git.getFileContent(repoRoot, baseRef, file);
+                            if (content != null) {
+                                baseContents.put(Path.of(file), content);
+                            }
+                        } catch (GitException ignored) {
+                            // File didn't exist in base -- it's a new file
+                        }
+                    }
+                }
+            }
 
-        // Merge changed graph into base builder
-        DependencyGraph.mergeInto(changedGraph, baseBuilder);
+            List<ModuleDeclaration> allModuleDecls = new ArrayList<>();
+            List<DependencyDeclaration> allDepDecls = new ArrayList<>();
+
+            for (Map.Entry<Path, String> entry : baseContents.entrySet()) {
+                Path file = entry.getKey();
+                String content = entry.getValue();
+                String fileName = file.getFileName().toString();
+                int dotIndex = fileName.lastIndexOf('.');
+                String ext = dotIndex > 0 ? fileName.substring(dotIndex + 1) : "";
+
+                LanguagePlugin plugin = plugins.stream()
+                    .filter(p -> p.fileExtensions().contains(ext))
+                    .findFirst()
+                    .orElse(null);
+
+                if (plugin != null) {
+                    ParseContext context = new ParseContext(projectRoot, extensions);
+                    ParseResult result = plugin.parseFromContent(
+                        file.toString(),
+                        content,
+                        context
+                    );
+                    allModuleDecls.addAll(result.getModuleDeclarations());
+                    allDepDecls.addAll(result.getDeclarations());
+                }
+            }
+
+            DeclarationGraphBuilder.BuildResult buildResult = DeclarationGraphBuilder.build(
+                allModuleDecls, allDepDecls
+            );
+            DependencyGraph changedGraph = buildResult.graph();
+            DependencyGraph.mergeInto(changedGraph, baseBuilder);
+        }
 
         return baseBuilder.build();
+    }
+
+    /**
+     * Build the base graph for batch-parse plugins by stashing the working tree,
+     * checking out the base ref, parsing the whole source tree, then restoring.
+     *
+     * @return the parsed graph, or null if stash/checkout fails (caller should fall back)
+     */
+    private DependencyGraph buildBaseGraphViaCheckout(GitAdapter git, Path repoRoot, Path projectRoot,
+                                                       List<String> batchFiles, DependencyGraph headGraph,
+                                                       Set<String> extensions, String baseRef,
+                                                       List<LanguagePlugin> originalPlugins) {
+        // Collect extensions handled by batch-parse plugins only
+        Set<String> batchExtensions = new HashSet<>();
+        for (LanguagePlugin plugin : originalPlugins) {
+            if (plugin.supportsBatchParse()) {
+                batchExtensions.addAll(plugin.fileExtensions());
+            }
+        }
+
+        String savedBranch = null;
+        String savedSha = null;
+        String stashRef = null;
+        boolean checkedOut = false;
+
+        try {
+            // Save current state
+            savedBranch = git.getCurrentBranch(repoRoot);
+            savedSha = git.getHeadSha(repoRoot);
+
+            // Stash working tree changes
+            stashRef = git.stashPush(repoRoot);
+
+            // Write lock file once (after stash, so stashRef is accurate)
+            // If process crashes before this point, stash is orphaned but working tree is intact
+            writeRestoreLockFile(repoRoot, savedBranch, savedSha, stashRef);
+
+            // Checkout base ref
+            git.checkout(repoRoot, baseRef);
+            checkedOut = true;
+
+            // Create fresh plugin instances (originals have working-tree cache)
+            PluginDiscoverer discoverer = new PluginDiscoverer();
+            List<LanguagePlugin> freshPlugins = discoverer.discoverWithConflictCheck();
+            freshPlugins.forEach(LanguagePlugin::reset);
+
+            // Collect only batch-plugin source files from the base working tree
+            List<Path> batchSourceFiles = AnalyzeCommand.collectSourceFilesStatic(projectRoot, batchExtensions);
+
+            if (batchSourceFiles.isEmpty()) {
+                return new DependencyGraph.MutableBuilder().build();
+            }
+
+            // Parse with fresh orchestrator
+            ParseOrchestrator orchestrator = new ParseOrchestrator(freshPlugins);
+            ParseContext context = new ParseContext(projectRoot, extensions);
+            ParseResult baseResult = orchestrator.parse(batchSourceFiles, context);
+
+            return baseResult.getGraph();
+
+        } catch (Exception e) {
+            printStep("Batch-parse checkout failed: " + e.getMessage());
+            return null;
+        } finally {
+            // Always restore working tree
+            if (checkedOut) {
+                try {
+                    String restoreRef = (savedBranch != null) ? savedBranch : savedSha;
+                    if (restoreRef != null) {
+                        git.checkout(repoRoot, restoreRef);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Warning: failed to restore branch after batch parse: " + e.getMessage());
+                }
+            }
+            boolean stashPopFailed = false;
+            if (stashRef != null) {
+                try {
+                    git.stashPop(repoRoot);
+                } catch (Exception e) {
+                    System.err.println("Warning: failed to restore stashed changes: " + e.getMessage());
+                    System.err.println("Your changes are preserved in git stash. Run 'git stash pop' manually.");
+                    stashPopFailed = true;
+                }
+            }
+            // Only delete lock file if stash pop succeeded (or there was no stash)
+            if (!stashPopFailed) {
+                deleteRestoreLockFile(repoRoot);
+            }
+        }
+    }
+
+    /**
+     * Partition changed files into batch-parse vs per-file groups based on their plugin.
+     *
+     * @return map with true=batch-parse files, false=per-file files
+     */
+    // Package-private for testability
+    Map<Boolean, List<String>> partitionChangedFiles(List<String> changedFiles,
+                                                              List<LanguagePlugin> plugins,
+                                                              Set<String> extensions) {
+        // Build extension -> isBatch map
+        Map<String, Boolean> extIsBatch = new HashMap<>();
+        for (LanguagePlugin plugin : plugins) {
+            boolean isBatch = plugin.supportsBatchParse();
+            for (String ext : plugin.fileExtensions()) {
+                extIsBatch.put(ext, isBatch);
+            }
+        }
+
+        Map<Boolean, List<String>> partitioned = new HashMap<>();
+        partitioned.put(true, new ArrayList<>());
+        partitioned.put(false, new ArrayList<>());
+
+        for (String file : changedFiles) {
+            int dotIndex = file.lastIndexOf('.');
+            if (dotIndex > 0) {
+                String ext = file.substring(dotIndex + 1);
+                if (extensions.contains(ext)) {
+                    Boolean isBatch = extIsBatch.get(ext);
+                    if (isBatch != null && isBatch) {
+                        partitioned.get(true).add(file);
+                    } else {
+                        partitioned.get(false).add(file);
+                    }
+                }
+            }
+        }
+
+        return partitioned;
+    }
+
+    private static final String LOCK_FILE_NAME = "archon-restore.json";
+
+    /** Returns the lock file path inside .git/ (never tracked by git, never appears in git status). */
+    private Path lockFilePath(Path repoRoot) {
+        return repoRoot.resolve(".git").resolve(LOCK_FILE_NAME);
+    }
+
+    // Package-private for testability
+    void writeRestoreLockFile(Path repoRoot, String branch, String sha, String stashRef) {
+        try {
+            String branchJson = (branch != null) ? "\"" + branch + "\"" : "null";
+            String stashJson = (stashRef != null) ? "\"" + stashRef + "\"" : "null";
+            String timestamp = Instant.now().toString();
+            String json = "{\"branch\":" + branchJson
+                + ",\"sha\":\"" + sha + "\""
+                + ",\"stashRef\":" + stashJson
+                + ",\"timestamp\":\"" + timestamp + "\"}";
+            Files.writeString(lockFilePath(repoRoot), json);
+        } catch (IOException e) {
+            System.err.println("Warning: failed to write restore lock file: " + e.getMessage());
+        }
+    }
+
+    // Package-private for testability
+    void deleteRestoreLockFile(Path repoRoot) {
+        try {
+            Files.deleteIfExists(lockFilePath(repoRoot));
+        } catch (IOException e) {
+            System.err.println("Warning: failed to delete restore lock file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Check for a stale lock file from a crashed previous run and restore the working tree.
+     */
+    private void recoverFromCrash(Path repoRoot, GitAdapter git) {
+        Path lockFile = lockFilePath(repoRoot);
+        if (!Files.exists(lockFile)) {
+            return;
+        }
+
+        System.err.println("Warning: Previous archon run was interrupted. Restoring working tree...");
+
+        try {
+            String content = Files.readString(lockFile);
+            // Simple JSON parsing without Gson dependency
+            String branch = extractJsonString(content, "branch");
+            String sha = extractJsonString(content, "sha");
+            String stashRef = extractJsonString(content, "stashRef");
+
+            // Restore branch/commit
+            String restoreRef = (branch != null) ? branch : sha;
+            if (restoreRef != null) {
+                try {
+                    git.checkout(repoRoot, restoreRef);
+                } catch (Exception e) {
+                    // Try SHA if branch fails
+                    if (sha != null && !sha.equals(restoreRef)) {
+                        try {
+                            git.checkout(repoRoot, sha);
+                        } catch (Exception ignored) {
+                            System.err.println("Warning: could not restore to commit " + sha);
+                        }
+                    }
+                }
+            }
+
+            // Pop stash if one was saved
+            if (stashRef != null) {
+                try {
+                    git.stashPop(repoRoot);
+                } catch (Exception e) {
+                    System.err.println("Warning: could not restore stashed changes: " + e.getMessage());
+                }
+            }
+
+            // Delete lock file
+            Files.deleteIfExists(lockFile);
+            System.err.println("Working tree restored successfully.");
+        } catch (Exception e) {
+            System.err.println("Warning: crash recovery failed: " + e.getMessage());
+            System.err.println("Manual recovery may be needed. Lock file: " + lockFile);
+            // Don't delete lock file on recovery failure so user can inspect
+        }
+    }
+
+    /**
+     * Extract a string value from simple JSON (no nested objects).
+     * Returns null for null values or missing keys.
+     */
+    // Package-private for testability
+    String extractJsonString(String json, String key) {
+        String search = "\"" + key + "\":";
+        int idx = json.indexOf(search);
+        if (idx < 0) return null;
+        int valueStart = idx + search.length();
+
+        // Skip whitespace
+        while (valueStart < json.length() && json.charAt(valueStart) == ' ') valueStart++;
+
+        if (valueStart >= json.length()) return null;
+
+        if (json.startsWith("null", valueStart)) return null;
+        if (json.charAt(valueStart) != '"') return null;
+
+        valueStart++; // skip opening quote
+        int valueEnd = json.indexOf('"', valueStart);
+        if (valueEnd < 0) return null;
+
+        return json.substring(valueStart, valueEnd);
     }
 
     private boolean fileMatchesNode(String filePath, String nodeId, String ext) {
@@ -378,12 +784,15 @@ public class DiffCommand implements Callable<Integer> {
     }
 
     private void printReport(ChangeImpactReport report, GitAdapter git,
-                              Path repoRoot, String baseSha, String headSha) {
-        int commitCount;
-        try {
-            commitCount = git.getCommitCount(repoRoot, baseSha, headSha);
-        } catch (GitException e) {
-            commitCount = -1;
+                              Path repoRoot, String baseSha, boolean isWorkingTree) {
+        int commitCount = -1;
+        if (!isWorkingTree) {
+            try {
+                String headSha = git.resolveRef(repoRoot, report.getHeadRef());
+                commitCount = git.getCommitCount(repoRoot, baseSha, headSha);
+            } catch (GitException e) {
+                commitCount = -1;
+            }
         }
 
         String commitInfo = commitCount >= 0 ? " (" + commitCount + " commits)" : "";
@@ -494,9 +903,19 @@ public class DiffCommand implements Callable<Integer> {
         }
     }
 
-    private String shortName(String fqcn) {
-        int lastDot = fqcn.lastIndexOf('.');
-        return lastDot >= 0 ? fqcn.substring(lastDot + 1) : fqcn;
+    private String shortName(String id) {
+        // Java FQCN: take class name after last dot
+        int lastDot = id.lastIndexOf('.');
+        if (lastDot >= 0 && lastDot < id.length() - 1
+            && Character.isUpperCase(id.charAt(lastDot + 1))) {
+            return id.substring(lastDot + 1);
+        }
+        // JS/TS path-style: take filename after last slash
+        int lastSlash = id.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            return id.substring(lastSlash + 1);
+        }
+        return id;
     }
 
     private int countDependents(ChangeImpactReport report, String fqcn) {
@@ -506,6 +925,9 @@ public class DiffCommand implements Callable<Integer> {
     }
 
     private void printStep(String message) {
-        System.out.println("\u001B[2m  " + message + "\u001B[0m");
+        // Suppress progress output in agent mode to prevent ANSI codes in piped output
+        if (!useAgentFormat) {
+            System.out.println("\u001B[2m  " + message + "\u001B[0m");
+        }
     }
 }

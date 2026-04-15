@@ -3,10 +3,8 @@ plugins {
 }
 
 dependencies {
-    // Closure Compiler for JS/TS parsing
-    implementation("com.google.javascript:closure-compiler:v20240317") {
-        exclude(group = "com.google.code.gson", module = "gson")
-    }
+    // JSON parsing for dependency-cruiser output
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Core module
     implementation(project(":archon-core"))
