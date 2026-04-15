@@ -1,6 +1,5 @@
 package com.archon.cli;
 
-import com.archon.viz.ViewCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -9,11 +8,7 @@ import picocli.CommandLine.Command;
     description = "Archon — Domain Analyzer & Dependency Guard",
     subcommands = {
         AnalyzeCommand.class,
-        ImpactCommand.class,
-        EcpCommand.class,
-        CheckCommand.class,
-        DiffCommand.class,
-        ViewCommand.class
+        DiffCommand.class
     },
     mixinStandardHelpOptions = true,
     version = "0.7.1.0"

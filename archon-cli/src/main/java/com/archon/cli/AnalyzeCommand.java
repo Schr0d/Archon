@@ -1,11 +1,14 @@
 package com.archon.cli;
 
+import com.archon.core.analysis.ArchLayer;
 import com.archon.core.analysis.CentralityService;
 import com.archon.core.analysis.CouplingAnalyzer;
 import com.archon.core.analysis.CycleDetector;
 import com.archon.core.analysis.DomainDetector;
 import com.archon.core.analysis.DomainResult;
 import com.archon.core.analysis.FullAnalysisData;
+import com.archon.core.analysis.ImpactPropagator;
+import com.archon.core.analysis.ImpactResult;
 import com.archon.core.analysis.ThresholdCalculator;
 import com.archon.core.analysis.Thresholds;
 import com.archon.core.config.ArchonConfig;
@@ -71,6 +74,12 @@ public class AnalyzeCommand implements Callable<Integer> {
 
     @Option(names = "--languages", description = "Comma-separated list of languages to analyze (java,js,python). Skips plugins not listed.")
     String languages;
+
+    @Option(names = "--target", description = "Target module for impact analysis (FQCN, path, or short name)")
+    String target;
+
+    @Option(names = "--depth", defaultValue = "3", description = "Max impact propagation depth (default: 3)")
+    int maxDepth;
 
     @Override
     public Integer call() {
@@ -179,6 +188,68 @@ public class AnalyzeCommand implements Callable<Integer> {
                     " (expected >= 1.0 for well-connected projects).");
                 System.err.println("Some dependencies may not be detected. Consider running with --verbose for details.");
             }
+        }
+
+        // Impact analysis mode (when --target is specified)
+        if (target != null && !target.isBlank()) {
+            String fqcn = resolveTarget(graph, target);
+            if (fqcn == null) {
+                System.err.println("Error: module not found: " + target);
+                System.err.println("Available modules:");
+                graph.getNodeIds().stream().sorted().forEach(id -> System.err.println("  " + id));
+                return 1;
+            }
+
+            DomainDetector domainDetector2 = new DomainDetector();
+            DomainResult domainResult2 = domainDetector2.assignDomains(graph, config.getDomains());
+            Map<String, String> domainMap2 = domainResult2.getDomains();
+
+            ImpactPropagator propagator = new ImpactPropagator();
+            ImpactResult impact;
+            try {
+                impact = propagator.propagate(graph, fqcn, maxDepth, domainMap2);
+            } catch (IllegalArgumentException e) {
+                System.err.println("Error: " + e.getMessage());
+                return 1;
+            }
+
+            System.out.println("Impact analysis for: " + fqcn);
+            System.out.println("Max depth: " + maxDepth);
+            System.out.println();
+
+            if (impact.getImpactedNodes().isEmpty()) {
+                System.out.println("No downstream dependents found.");
+                return 0;
+            }
+
+            System.out.println("Affected nodes: " + impact.getTotalAffected());
+            System.out.println("Max depth reached: " + impact.getMaxDepthReached());
+            System.out.println("Cross-domain edges: " + impact.getCrossDomainEdges());
+            System.out.println();
+
+            System.out.println("Impact tree:");
+            for (ImpactResult.ImpactNode node : impact.getImpactedNodes()) {
+                String indent = "  ".repeat(node.getDepth());
+                String domain = node.getDomain().orElse("");
+                String domainTag = domain.isEmpty() ? "" : " [" + domain + "]";
+                String layerTag = " [" + node.getLayer() + "]";
+                String riskTag = colorRisk(node.getRisk());
+                System.out.println(indent + "L" + node.getDepth() + " " + node.getNodeId()
+                    + domainTag + layerTag + " " + riskTag);
+            }
+
+            Map<ArchLayer, Long> layerCounts = impact.getImpactedNodes().stream()
+                .collect(Collectors.groupingBy(
+                    ImpactResult.ImpactNode::getLayer, Collectors.counting()));
+            if (!layerCounts.isEmpty()) {
+                System.out.println();
+                System.out.println("Layer breakdown:");
+                for (Map.Entry<ArchLayer, Long> entry : layerCounts.entrySet()) {
+                    System.out.println("  " + entry.getKey() + ": " + entry.getValue());
+                }
+            }
+
+            return 0;
         }
 
         // Domain detection
@@ -493,5 +564,37 @@ public class AnalyzeCommand implements Callable<Integer> {
         } catch (IOException e) {
             System.err.println("Warning: Failed to walk project tree: " + e.getMessage());
         }
+    }
+
+    String resolveTarget(DependencyGraph graph, String target) {
+        if (graph.containsNode(target)) {
+            return target;
+        }
+        for (String nodeId : graph.getNodeIds()) {
+            String unprefixed = stripNamespacePrefix(nodeId);
+            if (unprefixed.endsWith("." + target)) {
+                return nodeId;
+            }
+            if (unprefixed.endsWith("/" + target)) {
+                return nodeId;
+            }
+        }
+        return null;
+    }
+
+    String stripNamespacePrefix(String nodeId) {
+        int colonIndex = nodeId.indexOf(':');
+        if (colonIndex > 0) {
+            return nodeId.substring(colonIndex + 1);
+        }
+        return nodeId;
+    }
+
+    private String colorRisk(com.archon.core.graph.RiskLevel risk) {
+        return switch (risk) {
+            case LOW -> "\u001B[32m" + risk + "\u001B[0m";
+            case MEDIUM -> "\u001B[33m" + risk + "\u001B[0m";
+            case HIGH, VERY_HIGH, BLOCKED -> "\u001B[31m" + risk + "\u001B[0m";
+        };
     }
 }
