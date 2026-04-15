@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 
 @Command(
     name = "analyze",
-    description = "Full structural analysis of a project",
+    description = "Structural dependency analysis with optional impact assessment",
     mixinStandardHelpOptions = true
 )
 public class AnalyzeCommand implements Callable<Integer> {

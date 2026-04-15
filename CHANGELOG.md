@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1.0] - 2026-04-15
+
+### Added
+- **Spring DI post-processor** — Detects Spring dependency injection patterns by scanning compiled .class files with ArchUnit. Detects @Autowired fields, @Resource fields (both javax and jakarta), and constructor injection. Resolves interface types to their @Component/@Service implementations automatically.
+- **`--target` and `--depth` flags on `archon analyze`** — Impact analysis built into the analyze command. Use `--target <module>` to see what breaks if you change a specific module.
+
+### Changed
+- **CLI simplified to two commands** — `archon analyze` and `archon diff` are the only commands. Removed `view`, `impact`, `check`, and `ecp`. Impact analysis merged into `analyze --target`.
+- **Auto-detected Spring DI** — No flags needed. Spring DI scanning runs automatically when Java compiled classes are found.
+- **Third-party notices** — Added ArchUnit Apache 2.0 license notice.
+
 ## [0.7.0.0] - 2026-04-15
 
 ### Added

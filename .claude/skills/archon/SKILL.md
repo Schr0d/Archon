@@ -54,7 +54,7 @@ If not in a git repo or no changed files, say "No uncommitted changes detected. 
 **Step 2: Get the dependency graph**
 
 ```bash
-~/.claude/skills/archon/bin/archon-run view . --format json --with-metadata --with-full-analysis 2>/dev/null
+~/.claude/skills/archon/bin/archon-run analyze . --format agent 2>/dev/null
 ```
 
 Save the JSON output. It contains:
@@ -104,10 +104,9 @@ Output a markdown report in this format:
 - `com.archon.core.graph.DependencyGraph` — PageRank: 0.082, bridge node
 
 ### Blind Spots
-Archon detects static dependencies only. These patterns are NOT detected:
+Archon detects static dependencies and Spring DI patterns (@Autowired, @Resource, constructor injection). These patterns are NOT detected:
 - Reflection-based calls (Java: Class.forName, method.invoke)
 - Dynamic imports (JS: import(), Python: importlib)
-- Spring bean injection (Java: @Autowired)
 - Event-driven coupling (no static import)
 ```
 
@@ -125,7 +124,7 @@ Runs a full analysis and presents a structured report.
 **Step 1: Run analysis**
 
 ```bash
-~/.claude/skills/archon/bin/archon-run view . --format json --with-metadata --with-full-analysis 2>/dev/null
+~/.claude/skills/archon/bin/archon-run analyze . --format agent 2>/dev/null
 ```
 
 If `[path]` is provided, use it instead of `.`.
@@ -254,7 +253,7 @@ Should output nothing or `JUST_UPGRADED <old> <new>`. Tell the user: "Archon ski
 ## Important Rules
 
 - **Always use `~/.claude/skills/archon/bin/archon-run` as the CLI wrapper.** It handles JDK detection and JAR finding.
-- **Use `view --format json` not `analyze --json`.** The analyze --json flag is not yet implemented. View with --format json gives the same data.
+- **Use `analyze --format agent` for JSON output.** Produces structured JSON with node metadata for AI consumption.
 - **The JSON output has nodes and edges.** Use these to compute impact, not the text output.
 - **Match files to nodes carefully.** Java uses FQCN (com.example.Foo), JS uses module paths, Python uses dotted imports.
 - **Blind spots matter.** Always include the blind spots section so the user knows what Archon cannot detect.

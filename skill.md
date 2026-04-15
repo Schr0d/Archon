@@ -16,7 +16,7 @@ Supports zero-argument mode (`/archon diff` with no args compares working tree t
 
 **What it does:**
 1. Runs `git diff --name-only HEAD` to find changed files
-2. Runs `archon view . --format json --with-metadata --with-full-analysis` for the full dependency graph
+2. Runs `archon analyze . --format agent` for the full dependency graph
 3. Matches changed files to graph nodes (Java FQCN, JS module paths, Python dotted imports)
 4. Computes impact tiers: P0 (direct), P1 (transitive dependents), P2 (same domain)
 5. Outputs a markdown report with risk level, hotspot involvement, and blind spots
@@ -44,10 +44,10 @@ The skill uses three components:
 
 ## Key Technical Notes
 
-- **Use `view --format json`, not `analyze --json`.** The analyze --json flag is not yet implemented (see TODOS.md #6). View with --format json returns the same data.
+- **Use `analyze --format agent` for JSON output.** Machine-readable JSON with node metadata (PageRank, betweenness, impact score, risk level).
 - **JSON output contains:** `nodes[]` (with id, domain, metadata.metrics), `edges[]` (source, target), `domains`, `cycles`, `hotspots`
 - **Node matching:** Java uses FQCN (`com.example.Foo`), JS uses module paths, Python uses dotted imports
-- **Blind spots:** Always included in reports. Archon detects static dependencies only. Reflection, dynamic imports, Spring DI, and event-driven coupling are NOT detected.
+- **Blind spots:** Always included in reports. Archon detects static dependencies and Spring DI patterns. Reflection, dynamic imports, and event-driven coupling are NOT detected.
 
 ## Example: `/archon diff` Output
 
@@ -73,7 +73,6 @@ The skill uses three components:
 ### Blind Spots
 - Reflection-based calls (Class.forName, method.invoke)
 - Dynamic imports (import(), importlib)
-- Spring bean injection (@Autowired)
 ```
 
 ## File Location
