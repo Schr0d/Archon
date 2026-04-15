@@ -123,6 +123,57 @@ public class CliGitAdapter implements GitAdapter {
         return new ArrayList<>(all);
     }
 
+    @Override
+    public String stashPush(Path repoRoot) {
+        List<String> output = execute(
+            repoRoot,
+            "git", "stash", "push", "--include-untracked"
+        );
+        // git stash returns exit code 0 even when tree is clean
+        // Must check output text to distinguish
+        for (String line : output) {
+            if (line.contains("No local changes to save")) {
+                return null;
+            }
+        }
+        return "stash@{0}";
+    }
+
+    @Override
+    public void stashPop(Path repoRoot) {
+        execute(
+            repoRoot,
+            "git", "stash", "pop"
+        );
+    }
+
+    @Override
+    public void checkout(Path repoRoot, String ref) {
+        execute(
+            repoRoot,
+            "git", "checkout", ref
+        );
+    }
+
+    @Override
+    public String getCurrentBranch(Path repoRoot) {
+        List<String> result = execute(
+            repoRoot,
+            "git", "rev-parse", "--abbrev-ref", "HEAD"
+        );
+        if (result.isEmpty()) {
+            throw new GitException("Cannot determine current branch");
+        }
+        String branch = result.get(0).trim();
+        // "HEAD" means detached HEAD
+        return "HEAD".equals(branch) ? null : branch;
+    }
+
+    @Override
+    public String getHeadSha(Path repoRoot) {
+        return resolveRef(repoRoot, "HEAD");
+    }
+
     /**
      * Execute a git command and return the output lines.
      *
