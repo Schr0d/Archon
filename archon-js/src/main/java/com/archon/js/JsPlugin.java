@@ -101,6 +101,11 @@ public class JsPlugin implements LanguagePlugin {
     }
 
     @Override
+    public boolean supportsBatchParse() {
+        return true;
+    }
+
+    @Override
     public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
         // When content is provided AND the cache is already populated, this is a diff
         // base graph call (content from git show, cache has working-tree data).
