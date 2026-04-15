@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,14 +38,14 @@ import java.util.stream.Collectors;
 
 @Command(
     name = "analyze",
-    description = "Full structural analysis of a Java project",
+    description = "Full structural analysis of a project",
     mixinStandardHelpOptions = true
 )
 public class AnalyzeCommand implements Callable<Integer> {
         @Parameters(index = "0", description = "Path to the project root")
     String projectPath;
 
-    @Option(names = "--json", description = "Output machine-readable JSON")
+    @Option(names = "--json", description = "Output results as JSON instead of text summary")
     boolean json;
 
     @Option(names = "--dot", description = "Export Graphviz DOT to file")
@@ -68,6 +69,9 @@ public class AnalyzeCommand implements Callable<Integer> {
     @Option(names = "--format", description = "Output format: text (default), agent")
     String format;
 
+    @Option(names = "--languages", description = "Comma-separated list of languages to analyze (java,js,python). Skips plugins not listed.")
+    String languages;
+
     @Override
     public Integer call() {
         Path root = Path.of(projectPath);
@@ -81,6 +85,31 @@ public class AnalyzeCommand implements Callable<Integer> {
         // Step 1: Discover plugins and collect source files
         PluginDiscoverer discoverer = new PluginDiscoverer();
         List<LanguagePlugin> plugins = discoverer.discoverWithConflictCheck();
+
+        // Filter plugins by --languages if specified
+        if (languages != null && !languages.isBlank()) {
+            Set<String> requestedLangs = Arrays.stream(languages.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+            plugins = plugins.stream()
+                .filter(p -> {
+                    Set<String> exts = p.fileExtensions();
+                    // Match "java" to plugin with "java" ext, "js" to "js", "python"/"py" to "py"
+                    if (requestedLangs.contains("java") && exts.contains("java")) return true;
+                    if (requestedLangs.contains("js") && exts.contains("js")) return true;
+                    if ((requestedLangs.contains("python") || requestedLangs.contains("py")) && exts.contains("py")) return true;
+                    // Generic: match any requested lang against any extension
+                    return exts.stream().anyMatch(requestedLangs::contains);
+                })
+                .collect(Collectors.toList());
+
+            if (plugins.isEmpty()) {
+                System.err.println("Error: No plugins match --languages '" + languages + "'. Available: java, js, python.");
+                return 1;
+            }
+        }
 
         if (plugins.isEmpty()) {
             System.err.println("Error: No language plugins found. Please ensure plugin JARs are on the classpath.");
@@ -101,8 +130,29 @@ public class AnalyzeCommand implements Callable<Integer> {
         }
 
         // Reset any plugin state before parsing
-        // Reset any plugin state before parsing
         plugins.forEach(LanguagePlugin::reset);
+
+        // Print file count breakdown by language
+        Map<String, Long> filesByExt = sourceFiles.stream()
+            .collect(Collectors.groupingBy(
+                f -> {
+                    String name = f.getFileName().toString();
+                    int dot = name.lastIndexOf('.');
+                    return dot > 0 ? name.substring(dot + 1) : "unknown";
+                },
+                java.util.LinkedHashMap::new,
+                Collectors.counting()
+            ));
+
+        StringBuilder langLine = new StringBuilder("Languages: ");
+        boolean first = true;
+        for (Map.Entry<String, Long> extEntry : filesByExt.entrySet()) {
+            if (!first) langLine.append(", ");
+            first = false;
+            langLine.append(extensionLabel(extEntry.getKey()))
+                .append(" (").append(extEntry.getValue()).append(")");
+        }
+        System.out.println(langLine);
 
         // Step 2: Parse with orchestrator
         System.out.println("Parsing " + root + " (" + sourceFiles.size() + " files) ...");
@@ -119,6 +169,17 @@ public class AnalyzeCommand implements Callable<Integer> {
 
         DependencyGraph graph = result.getGraph();
         System.out.println("Parsed " + graph.nodeCount() + " classes, " + graph.edgeCount() + " dependencies");
+
+        // Warn if edge/node ratio suggests incomplete analysis
+        if (graph.nodeCount() > 0) {
+            double ratio = (double) graph.edgeCount() / graph.nodeCount();
+            if (ratio < 0.5) {
+                System.err.println("Warning: Analysis may be incomplete. Edge/node ratio is " +
+                    String.format("%.2f", ratio) +
+                    " (expected >= 1.0 for well-connected projects).");
+                System.err.println("Some dependencies may not be detected. Consider running with --verbose for details.");
+            }
+        }
 
         // Step 2: Domain detection
         DomainDetector domainDetector = new DomainDetector();
@@ -326,6 +387,23 @@ public class AnalyzeCommand implements Callable<Integer> {
             return nodeId.substring(lastSlash + 1);
         }
         return nodeId;
+    }
+
+    /**
+     * Convert a file extension to a human-readable language label.
+     */
+    static String extensionLabel(String ext) {
+        return switch (ext) {
+            case "java" -> "Java";
+            case "js" -> "JavaScript";
+            case "ts" -> "TypeScript";
+            case "tsx" -> "TSX";
+            case "jsx" -> "JSX";
+            case "py" -> "Python";
+            case "vue" -> "Vue";
+            case "svelte" -> "Svelte";
+            default -> ext;
+        };
     }
 
     /**

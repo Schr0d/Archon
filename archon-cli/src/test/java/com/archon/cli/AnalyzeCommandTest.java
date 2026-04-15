@@ -142,4 +142,55 @@ class AnalyzeCommandTest {
         // Then: format should be "agent"
         assertEquals("agent", command.format, "format field should be settable to 'agent'");
     }
+
+    // --- DX improvement tests ---
+
+    @Test
+    void testLanguagesFieldDefaultsToNull() {
+        // Given: default AnalyzeCommand
+        AnalyzeCommand command = new AnalyzeCommand();
+
+        // Then: languages should default to null
+        assertNull(command.languages, "languages field should default to null");
+    }
+
+    @Test
+    void testLanguagesFieldCanBeSet() {
+        // Given: AnalyzeCommand with languages set
+        AnalyzeCommand command = new AnalyzeCommand();
+        command.languages = "java,python";
+
+        // Then: languages should be set
+        assertEquals("java,python", command.languages, "languages field should be settable");
+    }
+
+    @Test
+    void testExtensionLabelJava() {
+        assertEquals("Java", AnalyzeCommand.extensionLabel("java"));
+    }
+
+    @Test
+    void testExtensionLabelJs() {
+        assertEquals("JavaScript", AnalyzeCommand.extensionLabel("js"));
+    }
+
+    @Test
+    void testExtensionLabelTs() {
+        assertEquals("TypeScript", AnalyzeCommand.extensionLabel("ts"));
+    }
+
+    @Test
+    void testExtensionLabelPy() {
+        assertEquals("Python", AnalyzeCommand.extensionLabel("py"));
+    }
+
+    @Test
+    void testExtensionLabelVue() {
+        assertEquals("Vue", AnalyzeCommand.extensionLabel("vue"));
+    }
+
+    @Test
+    void testExtensionLabelUnknownReturnsRaw() {
+        assertEquals("xyz", AnalyzeCommand.extensionLabel("xyz"));
+    }
 }

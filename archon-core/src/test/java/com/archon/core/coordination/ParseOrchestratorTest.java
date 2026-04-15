@@ -115,6 +115,58 @@ class ParseOrchestratorTest {
         assertTrue(graph.containsNode("com.bar.B"));
     }
 
+    @Test
+    void testPartialResultPreservationWhenPluginCrashes(@TempDir Path tempDir) throws IOException {
+        // A good plugin (java) and a crashing plugin (js)
+        TestPlugin goodPlugin = new TestPlugin("java", Set.of("com.example.Good"));
+        CrashingPlugin crashingPlugin = new CrashingPlugin("js");
+
+        // Create temp files for both plugins
+        Path javaFile = tempDir.resolve("Good.java");
+        Path jsFile = tempDir.resolve("Bad.js");
+        Files.writeString(javaFile, "// good java file");
+        Files.writeString(jsFile, "// bad js file");
+
+        ParseOrchestrator orchestrator = new ParseOrchestrator(List.of(goodPlugin, crashingPlugin));
+        ParseResult result = orchestrator.parse(
+            List.of(javaFile, jsFile),
+            new ParseContext(tempDir, Set.of("java", "js"))
+        );
+
+        DependencyGraph graph = result.getGraph();
+        // The good plugin's node should still be present
+        assertTrue(graph.containsNode("com.example.Good"),
+            "Good plugin results should be preserved even when another plugin crashes");
+        // The error from the crashing plugin should be recorded
+        assertFalse(result.getParseErrors().isEmpty(),
+            "Error from crashed plugin should be recorded");
+        assertTrue(result.getParseErrors().stream()
+                .anyMatch(e -> e.contains("CrashingPlugin") && e.contains("Bad.js")),
+            "Error message should mention the crashing plugin and file");
+    }
+
+    /**
+     * A plugin that always throws RuntimeException when parsing.
+     * Used to test partial result preservation.
+     */
+    static class CrashingPlugin implements LanguagePlugin {
+        private final String ext;
+
+        CrashingPlugin(String ext) {
+            this.ext = ext;
+        }
+
+        @Override
+        public Set<String> fileExtensions() {
+            return Set.of(ext);
+        }
+
+        @Override
+        public ParseResult parseFromContent(String filePath, String content, ParseContext context) {
+            throw new RuntimeException("Simulated crash in CrashingPlugin");
+        }
+    }
+
     /**
      * Test plugin that returns declarations with prefixed node IDs.
      * Simulates language plugins that namespace their nodes.

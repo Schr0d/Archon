@@ -109,6 +109,10 @@ public class ParseOrchestrator {
                     allDependencyDeclarations.addAll(result.getDeclarations());
                 } catch (IOException e) {
                     allErrors.add("Failed to read " + file + ": " + e.getMessage());
+                } catch (Exception e) {
+                    // Catch plugin crashes to preserve results from other plugins
+                    allErrors.add("Plugin " + plugin.getClass().getSimpleName() +
+                        " failed on " + file + ": " + e.getMessage());
                 }
             }
         }
