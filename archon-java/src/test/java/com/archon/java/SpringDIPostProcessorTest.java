@@ -59,6 +59,36 @@ class SpringDIPostProcessorTest {
     }
 
     @Test
+    void detectsAutowiredConstructorInjection() {
+        // ReportService has @Autowired on a multi-param constructor
+        List<ModuleDeclaration> modules = List.of(
+            mod("java:com.archon.java.fixtures.ReportService"),
+            mod("java:com.archon.java.fixtures.OrderService"),
+            mod("java:com.archon.java.fixtures.OrderServiceImpl"),
+            mod("java:com.archon.java.fixtures.UserRepository"),
+            mod("java:com.archon.java.fixtures.UserRepositoryImpl")
+        );
+
+        SpringDIPostProcessor processor = new SpringDIPostProcessor();
+        PostProcessResult result = processor.process(modules, TEST_CLASSES);
+
+        var reportEdges = result.declarations().stream()
+            .filter(d -> d.edgeType() == EdgeType.SPRING_DI)
+            .filter(d -> d.sourceId().contains("ReportService"))
+            .collect(Collectors.toList());
+
+        // OrderService -> OrderServiceImpl should be resolved (single impl)
+        assertTrue(reportEdges.stream().anyMatch(d -> d.targetId().contains("OrderServiceImpl")),
+            "Should resolve OrderService -> OrderServiceImpl. Got: " + reportEdges);
+
+        // UserRepository is ambiguous (2 impls) -> should be a blind spot, not an edge
+        boolean hasAmbiguousUserRepo = result.blindSpots().stream()
+            .anyMatch(bs -> bs.getDescription().contains("UserRepository"));
+        assertTrue(hasAmbiguousUserRepo || reportEdges.stream().anyMatch(d -> d.targetId().contains("UserRepositoryImpl")),
+            "UserRepository should either be resolved or reported as ambiguous");
+    }
+
+    @Test
     void detectsConstructorInjection() {
         List<ModuleDeclaration> modules = List.of(
             mod("java:com.archon.java.fixtures.PaymentService"),

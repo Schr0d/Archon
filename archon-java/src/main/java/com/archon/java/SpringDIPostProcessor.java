@@ -27,7 +27,10 @@ public class SpringDIPostProcessor {
     );
 
     private static final String AUTOWIRED = "org.springframework.beans.factory.annotation.Autowired";
-    private static final String RESOURCE = "jakarta.annotation.Resource";
+    private static final Set<String> RESOURCE_ANNOTATIONS = Set.of(
+        "jakarta.annotation.Resource",
+        "javax.annotation.Resource"
+    );
 
     /**
      * Scan compiled classes for Spring DI patterns and return dependency declarations.
@@ -95,7 +98,7 @@ public class SpringDIPostProcessor {
                     boolean isAutowired = field.getAnnotations().stream()
                         .anyMatch(a -> a.getRawType().getName().equals(AUTOWIRED));
                     boolean isResource = field.getAnnotations().stream()
-                        .anyMatch(a -> a.getRawType().getName().equals(RESOURCE));
+                        .anyMatch(a -> RESOURCE_ANNOTATIONS.contains(a.getRawType().getName()));
 
                     if (isAutowired || isResource) {
                         String fieldType = field.getRawType().getName();
