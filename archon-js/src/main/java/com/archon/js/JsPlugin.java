@@ -31,6 +31,9 @@ import java.util.concurrent.TimeUnit;
  * spawns {@code dependency-cruiser} for the entire source root, caches the JSON results,
  * and returns declarations from the cache on subsequent calls.
  *
+ * <p>Note: the {@code content} parameter of {@code parseFromContent} is intentionally
+ * ignored because dependency-cruiser reads source files directly from disk.
+ *
  * <p>Node IDs use the "js:" namespace prefix with project-relative paths,
  * e.g. {@code js:src/components/Header.vue}.
  *

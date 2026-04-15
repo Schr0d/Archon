@@ -646,9 +646,19 @@ public class DiffCommand implements Callable<Integer> {
         }
     }
 
-    private String shortName(String fqcn) {
-        int lastDot = fqcn.lastIndexOf('.');
-        return lastDot >= 0 ? fqcn.substring(lastDot + 1) : fqcn;
+    private String shortName(String id) {
+        // Java FQCN: take class name after last dot
+        int lastDot = id.lastIndexOf('.');
+        if (lastDot >= 0 && lastDot < id.length() - 1
+            && Character.isUpperCase(id.charAt(lastDot + 1))) {
+            return id.substring(lastDot + 1);
+        }
+        // JS/TS path-style: take filename after last slash
+        int lastSlash = id.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            return id.substring(lastSlash + 1);
+        }
+        return id;
     }
 
     private int countDependents(ChangeImpactReport report, String fqcn) {
