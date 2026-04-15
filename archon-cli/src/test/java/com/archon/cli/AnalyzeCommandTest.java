@@ -1,5 +1,8 @@
 package com.archon.cli;
 
+import com.archon.core.graph.DependencyGraph;
+import com.archon.core.graph.Node;
+import com.archon.core.graph.NodeType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -192,5 +195,51 @@ class AnalyzeCommandTest {
     @Test
     void testExtensionLabelUnknownReturnsRaw() {
         assertEquals("xyz", AnalyzeCommand.extensionLabel("xyz"));
+    }
+
+    // --- resolveTarget tests ---
+
+    @Test
+    void testResolveTarget_exactMatch() {
+        AnalyzeCommand command = new AnalyzeCommand();
+        DependencyGraph graph = new DependencyGraph.MutableBuilder()
+            .addNode(Node.builder().id("java:com.example.Foo").type(NodeType.CLASS).build())
+            .addNode(Node.builder().id("java:com.example.Bar").type(NodeType.CLASS).build())
+            .build();
+
+        assertEquals("java:com.example.Foo", command.resolveTarget(graph, "java:com.example.Foo"));
+    }
+
+    @Test
+    void testResolveTarget_suffixMatch() {
+        AnalyzeCommand command = new AnalyzeCommand();
+        DependencyGraph graph = new DependencyGraph.MutableBuilder()
+            .addNode(Node.builder().id("java:com.example.FooService").type(NodeType.CLASS).build())
+            .addNode(Node.builder().id("java:com.example.FooController").type(NodeType.CLASS).build())
+            .build();
+
+        assertEquals("java:com.example.FooService", command.resolveTarget(graph, "FooService"));
+    }
+
+    @Test
+    void testResolveTarget_notFound() {
+        AnalyzeCommand command = new AnalyzeCommand();
+        DependencyGraph graph = new DependencyGraph.MutableBuilder()
+            .addNode(Node.builder().id("java:com.example.Foo").type(NodeType.CLASS).build())
+            .build();
+
+        assertNull(command.resolveTarget(graph, "NonExistent"));
+    }
+
+    @Test
+    void testStripNamespacePrefix_javaPrefix() {
+        AnalyzeCommand command = new AnalyzeCommand();
+        assertEquals("com.example.Foo", command.stripNamespacePrefix("java:com.example.Foo"));
+    }
+
+    @Test
+    void testStripNamespacePrefix_noPrefix() {
+        AnalyzeCommand command = new AnalyzeCommand();
+        assertEquals("com.example.Foo", command.stripNamespacePrefix("com.example.Foo"));
     }
 }

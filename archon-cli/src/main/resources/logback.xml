@@ -1,0 +1,19 @@
+<configuration>
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Suppress noisy libraries -->
+    <logger name="com.tngtech.archunit" level="WARN"/>
+    <logger name="com.github.javaparser" level="WARN"/>
+
+    <!-- Archon's own code at INFO -->
+    <logger name="com.archon" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>

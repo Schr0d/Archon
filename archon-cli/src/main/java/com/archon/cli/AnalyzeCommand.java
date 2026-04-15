@@ -196,7 +196,11 @@ public class AnalyzeCommand implements Callable<Integer> {
             if (fqcn == null) {
                 System.err.println("Error: module not found: " + target);
                 System.err.println("Available modules:");
-                graph.getNodeIds().stream().sorted().forEach(id -> System.err.println("  " + id));
+                List<String> sorted = graph.getNodeIds().stream().sorted().toList();
+                sorted.stream().limit(20).forEach(id -> System.err.println("  " + id));
+                if (sorted.size() > 20) {
+                    System.err.println("  ... and " + (sorted.size() - 20) + " more");
+                }
                 return 1;
             }
 
