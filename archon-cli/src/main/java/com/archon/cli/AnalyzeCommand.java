@@ -275,7 +275,33 @@ public class AnalyzeCommand implements Callable<Integer> {
         // Blind spots
         List<BlindSpot> blindSpots = result.getBlindSpots();
 
-        // Agent format output (short-circuits all other output)
+        // JSON output format (--json takes precedence over agent auto-detection)
+        if (json) {
+            JsonSerializer serializer = new JsonSerializer();
+            String jsonOutput;
+
+            // Check if full analysis is requested
+            FullAnalysisData fullAnalysis = null;
+            if (withFullAnalysis) {
+                CentralityService centralityService = new CentralityService(graph);
+                fullAnalysis = centralityService.computeFullAnalysis();
+            }
+
+            jsonOutput = serializer.toJson(
+                graph,
+                domainMap,
+                cycles,
+                hotspots,
+                blindSpots,
+                withMetadata,
+                fullAnalysis
+            );
+
+            System.out.println(jsonOutput);
+            return 0;
+        }
+
+        // Agent format output (auto-triggers when piped, but not when --json is set)
         boolean useAgentFormat = "agent".equals(format) || (format == null && System.console() == null);
         if (useAgentFormat) {
             AgentOutputFormatter agentFmt = new AgentOutputFormatter();
@@ -350,32 +376,6 @@ public class AnalyzeCommand implements Callable<Integer> {
                 System.err.println("Failed to write Mermaid file: " + e.getMessage());
             }
             System.out.println("\nMermaid exported to: " + mermaidFile);
-        }
-
-        // JSON output format (must come before summary to avoid mixing output)
-        if (json) {
-            JsonSerializer serializer = new JsonSerializer();
-            String jsonOutput;
-
-            // Check if full analysis is requested
-            FullAnalysisData fullAnalysis = null;
-            if (withFullAnalysis) {
-                CentralityService centralityService = new CentralityService(graph);
-                fullAnalysis = centralityService.computeFullAnalysis();
-            }
-
-            jsonOutput = serializer.toJson(
-                graph,
-                domainMap,
-                cycles,
-                hotspots,
-                blindSpots,
-                withMetadata,
-                fullAnalysis
-            );
-
-            System.out.println(jsonOutput);
-            return 0;
         }
 
         // Summary
