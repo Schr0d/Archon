@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2.1] - 2026-04-16
+
+### Removed
+- **archon-viz module** — deleted ViewServer, DiffSerializer, JsonSerializer, and all tests. Web visualization was removed from the CLI in v0.7.1.0 but the code remained.
+- **archon-viz-web module** — deleted TypeScript frontend (graph controller, arrow router, force simulation, boundary/domain views, tests, sample data).
+- **`--view` and `--no-open` flags** from `archon diff` — these launched the deleted web viewer.
+- **HTML prototypes** — archon-viz-design-preview, archon-viz-sketch, archon-viz-theme-sketch, archon-self-viz.
+- **Viz design docs and QA reports** — superseded design specs, QA screenshots, and test artifacts.
+
+### Changed
+- **JsonSerializer moved to archon-core** — `AnalyzeCommand` now uses `com.archon.core.output.JsonSerializer` with a new 7-arg overload supporting `--with-metadata` and `--with-full-analysis` flags.
+- **DESIGN.md** — removed "web visualization interface" from product context. UI sections preserved for future reference with a note.
+
 ## [0.7.2.0] - 2026-04-16
 
 ### Changed

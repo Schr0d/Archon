@@ -109,11 +109,8 @@ Output a markdown report in this format:
 - `com.archon.cli.AnalyzeCommand` — changed directly
 
 ### Transitive Impact (P1)
-- `com.archon.viz.JsonSerializer` (depends on DependencyGraph)
 - `com.archon.java.JavaPlugin` (depends on DependencyGraph)
-
-### Cross-Domain Warnings
-- `viz → core`: ViewCommand depends on AnalysisPipeline
+- `com.archon.cli.DiffCommand` (depends on DependencyGraph)
 
 ### Hotspot Involvement
 - `com.archon.core.graph.DependencyGraph` — PageRank: 0.082, bridge node
@@ -162,7 +159,7 @@ Output a structured report:
 |--------|-------|-------|--------|
 | core   | 12    | 34    | Good   |
 | cli    | 8     | 15    | Good   |
-| viz    | 6     | 22    | Warning: high coupling |
+| java   | 6     | 18    | Good   |
 
 ### Hotspots (top 5 by PageRank)
 1. `com.archon.core.graph.DependencyGraph` — PR: 0.082, bridge, inDegree: 12
@@ -170,8 +167,8 @@ Output a structured report:
 
 ### Cross-Domain Dependencies
 - `cli → core`: 8 edges
-- `viz → core`: 5 edges
 - `java → core`: 3 edges
+- `js → core`: 2 edges
 
 ### Cycles
 (if any cycles detected, list them)

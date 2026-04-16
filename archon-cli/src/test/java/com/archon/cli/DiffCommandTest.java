@@ -29,37 +29,6 @@ class DiffCommandTest {
     // ---- Existing tests ----
 
     @Nested
-    @DisplayName("View Flag")
-    class ViewFlag {
-
-        @Test
-        @DisplayName("view flag defaults to false")
-        void viewFlag_defaultsToFalse() {
-            assertFalse(command.view);
-        }
-
-        @Test
-        @DisplayName("view flag can be set to true")
-        void viewFlag_canBeSetToTrue() {
-            command.view = true;
-            assertTrue(command.view);
-        }
-
-        @Test
-        @DisplayName("view flag enables web viewer mode with params list")
-        void viewFlag_enablesWebViewerMode() {
-            command.view = true;
-            command.params = List.of("HEAD~1", "HEAD", ".");
-
-            assertTrue(command.view, "view flag should be true");
-            assertEquals(3, command.params.size());
-            assertEquals("HEAD~1", command.params.get(0));
-            assertEquals("HEAD", command.params.get(1));
-            assertEquals(".", command.params.get(2));
-        }
-    }
-
-    @Nested
     @DisplayName("Parameters")
     class Parameters {
 
