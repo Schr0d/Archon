@@ -3,8 +3,8 @@
 ## Product Context
 - **What this is:** Multi-language dependency analysis tool for impact analysis, hotspot detection, and blind spot reporting during AI-assisted refactoring
 - **Who it's for:** Software engineers, architects, technical leads, AI workflows
-- **Space/industry:** Developer tools, code analysis, visualization
-- **Project type:** CLI tool with web visualization interface
+- **Space/industry:** Developer tools, code analysis
+- **Project type:** CLI tool for dependency impact analysis
 
 ## Aesthetic Direction
 - **Direction:** Industrial/Utilitarian
@@ -100,6 +100,7 @@
 - **Scale:** 4px, 8px, 12px, 16px, 20px, 24px
 
 ## Layout
+> **Note:** The sections below (Layout, Two-Mode model, Components, Connection Point Logic, Drag Behavior) describe a planned web visualization interface that was removed in v0.7.1.0. The design tokens above (color, typography, spacing, motion) remain valid as the project's design system. These UI sections are preserved for future reference.
 - **Approach:** Grid-disciplined with canvas-based graph areas
 - **App container:** `display: grid; grid-template-columns: 240px 1fr;`
 - **Sidebar:** 240px fixed width
