@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2.0] - 2026-04-16
+
+### Changed
+- **Compressed agent format** — `--format agent` now outputs compressed JSON with indexed arrays instead of named fields. Node format: `[id, domainIdx, pageRank_x10000, risk, bridge, hotspot]`. Edge format: `[srcIdx, tgtIdx]`. Tiered auto-scaling: Tier 1 (<200 nodes, full graph ~9KB), Tier 2 (200-500, summary ~5KB), Tier 3 (500+, capped with `--target` hint).
+- **Progress output silenced for machine formats** — `--format agent` and `--json` no longer emit progress lines to stdout. All diagnostic output goes to stderr.
+- **SKILL.md updated with compressed format specification** — Claude Code skill now documents the indexed array format, blast radius computation algorithm, and tier auto-scaling behavior.
+
+### Fixed
+- **"No source files" message leaked to stdout** with `--format agent` — now gated behind `machineOutput` check.
+
 ## [0.7.1.0] - 2026-04-15
 
 ### Added

@@ -57,16 +57,31 @@ If not in a git repo or no changed files, say "No uncommitted changes detected. 
 ~/.claude/skills/archon/bin/archon-run analyze . --format agent 2>/dev/null
 ```
 
-Save the JSON output. It contains:
-- `nodes[]` — each with `id`, `domain`, `inDegree`, `outDegree`, `metadata.metrics` (pageRank, betweenness, impactScore, riskLevel)
-- `edges[]` — each with `source`, `target`
-- `domains` — domain groupings
-- `cycles` — detected cycles
-- `hotspots` — high-impact nodes
+Save the JSON output. This is a compressed format with indexed arrays. Parse it as follows:
+
+**JSON structure:**
+- `v` — format version (currently "1.0.0")
+- `n` — node count, `e` — edge count, `cc` — connected components
+- `domains` — ordered array of domain names (indexed 0..K)
+- `nodes` — array of `[id, domainIdx, pageRank_x10000, risk, bridge, hotspot]`
+  - `id` — fully qualified class/module name (string)
+  - `domainIdx` — index into `domains[]` array
+  - `pageRank_x10000` — PageRank score * 10000 (divide by 10000 for actual value)
+  - `risk` — 0=low, 1=medium, 2=high
+  - `bridge` — 1 if this node is on a bridge edge (removal disconnects graph)
+  - `hotspot` — 1 if this is a high-impact change hotspot
+- `edges` — array of `[srcIdx, tgtIdx]` — src depends on tgt (both are indices into `nodes[]`)
+- `bridges` — edges whose removal disconnects the graph (indexed pairs)
+- `bs` — blind spot counts by type (e.g., `{"UnresolvedModule": 302}`)
+- `cycles` — detected dependency cycles (each is an array of node IDs)
+
+**To compute blast radius:** Build a reverse index from node name → node array index. For each changed node, find its index. Scan `edges[]` for all `[src, tgt]` where `tgt == changedIdx` — those `src` nodes depend on the changed node. Repeat transitively.
+
+**Tier auto-scaling:** Tier 1 (<200 nodes): full graph. Tier 2 (200-500): summary + hotspots, no edge list. Tier 3 (500+): summary with capped lists + hint to use `--target`. For Tier 2/3, use `--target <class>` to get a focused Tier 1 subgraph.
 
 **Step 3: Match changed files to nodes**
 
-For each changed file, map it to nodes in the dependency graph:
+For each changed file, map it to node IDs (the first element in each `nodes[]` array):
 - Java: `src/main/java/com/example/Foo.java` → node `com.example.Foo`
 - JS/TS: strip extension, match against node IDs
 - Python: module path matching
@@ -76,8 +91,8 @@ For each changed file, map it to nodes in the dependency graph:
 
 For each changed node, trace through the edges array to find:
 - **P0 (Direct):** The changed nodes themselves
-- **P1 (Transitive):** Nodes that depend on P0 nodes (follow `source` edges backward from P0)
-- **P2 (Domain):** Other nodes in the same domain as any P0/P1 node
+- **P1 (Transitive):** Nodes that depend on P0 nodes (scan edges for `[src, tgt]` where `tgt` is a P0 node index, then recurse on the found `src` indices)
+- **P2 (Domain):** Other nodes sharing the same `domainIdx` as any P0/P1 node
 
 **Step 5: Format the impact report**
 
