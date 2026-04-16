@@ -164,7 +164,7 @@ def plan_refactoring(target):
 
 ```bash
 # Agent validates changes before committing
-$ java -jar archon.jar diff main HEAD . --ci
+$ java -jar archon.jar diff main HEAD
 ```
 
 The review gate returns:
