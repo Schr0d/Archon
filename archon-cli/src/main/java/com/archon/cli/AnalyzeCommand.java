@@ -3,6 +3,7 @@ package com.archon.cli;
 import com.archon.core.analysis.ArchLayer;
 import com.archon.core.analysis.CentralityService;
 import com.archon.core.analysis.CouplingAnalyzer;
+import com.archon.core.analysis.FullAnalysisData;
 import com.archon.core.analysis.CycleDetector;
 import com.archon.core.analysis.DomainDetector;
 import com.archon.core.analysis.DomainResult;
@@ -134,9 +135,12 @@ public class AnalyzeCommand implements Callable<Integer> {
         List<Path> sourceFiles = collectSourceFilesStatic(root, extensions);
 
         if (sourceFiles.isEmpty()) {
-            System.out.println("No source files found. Check project path.");
+            if (!machineOutput) System.out.println("No source files found. Check project path.");
             return 0;
         }
+
+        // Determine if machine-readable output is expected (suppress progress to stderr)
+        boolean machineOutput = json || "agent".equals(format);
 
         // Reset any plugin state before parsing
         plugins.forEach(LanguagePlugin::reset);
@@ -161,10 +165,10 @@ public class AnalyzeCommand implements Callable<Integer> {
             langLine.append(extensionLabel(extEntry.getKey()))
                 .append(" (").append(extEntry.getValue()).append(")");
         }
-        System.out.println(langLine);
+        if (!machineOutput) System.out.println(langLine);
 
         // Parse with orchestrator
-        System.out.println("Parsing " + root + " (" + sourceFiles.size() + " files) ...");
+        if (!machineOutput) System.out.println("Parsing " + root + " (" + sourceFiles.size() + " files) ...");
         ParseOrchestrator orchestrator = new ParseOrchestrator(plugins);
         ParseContext context = new ParseContext(root, extensions);
         ParseResult result = orchestrator.parse(sourceFiles, context);
@@ -177,7 +181,7 @@ public class AnalyzeCommand implements Callable<Integer> {
         }
 
         DependencyGraph graph = result.getGraph();
-        System.out.println("Parsed " + graph.nodeCount() + " classes, " + graph.edgeCount() + " dependencies");
+        if (!machineOutput) System.out.println("Parsed " + graph.nodeCount() + " classes, " + graph.edgeCount() + " dependencies");
 
         // Warn if edge/node ratio suggests incomplete analysis
         if (graph.nodeCount() > 0) {
@@ -215,6 +219,17 @@ public class AnalyzeCommand implements Callable<Integer> {
             } catch (IllegalArgumentException e) {
                 System.err.println("Error: " + e.getMessage());
                 return 1;
+            }
+
+            // Agent format for target mode
+            if ("agent".equals(format)) {
+                CentralityService centralityService = new CentralityService(graph);
+                FullAnalysisData targetAnalysis = centralityService.computeFullAnalysis();
+
+                AgentOutputFormatter agentFmt = new AgentOutputFormatter();
+                String output = agentFmt.formatTarget(graph, domainMap2, impact, fqcn, targetAnalysis);
+                System.out.println(output);
+                return 0;
             }
 
             System.out.println("Impact analysis for: " + fqcn);
