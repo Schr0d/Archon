@@ -41,20 +41,21 @@
 - **ViewServer API removed with archon-viz.** The CI examples TODO (#11 GitHub Action) remains relevant.
 - **Remaining gap:** TROUBLESHOOTING.md with common issues (JDK 1.8 on PATH, Spring DI requires compiled classes, diff lock file recovery).
 
-## 10. DiffCommand `--json` flag
+## ~~10. DiffCommand `--json` flag~~ — DONE (superseded)
 - **What:** Add a simpler `--json` flag alongside `--format agent` for lean diff output (just added/removed/changed edges without full graph metadata).
-- **Status:** LOW PRIORITY — `--format agent` in v0.7.0.0 covers the AI integration use case. A leaner JSON format would be nice-to-have for CI scripting.
-- **Context:** The Claude Code skill uses `--format agent` which works well. A simpler format would reduce output size for CI pipelines.
+- **Status:** DONE — superseded. `--format agent` covers the AI integration use case. A richer JSON format with structured diff output is planned for post-1.0.
+- **Context:** The Claude Code skill uses `--format agent` which works well. CEO review (2026-04-16) confirmed this is sufficient for v1.0.
 
 ## 11. GitHub Action for archon diff on PRs
 - **What:** Build a GitHub Action that runs `archon diff` on every pull request and posts the impact report as a PR comment.
 - **Why:** Zero-friction adoption — dependency analysis becomes part of code review automatically.
-- **Status:** DEFERRED — After dogfooding the Claude Code skill.
+- **Status:** DEFERRED to post-1.0 — Outside voice review (2026-04-16) found 12 issues including critical CI compatibility problems.
 - **Pros:** Automatic on every PR; team visibility
 - **Cons:** Docker packaging needed; CI/CD setup; may be slow for large repos
+- **Known issues for future implementation:** DiffCommand `--format agent` outputs TEXT not JSON (needs `--format json`). archon-core uses Jackson not Gson. JS/TS stash+checkout breaks in CI (node_modules disappears). Composite bash action may be simpler than TypeScript. `--ci` flag already exists. Fork PRs need `pull_request_target` or `workflow_run` trigger. Release workflow needed to publish shadow JAR. Checks API annotations require `checks:write` permission.
 
 ## 12. Community Setup (CONTRIBUTING.md + Issue Templates)
 - **What:** Create CONTRIBUTING.md with development setup, add GitHub issue templates (bug report, feature request), enable GitHub Discussions.
-- **Status:** DEFERRED — Low priority until open-source launch.
+- **Status:** PARTIALLY DONE — CI/CD workflows exist (build.yml, release.yml). CONTRIBUTING.md and issue templates still needed.
 - **Pros:** Attracts contributors; professional project appearance.
 - **Cons:** Community management overhead.
