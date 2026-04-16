@@ -131,6 +131,9 @@ public class AnalyzeCommand implements Callable<Integer> {
             .flatMap(p -> p.fileExtensions().stream())
             .collect(Collectors.toSet());
 
+        // Determine if machine-readable output is expected (suppress progress to stderr)
+        boolean machineOutput = json || "agent".equals(format);
+
         // Collect all source files using ModuleDetector
         List<Path> sourceFiles = collectSourceFilesStatic(root, extensions);
 
@@ -138,9 +141,6 @@ public class AnalyzeCommand implements Callable<Integer> {
             if (!machineOutput) System.out.println("No source files found. Check project path.");
             return 0;
         }
-
-        // Determine if machine-readable output is expected (suppress progress to stderr)
-        boolean machineOutput = json || "agent".equals(format);
 
         // Reset any plugin state before parsing
         plugins.forEach(LanguagePlugin::reset);
