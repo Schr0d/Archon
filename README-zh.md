@@ -177,19 +177,16 @@ AI agent 收到：
 
 ```json
 {
-  "domains": [
-    {"name": "core", "nodes": 45, "boundaries": ["com.archon.core.*"]},
-    {"name": "java", "nodes": 12, "boundaries": ["com.archon.java.*"]},
-    {"name": "cli", "nodes": 8, "boundaries": ["com.archon.cli.*"]}
+  "version": "0.7.2.0",
+  "domains": ["core", "java", "cli"],
+  "nodes": [
+    ["java:com.archon.core.graph.DependencyGraph", 0, 820, "HIGH", true, true],
+    ["java:com.archon.core.plugin.LanguagePlugin", 0, 340, "MEDIUM", false, false]
   ],
-  "hotspots": [
-    {"node": "com.archon.core.graph.DependencyGraph", "inDegree": 18, "risk": "HIGH"},
-    {"node": "com.archon.core.plugin.LanguagePlugin", "inDegree": 7, "risk": "MEDIUM"}
-  ],
+  "edges": [[1, 0], [2, 0]],
+  "hotspots": ["java:com.archon.core.graph.DependencyGraph"],
   "cycles": [],
-  "blindSpots": [
-    {"type": "CommonJS", "count": 624, "file": "node_modules/dagre/dist/dagre.min"}
-  ]
+  "blindSpots": ["Reflection-based calls", "Dynamic imports"]
 }
 ```
 

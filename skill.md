@@ -44,10 +44,10 @@ The skill uses three components:
 
 ## Key Technical Notes
 
-- **Use `analyze --format agent` for JSON output.** Machine-readable JSON with node metadata (PageRank, betweenness, impact score, risk level).
-- **JSON output contains:** `nodes[]` (with id, domain, metadata.metrics), `edges[]` (source, target), `domains`, `cycles`, `hotspots`
+- **Use `analyze --format agent` for JSON output.** Compressed format with indexed arrays for token efficiency. Tiered auto-scaling: full graph (<200 nodes), summary (200-500), capped with `--target` (500+).
+- **JSON output contains:** `nodes[]` (indexed: `[id, domainIdx, pageRank_x10000, risk, bridge, hotspot]`), `edges[]` (indexed: `[srcIdx, tgtIdx]`), `domains`, `cycles`, `hotspots`
 - **Node matching:** Java uses FQCN (`com.example.Foo`), JS uses module paths, Python uses dotted imports
-- **Blind spots:** Always included in reports. Archon detects static dependencies and Spring DI patterns. Reflection, dynamic imports, and event-driven coupling are NOT detected.
+- **Blind spots:** Always included in reports. Archon detects static dependencies and Spring DI patterns (@Autowired, @Resource, constructor injection). Reflection, dynamic imports, and event-driven coupling are NOT detected.
 
 ## Example: `/archon diff` Output
 
@@ -61,11 +61,11 @@ The skill uses three components:
 - `com.archon.core.graph.DependencyGraph` — changed directly
 
 ### Transitive Impact (P1)
-- `com.archon.viz.JsonSerializer` (depends on DependencyGraph)
+- `com.archon.cli.AnalyzeCommand` (depends on DependencyGraph)
 - `com.archon.java.JavaPlugin` (depends on DependencyGraph)
 
 ### Cross-Domain Warnings
-- `viz → core`: ViewCommand depends on AnalysisPipeline
+- `cli → core`: AnalyzeCommand depends on AnalysisPipeline
 
 ### Hotspot Involvement
 - `com.archon.core.graph.DependencyGraph` — PageRank: 0.082, bridge node

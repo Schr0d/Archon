@@ -16,7 +16,7 @@ Archon 做了一件事：把架构分析变成 AI 可读的上下文。
 AI 在改动代码前先跑一次分析：
 
 ```bash
-java -jar archon.jar analyze . --json > archon-context.json
+java -jar archon.jar analyze . --format agent > archon-context.json
 ```
 
 得到这样的结构化信息：
@@ -41,10 +41,10 @@ AI 就知道：
 改完代码后再跑一次 diff：
 
 ```bash
-java -jar archon.jar diff main HEAD . --ci
+java -jar archon.jar diff main HEAD
 ```
 
-如果违反了架构规则，直接返回 `BLOCKED`，AI 就知道要回滚重做。
+如果违反了架构规则，AI 就知道要回滚重做。
 
 ## 实际效果
 
