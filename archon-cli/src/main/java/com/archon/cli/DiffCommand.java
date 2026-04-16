@@ -18,8 +18,6 @@ import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 import com.archon.core.plugin.PluginDiscoverer;
-import com.archon.viz.DiffSerializer;
-import com.archon.viz.ViewServer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -49,12 +47,6 @@ public class DiffCommand implements Callable<Integer> {
 
     @Option(names = "--depth", defaultValue = "3", description = "Max impact propagation depth")
     int maxDepth;
-
-    @Option(names = "--view", description = "Open web diff viewer instead of terminal output")
-    boolean view;
-
-    @Option(names = "--no-open", description = "Do not open browser automatically (use with --view)")
-    boolean noOpen;
 
     @Option(names = "--format", description = "Output format: text (default), agent")
     String format;
@@ -280,45 +272,15 @@ public class DiffCommand implements Callable<Integer> {
         }
 
         // Output
-        if (view) {
-            // Web viewer mode - start server with diff data
-            try {
-                DiffSerializer diffSerializer = new DiffSerializer(report, headGraph, domainMap);
-                String diffJson = diffSerializer.toJson();
+        printReport(report, git, repoRoot, baseSha, isWorkingTree);
 
-                ViewServer server = new ViewServer();
-                server.setDiffData(diffJson);
-                server.start();
-
-                System.out.println("archon: diff viewer running at http://127.0.0.1:" + server.getPort() + "/");
-                System.out.println("Press Ctrl+C to stop");
-
-                if (!noOpen) {
-                    server.openBrowser();
-                }
-
-                // Keep server running until interrupted
-                try {
-                    Thread.sleep(Long.MAX_VALUE);
-                } catch (InterruptedException e) {
-                    server.stop();
-                }
-            } catch (IOException e) {
-                System.err.println("Error starting web viewer: " + e.getMessage());
+        // CI mode
+        if (ciMode) {
+            if (ciFailCheck(report)) {
+                System.out.println("\n\u001B[31mCI: FAIL — new cycles or HIGH+ risk detected\u001B[0m");
                 return 1;
             }
-        } else {
-            // Terminal mode - existing output
-            printReport(report, git, repoRoot, baseSha, isWorkingTree);
-
-            // CI mode
-            if (ciMode) {
-                if (ciFailCheck(report)) {
-                    System.out.println("\n\u001B[31mCI: FAIL — new cycles or HIGH+ risk detected\u001B[0m");
-                    return 1;
-                }
-                System.out.println("\n\u001B[32mCI: PASS\u001B[0m");
-            }
+            System.out.println("\n\u001B[32mCI: PASS\u001B[0m");
         }
 
         return 0;
