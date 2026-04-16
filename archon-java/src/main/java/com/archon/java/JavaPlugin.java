@@ -1,6 +1,9 @@
 package com.archon.java;
 
+import com.archon.core.coordination.PostProcessResult;
+import com.archon.core.plugin.BlindSpot;
 import com.archon.core.plugin.DependencyDeclaration;
+import com.archon.core.plugin.EdgeType;
 import com.archon.core.plugin.LanguagePlugin;
 import com.archon.core.plugin.ModuleDeclaration;
 import com.archon.core.plugin.ParseContext;
@@ -9,6 +12,7 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +36,7 @@ public class JavaPlugin implements LanguagePlugin {
 
     private final JavaParser javaParser;
     private final Set<String> allSourceFqcns = ConcurrentHashMap.newKeySet();
+    private final SpringDIPostProcessor springDIPostProcessor = new SpringDIPostProcessor();
 
     public JavaPlugin() {
         this.javaParser = createConfiguredParser();
@@ -153,5 +158,37 @@ public class JavaPlugin implements LanguagePlugin {
             blindSpots,
             parseErrors
         );
+    }
+
+    @Override
+    public PostProcessResult postProcess(
+        List<ModuleDeclaration> allModules,
+        ParseContext context
+    ) {
+        // Only run if there are Java modules
+        boolean hasJavaModules = allModules.stream()
+            .anyMatch(m -> m.id().startsWith("java:"));
+        if (!hasJavaModules) {
+            return PostProcessResult.empty();
+        }
+
+        // Find compiled class directories
+        List<Path> classDirs = ClassDirectoryFinder.findClassDirectories(
+            context.getSourceRoot()
+        );
+        if (classDirs.isEmpty()) {
+            return PostProcessResult.empty();
+        }
+
+        // Run Spring DI scanning for each class directory
+        List<DependencyDeclaration> allDecls = new ArrayList<>();
+        List<BlindSpot> allBlindSpots = new ArrayList<>();
+        for (Path classDir : classDirs) {
+            PostProcessResult result = springDIPostProcessor.process(allModules, classDir);
+            allDecls.addAll(result.declarations());
+            allBlindSpots.addAll(result.blindSpots());
+        }
+
+        return new PostProcessResult(allDecls, allBlindSpots);
     }
 }

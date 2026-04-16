@@ -190,22 +190,34 @@ public class CliGitAdapter implements GitAdapter {
 
             Process process = pb.start();
 
+            // Drain output concurrently to prevent pipe buffer deadlock.
+            // Without this, waitFor blocks forever if the subprocess writes
+            // more than the OS pipe buffer (~4KB on Windows) before exiting.
+            List<String> output = new ArrayList<>();
+            Thread readerThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.add(line);
+                    }
+                } catch (IOException ignored) {
+                    // Stream closed on destroyForcibly — expected on timeout
+                }
+            });
+            readerThread.setDaemon(true);
+            readerThread.start();
+
             if (!process.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
+                readerThread.join(2000);
                 throw new GitException("Command timed out after " + TIMEOUT_SECONDS + "s: " + String.join(" ", command));
             }
+
+            readerThread.join(5000);
 
             int exitCode = process.exitValue();
             if (exitCode != 0) {
                 throw new GitException("Command failed with exit code " + exitCode + ": " + String.join(" ", command));
-            }
-
-            List<String> output = new ArrayList<>();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.add(line);
-                }
             }
 
             return output;

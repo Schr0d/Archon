@@ -21,7 +21,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Shared analysis pipeline used by both AnalyzeCommand and ViewCommand.
+ * Shared analysis pipeline used by AnalyzeCommand and DiffCommand.
  * Encapsulates plugin discovery, source collection, parsing, and computation.
  */
 public class AnalysisPipeline {

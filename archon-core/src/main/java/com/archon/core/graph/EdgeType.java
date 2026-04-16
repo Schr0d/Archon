@@ -8,5 +8,6 @@ public enum EdgeType {
     CALLS,
     IMPLEMENTS,
     EXTENDS,
-    USES
+    USES,
+    SPRING_DI
 }

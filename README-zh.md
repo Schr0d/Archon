@@ -32,7 +32,7 @@ Archon 是一个将架构分析直接集成到 AI 驱动代码修改工作流中
 
 | 语言 | 解析器 | 状态 |
 |----------|--------|--------|
-| Java | 基于反射 | 内置 |
+| Java | 基于反射 + ArchUnit | 内置 |
 | JavaScript/TypeScript | dependency-cruiser | 内置 |
 | Python | 导入解析器 | 内置 |
 | Vue | SFC 脚本提取 | 内置 |
@@ -100,7 +100,7 @@ sequenceDiagram
     participant Repo as 代码库
 
     Note over AI,Archon: 计划阶段
-    AI->>Archon: analyze . --json
+    AI->>Archon: analyze . --format agent
     Archon-->>AI: {domains, hotspots, cycles}
     AI->>AI: 生成受约束的计划
 
@@ -140,22 +140,20 @@ sequenceDiagram
 ### 基本使用
 
 ```bash
-# 交互式 Web 可视化（打开浏览器）
-java -jar archon.jar view /path/to/project
+# 完整依赖分析
+java -jar archon.jar analyze /path/to/project
 
-# JSON 输出用于 AI 集成（三个层级）
-java -jar archon.jar view . --format json                          # 层级 1: 基础
-java -jar archon.jar view . --format json --with-metadata          # 层级 2: + 指标
-java -jar archon.jar view . --format json --with-metadata --with-full-analysis  # 层级 3: + 中心性
+# 影响分析 — 如果修改某个模块，什么会受影响？
+java -jar archon.jar analyze /path/to/project --target com.example.Service
 
-# 导出静态 HTML 图表（离线可用）
-java -jar archon.jar view /path/to/project --export diagram.html
+# 机器可读 JSON（用于 AI 工具）
+java -jar archon.jar analyze . --format agent
 
-# 使用 Web 查看器进行 diff（红色=删除，绿色=添加，黄色=修改）
-java -jar archon.jar diff main HEAD /path/to/project --view
+# 未提交更改的影响范围
+java -jar archon.jar diff
 
-# 检查修改特定模块的影响
-java -jar archon.jar impact com.example.Service /path/to/project
+# 分支间对比
+java -jar archon.jar diff main feature-branch
 ```
 
 ### Claude Code 集成
@@ -172,7 +170,7 @@ Archon 设计为在开发循环中被 AI agent 调用。以下是集成方式：
 
 ```bash
 # Agent 在提议变更之前运行分析
-$ java -jar archon.jar analyze . --json > archon-context.json
+$ java -jar archon.jar analyze . --format agent > archon-context.json
 ```
 
 AI agent 收到：
@@ -190,7 +188,7 @@ AI agent 收到：
   ],
   "cycles": [],
   "blindSpots": [
-    {"type": "CommonJS", "count": 624, "file": "archon-viz/src/main/resources/lib/dagre.min"}
+    {"type": "CommonJS", "count": 624, "file": "node_modules/dagre/dist/dagre.min"}
   ]
 }
 ```
@@ -206,7 +204,7 @@ AI agent 收到：
 
 ```bash
 # Agent 在提交之前验证变更
-$ java -jar archon.jar diff main HEAD . --ci
+$ java -jar archon.jar diff
 ```
 
 审查门返回：
@@ -238,10 +236,8 @@ $ java -jar archon.jar diff main HEAD . --ci
 ## CLI 命令
 
 ```
-archon view <path> [--format json|text|agent] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
-archon analyze <path> [--verbose] [--format agent]
-archon impact <module> <path> [--depth N]
-archon diff [base head path] [--view] [--format agent]
+archon analyze <path> [--target <module>] [--depth N] [--format agent] [--verbose]
+archon diff [base head] [--format agent]
 ```
 
 ---
@@ -251,12 +247,10 @@ archon diff [base head path] [--view] [--format agent]
 
 ```
 archon-core/     — 语言无关的图模型、分析引擎、SPI
-archon-java/     — Java 解析器插件
+archon-java/     — Java 解析器插件（含 Spring DI 后处理器）
 archon-js/       — JavaScript/TypeScript 解析器插件
 archon-python/   — Python 导入解析器插件
-archon-viz/      — Web 可视化和导出格式
 archon-cli/      — 带有 shadow JAR 打包的 CLI
-archon-test/     — 共享测试固件
 ```
 
 ---
@@ -283,6 +277,7 @@ archon-test/     — 共享测试固件
 - [x] v0.4 — 安全加固 + Vue 支持
 - [x] v0.5 — 可视化（Web UI）
 - [x] v0.6 — 跨语言边检测
+- [x] v0.7 — JS/TS 重写 + Spring DI 检测 + 命令精简
 - [ ] v1.0 — 完整的 AI 重构流水线集成
 
 ---
@@ -305,7 +300,7 @@ MIT
 
 ## 致谢
 
-Web 查看器采用了 [oh-my-mermaid](https://github.com/oh-my-mermaid/oh-my-mermaid) 的方法（MIT 许可）。
+使用 [ArchUnit](https://archunit.org/) 进行 Java 字节码分析（Apache 2.0）。
 
 ## 链接
 

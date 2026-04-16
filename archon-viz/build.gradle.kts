@@ -19,9 +19,7 @@ tasks.processResources {
 }
 
 tasks.jar {
-    manifest {
-        attributes["Main-Class"] = "com.archon.viz.ViewCommand"
-    }
+    // No Main-Class — viz is a library, not a runnable JAR
 }
 
 tasks.test {

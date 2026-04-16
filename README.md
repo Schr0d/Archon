@@ -86,22 +86,20 @@ Download the latest shadow JAR from [releases](https://github.com/Schr0d/Archon/
 ### Basic Usage
 
 ```bash
-# Interactive web visualization (opens browser)
-java -jar archon.jar view /path/to/project
+# Full dependency analysis
+java -jar archon.jar analyze /path/to/project
 
-# JSON output for AI integration (three tiers)
-java -jar archon.jar view . --format json                          # Tier 1: Basic
-java -jar archon.jar view . --format json --with-metadata          # Tier 2: + metrics
-java -jar archon.jar view . --format json --with-metadata --with-full-analysis  # Tier 3: + centrality
+# Impact analysis — what breaks if you change a module?
+java -jar archon.jar analyze /path/to/project --target com.example.Service
 
-# Export static HTML diagram (works offline)
-java -jar archon.jar view /path/to/project --export diagram.html
+# Machine-readable JSON for AI tools
+java -jar archon.jar analyze . --format agent
 
-# Diff with web viewer (red=removed, green=added, yellow=changed)
-java -jar archon.jar diff main HEAD /path/to/project --view
+# Blast radius of uncommitted changes
+java -jar archon.jar diff
 
-# Check impact of changing a specific module
-java -jar archon.jar impact com.example.Service /path/to/project
+# Diff between branches
+java -jar archon.jar diff main feature-branch
 ```
 
 ### Claude Code Integration
@@ -120,74 +118,19 @@ Here's how the manual integration works:
 
 ### Stage 1: Plan — AI Gets Architectural Context
 
-Archon provides three output tiers for AI integration:
-
-#### Tier 1: Default Output (Lightweight)
 ```bash
-# Basic JSON output with graph structure
-$ java -jar archon.jar view . --format json
+# Structured JSON output with graph, metrics, and blind spots
+$ java -jar archon.jar analyze . --format agent
 ```
 
-#### Tier 2: Full Analysis (AI-Enhanced Metadata)
-```bash
-# Include metadata field with impact scores, risk levels, and issue flags
-$ java -jar archon.jar view . --format json --with-metadata
-
-# Include full centrality metrics (PageRank, betweenness, closeness, etc.)
-$ java -jar archon.jar view . --format json --with-metadata --with-full-analysis
-```
-
-#### Tier 3: On-Demand Query
-```bash
-# Query specific metrics for specific nodes (coming soon)
-$ java -jar archon.jar query --centrality com.example.MyClass
-```
-
-**JSON Schema (Tier 2 with --with-full-analysis):**
-
-```json
-{
-  "$schema": "archon-metadata-v1",
-  "version": "1.0.0",
-  "nodes": [
-    {
-      "id": "com.archon.core.graph.DependencyGraph",
-      "domain": "core",
-      "inDegree": 18,
-      "outDegree": 3,
-      "metadata": {
-        "metrics": {
-          "fanIn": 18,
-          "fanOut": 3,
-          "pageRank": 0.087,
-          "betweenness": 0.034,
-          "closeness": 0.125,
-          "impactScore": 0.087,
-          "riskLevel": "medium"
-        },
-        "issues": {
-          "hotspot": true,
-          "cycle": false,
-          "blindSpots": [],
-          "bridge": false
-        }
-      }
-    }
-  ],
-  "fullAnalysis": {
-    "connectedComponents": 1,
-    "bridges": []
-  }
-}
-```
+The agent output includes nodes with metadata (PageRank, betweenness, impact score, risk level), edges, domain groupings, cycles, hotspots, and blind spots.
 
 **AI uses this to:**
-- Avoid high-risk hotspots
+- Avoid high-risk hotspots (high PageRank = high impact)
 - Respect domain boundaries
 - Stay within safe change surfaces
 - Declare uncertainty for blind spots
-- **NEW:** Use centrality metrics to identify critical nodes (high PageRank = high impact)
-- **NEW:** Understand bridge nodes (removal increases fragmentation)
+- Understand bridge nodes (removal increases fragmentation)
 
 ---
 
@@ -252,44 +195,16 @@ Gate: BLOCKED
 
 ## Migration Guide
 
-### Claude Code Skill (v0.5.0)
+### v0.7.1 — Command Consolidation
 
-Archon now ships a native Claude Code skill at `~/.claude/skills/archon/`. Three commands:
+CLI simplified to two commands: `analyze` and `diff`. Previous commands mapped as follows:
 
-- `/archon diff` — Impact analysis of uncommitted changes
-- `/archon analyze` — Full dependency map with hotspots and cycles
-- `/archon setup` — One-time JDK 17 detection
-
-The skill auto-detects JDK 17, finds or builds the shadow JAR, and pipes structured JSON to Claude for interpretation. See [skill.md](skill.md) for details.
-
-### AI JSON Integration (v0.4.0)
-
-The `archon view` command supports three-tier JSON output for AI integration:
-
-**Tier 1: Basic Output**
-```bash
-archon view . --format json
-```
-Returns nodes, edges, cycles, hotspots, and blindspots.
-
-**Tier 2: Metadata**
-```bash
-archon view . --format json --with-metadata
-```
-Adds metrics (fanIn, fanOut, impactScore, riskLevel) and issues (hotspot, cycle, blindSpots).
-
-**Tier 3: Full Analysis**
-```bash
-archon view . --format json --with-metadata --with-full-analysis
-```
-Adds centrality metrics (PageRank, betweenness, closeness), connected components, and bridges.
-
-**Backward Compatibility:** All flags are opt-in. Existing workflows without flags continue to work as before.
-
-**When to use each tier:**
-- **Tier 1:** Quick overview, identify obvious hotspots and cycles
-- **Tier 2:** Risk assessment, impact analysis for refactoring decisions
-- **Tier 3:** Deep architectural analysis, identifies critical control points and system structure
+| Old Command | New Equivalent |
+|-------------|---------------|
+| `archon view <path>` | `archon analyze <path>` |
+| `archon impact <module> <path>` | `archon analyze <path> --target <module>` |
+| `archon check <path>` | Removed (use `diff` for CI checks) |
+| `archon view . --format json` | `archon analyze . --format agent` |
 
 ---
 
@@ -302,7 +217,7 @@ sequenceDiagram
     participant Repo as Codebase
 
     Note over AI,Archon: PLAN STAGE
-    AI->>Archon: analyze . --json
+    AI->>Archon: analyze . --format agent
     Archon-->>AI: {domains, hotspots, cycles}
     AI->>AI: Generate constrained plan
 
@@ -337,7 +252,7 @@ sequenceDiagram
 
 | Language | Parser | Status |
 |----------|--------|--------|
-| Java | Reflection-based | Built-in |
+| Java | Reflection-based + ArchUnit | Built-in |
 | JavaScript/TypeScript | dependency-cruiser | Built-in |
 | Python | Import parser | Built-in |
 | Vue | SFC script extraction | Built-in |
@@ -357,10 +272,8 @@ sequenceDiagram
 ## CLI Commands
 
 ```
-archon view <path> [--format json|text|agent] [--with-metadata] [--with-full-analysis] [--port] [--no-open] [--export <file>] [--idle-timeout <min>]
-archon analyze <path> [--verbose] [--format agent]
-archon impact <module> <path> [--depth N]
-archon diff [base head path] [--view] [--format agent]
+archon analyze <path> [--target <module>] [--depth N] [--format agent] [--verbose]
+archon diff [base head] [--format agent]
 ```
 
 ---
@@ -378,12 +291,10 @@ archon diff [base head path] [--view] [--format agent]
 
 ```
 archon-core/     — Language-agnostic graph model, analysis engines, SPI
-archon-java/     — Java parser plugin
+archon-java/     — Java parser plugin (with Spring DI post-processor)
 archon-js/       — JavaScript/TypeScript parser plugin
 archon-python/   — Python import parser plugin
-archon-viz/      — Web visualization and export formats
 archon-cli/      — CLI with shadow JAR packaging
-archon-test/     — Shared test fixtures
 ```
 
 ---
@@ -410,6 +321,7 @@ archon-test/     — Shared test fixtures
 - [x] v0.4 — Security hardening + Vue support
 - [x] v0.5 — Visualization (web UI)
 - [x] v0.6 — Cross-language edge detection
+- [x] v0.7 — JS/TS rewrite + Spring DI detection + command consolidation
 - [ ] v1.0 — Full AI-refactoring pipeline integration
 
 ---
@@ -432,7 +344,7 @@ MIT
 
 ## Acknowledgments
 
-The web viewer adapts the approach of [oh-my-mermaid](https://github.com/oh-my-mermaid/oh-my-mermaid) (MIT licensed).
+Uses [ArchUnit](https://archunit.org/) for Java bytecode analysis (Apache 2.0).
 
 ## Links
 
