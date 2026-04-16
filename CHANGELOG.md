@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-04-16
+
+### Changed
+- **Version bumped to 1.0.0** — stable release milestone.
+- **README.md** — updated status to "Stable v1.0", updated roadmap to mark v1.0 as shipped.
+- **README-zh.md** — updated version references in agent format examples.
+
 ## [0.7.2.1] - 2026-04-16
 
 ### Removed

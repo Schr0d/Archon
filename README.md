@@ -322,13 +322,13 @@ archon-cli/      — CLI with shadow JAR packaging
 - [x] v0.5 — Visualization (web UI)
 - [x] v0.6 — Cross-language edge detection
 - [x] v0.7 — JS/TS rewrite + Spring DI detection + command consolidation
-- [ ] v1.0 — Full AI-refactoring pipeline integration
+- [x] v1.0 — Stable release: multi-language analysis, AI agent integration, compressed agent format
 
 ---
 
 ## Status
 
-Experimental / early-stage system design
+Stable v1.0 — production-ready for Java, JavaScript/TypeScript, and Python codebases
 
 Not a coding assistant — a **code evolution control system**
 

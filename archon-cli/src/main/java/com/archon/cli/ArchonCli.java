@@ -11,7 +11,7 @@ import picocli.CommandLine.Command;
         DiffCommand.class
     },
     mixinStandardHelpOptions = true,
-    version = "0.7.1.0"
+    version = "1.0.0"
 )
 public class ArchonCli implements Runnable {
     @Override

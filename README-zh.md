@@ -177,7 +177,7 @@ AI agent 收到：
 
 ```json
 {
-  "version": "0.7.2.0",
+  "version": "1.0.0",
   "domains": ["core", "java", "cli"],
   "nodes": [
     ["java:com.archon.core.graph.DependencyGraph", 0, 820, "HIGH", true, true],
