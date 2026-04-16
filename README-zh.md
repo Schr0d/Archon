@@ -1,126 +1,52 @@
 # Archon
 
-> **结构约束驱动的 AI 重构流水线**
-
-Archon 是一个将架构分析直接集成到 AI 驱动代码修改工作流中的系统。
-
-它将重构从临时的、模型驱动的过程转变为一个**结构化、可验证、可反馈控制的流水线**。
+> **如果我改了这个文件，什么会坏？**
 
 [English](README.md) | [中文文档](README-zh.md)
 
----
-## 设计理念
+Archon 扫描你的代码库依赖关系，告诉你任何改动的爆炸半径。在动那个 1600 行、50 个 `@Autowired` 的 Spring 服务之前，你会知道确切有哪 23 个文件依赖它。
 
-- 结构比代码更重要
-- 约束提高模型可靠性
-- AI 应该在系统内运行，而不是替代它
-- 重构是一个受控的转换过程，而不是创造性活动
+一个问题，一个工具。确定性分析，本地运行，不上传云端。
 
 ---
 
-## 核心特性
+## 它能做什么
 
-- **受约束的 AI 行为** — 非自由生成
-- **架构感知的上下文注入**
-- **计划 → 执行 → 验证循环**
-- **Diff 级结构审查**
-- **概率模型之上的确定性验证**
+```bash
+# "谁依赖了这个服务？"
+java -jar archon.jar analyze . --target com.example.UserService
 
----
+影响范围: 23 个依赖，横跨 5 个域
+  com.auth.handler.TokenValidator → UserService  (跨域)
+  com.order.processor.CheckoutFlow → UserService  (跨域)
+  ...
 
-## 多语言支持
+# "我改了 3 个文件，影响多大？"
+java -jar archon.jar diff
 
-| 语言 | 解析器 | 状态 |
-|----------|--------|--------|
-| Java | 基于反射 + ArchUnit | 内置 |
-| JavaScript/TypeScript | dependency-cruiser | 内置 |
-| Python | 导入解析器 | 内置 |
-| Vue | SFC 脚本提取 | 内置 |
+变更: 3 个文件
+爆炸半径: 14 个文件，2 条跨域依赖，0 个循环
+  UserService → TokenValidator    [跨域]
+  UserService → CheckoutFlow      [跨域]
 
----
+# "给我完整的依赖图。"
+java -jar archon.jar analyze .
 
-## 使用场景
-
-- 大型 monorepo 重构
-- 服务边界清理
-- 依赖循环消除
-- 渐进式架构迁移
-- AI 辅助代码审查增强
-
-## 问题
-
-现代 coding agent 在强大的生产力中又引入了以下问题：
-
-- ai 不了解系统边界和结构
-- ai 重构时常破坏系统架构
-- 引入 ai 重构时不时会让人担心“它改了什么，以前是什么样，现在又是什么样”
-- 架构知识未被明确用作约束
-
----
-
-## 解决方案
-
-Archon 引入了一个将结构分析与代码修改紧密耦合的结构化流水线：
-
-### 1. 预分析（计划阶段）
-
-在修改代码之前，对代码库进行结构分析，并作为上下文输入至 planning ：
-
-- 模块边界
-- 依赖图
-- 风险热点
-- 目标变更的影响范围
-
-
-### 2. 约束执行（执行阶段）
-
-AI 在结构约束下运行：
-
-- 有限的作用域上下文窗口
-- 显式的变更意图（面向 diff 的执行）
-- 架构边界感知
-
-
-### 3. 合并前验证（审查阶段）
-
-在合并之前，进行二次评估：
-
-- 基于 diff 的结构影响分析
-- 跨模块依赖验证
-- 与预分析快照的一致性检查
-
----
-
-## 完整工作流图
-
-```mermaid
-sequenceDiagram
-    participant AI as AI Agent
-    participant Archon as Archon
-    participant Repo as 代码库
-
-    Note over AI,Archon: 计划阶段
-    AI->>Archon: analyze . --format agent
-    Archon-->>AI: {domains, hotspots, cycles}
-    AI->>AI: 生成受约束的计划
-
-    Note over AI,Repo: 执行阶段
-    AI->>Repo: 进行有限变更
-    AI->>AI: 遵守上下文边界
-
-    Note over AI,Archon: 审查阶段
-    AI->>Archon: diff main HEAD . --ci
-    Archon-->>AI: {violations, gate_status}
-
-    alt 门: 通过
-        AI->>Repo: 提交变更
-    else 门: 阻塞
-        AI->>AI: 修复违规
-    end
+分析完成: 127 个节点，312 条边，0 个循环，5 个域
+热点:    com.example.UserService (入度: 18, 风险: 高)
 ```
 
 ---
 
+## 为什么造这个东西
+
+我在重构一个 Spring 服务。1600 行，50 个 `@Autowired` 字段。我改了一个 private 字段。所有测试全绿。上线。六个服务挂了。
+
+IDE 的依赖分析抓不到 Spring DI。测试只覆盖正常路径。Code review 追不到 18 层传递依赖。"谁依赖了谁"这个知识只在运行时才存在，而那时已经晚了。
+
+Archon 让这个知识在你改代码之前就可见。它用真正的解析器，不是 AI 猜测：ArchUnit 扫 Java 字节码（能抓 `@Autowired`、`@Resource`、构造器注入），dependency-cruiser 解析 JS/TS，import 解析器处理 Python。
+
+---
 
 ## 快速开始
 
@@ -130,138 +56,103 @@ sequenceDiagram
 
 ### 安装
 
-从 [releases](https://github.com/Schr0d/Archon/releases) 下载最新的 shadow JAR：
+从 [releases](https://github.com/Schr0d/Archon/releases) 下载最新 JAR，或从源码构建：
 
 ```bash
-# 或从源码构建
 ./gradlew shadowJar
+# 输出: archon-cli/build/libs/archon-1.0.0.jar
 ```
 
-### 基本使用
+### 运行
 
 ```bash
 # 完整依赖分析
 java -jar archon.jar analyze /path/to/project
 
-# 影响分析 — 如果修改某个模块，什么会受影响？
+# 影响分析 — 改某个模块会波及什么？
 java -jar archon.jar analyze /path/to/project --target com.example.Service
 
-# 机器可读 JSON（用于 AI 工具）
+# 机器可读 JSON（给 AI 工具用）
 java -jar archon.jar analyze . --format agent
 
 # 未提交更改的影响范围
 java -jar archon.jar diff
 
-# 分支间对比
+# 两个分支之间对比
 java -jar archon.jar diff main feature-branch
 ```
 
-### Claude Code 集成
-
-Archon 内置 Claude Code 技能。在 Claude Code 中输入 `/archon diff` 查看未提交更改的影响范围，或 `/archon analyze` 获取完整依赖图。详见 [skill.md](skill.md)。
-
 ---
 
-## AI Agent 工作流
+## 给 AI Agent 用
 
-Archon 设计为在开发循环中被 AI agent 调用。以下是集成方式：
+Archon 设计为在 AI 编码工具的"计划-执行-审查"循环中被调用。
 
-### 阶段 1：计划 — AI 获取架构上下文
+**用 Claude Code？** 输入 `/archon diff` 或 `/archon analyze` 即可获得即时影响分析。详见 [skill.md](skill.md)。
 
-```bash
-# Agent 在提议变更之前运行分析
-$ java -jar archon.jar analyze . --format agent > archon-context.json
-```
-
-AI agent 收到：
-
-```json
-{
-  "version": "1.0.0",
-  "domains": ["core", "java", "cli"],
-  "nodes": [
-    ["java:com.archon.core.graph.DependencyGraph", 0, 820, "HIGH", true, true],
-    ["java:com.archon.core.plugin.LanguagePlugin", 0, 340, "MEDIUM", false, false]
-  ],
-  "edges": [[1, 0], [2, 0]],
-  "hotspots": ["java:com.archon.core.graph.DependencyGraph"],
-  "cycles": [],
-  "blindSpots": ["Reflection-based calls", "Dynamic imports"]
-}
-```
-
-
-
-### 阶段 2：执行 — AI 进行受约束的变更
-
-可通过上下文直接载入
-
-
-### 阶段 3：审查 — AI 验证结构完整性
+### 计划阶段：AI 获取架构上下文
 
 ```bash
-# Agent 在提交之前验证变更
-$ java -jar archon.jar diff
+java -jar archon.jar analyze . --format agent
 ```
 
-审查门返回：
+返回结构化 JSON：依赖图、节点指标（PageRank、中介中心性、影响分数）、域分组、循环、热点、盲点。AI 利用这些信息避开高风险区域，尊重域边界。
+
+### 执行阶段：AI 在约束下修改代码
+
+AI agent 使用依赖上下文来限定修改范围，避开热点和跨域违规。
+
+### 审查阶段：AI 提交前验证
+
+```bash
+java -jar archon.jar diff main HEAD
+```
 
 ```
-=== 结构影响审查 ===
-
-新增边: 2
-  com.auth.service → com.payment.client [跨域] ⚠️
-  com.payment.dao → com.database.pool [同域]
-
-删除边: 1
-  com.auth.util → com.logging.helper
+新增依赖: 2
+  com.auth.service → com.payment.client [跨域]
+  com.payment.dao → com.database.pool   [同域]
 
 违规: 1
-  ✗ max_cross_domain 超限（当前: 4，限制: 3）
-    → com.auth.service → com.payment.client
-
+  max_cross_domain 超限（当前: 4，限制: 3）
 门: 阻塞
 ```
 
-**AI 响应：**
-- 回滚跨域违规
-- 在架构约束内重新规划
-- 使用干净的 diff 重新验证
+AI 回滚违规并重新规划。
 
 ---
 
-## CLI 命令
+## 支持的语言
 
-```
-archon analyze <path> [--target <module>] [--depth N] [--format agent] [--verbose]
-archon diff [base head] [--format agent]
-```
+| 语言 | 解析器 | 能抓到什么 |
+|------|--------|-----------|
+| Java | ArchUnit 字节码 | 直接引用、Spring DI（`@Autowired`、`@Resource`、构造器注入） |
+| JavaScript / TypeScript | dependency-cruiser | ES6 import、CommonJS、Vue SFC、路径别名 |
+| Python | 导入解析器 | `import`、`from...import`、相对导入 |
+
+插件基于 SPI 接口。添加新语言不需要修改核心代码。
 
 ---
-
 
 ## 架构
 
 ```
-archon-core/     — 语言无关的图模型、分析引擎、SPI
-archon-java/     — Java 解析器插件（含 Spring DI 后处理器）
-archon-js/       — JavaScript/TypeScript 解析器插件
-archon-python/   — Python 导入解析器插件
-archon-cli/      — 带有 shadow JAR 打包的 CLI
+archon-core/     语言无关的图模型、分析引擎、SPI
+archon-java/     Java 解析器插件（含 Spring DI 后处理器）
+archon-js/       JavaScript/TypeScript 解析器插件
+archon-python/   Python 导入解析器插件
+archon-cli/      带有 shadow JAR 打包的 CLI
 ```
+
+每个插件返回结构化声明。核心构建图、运行分析（中心性、域、循环、热点），输出人类可读或机器可读格式。
 
 ---
 
 ## 构建
 
 ```bash
-# 运行所有测试
-./gradlew test
-
-# 构建 shadow JAR
-./gradlew shadowJar
-
-# 输出: archon-cli/build/libs/archon-<version>.jar
+./gradlew test        # 424 个测试
+./gradlew shadowJar   # 输出 archon-cli/build/libs/archon-1.0.0.jar
 ```
 
 ---
@@ -275,21 +166,13 @@ archon-cli/      — 带有 shadow JAR 打包的 CLI
 - [x] v0.5 — 可视化（Web UI）
 - [x] v0.6 — 跨语言边检测
 - [x] v0.7 — JS/TS 重写 + Spring DI 检测 + 命令精简
-- [ ] v1.0 — 完整的 AI 重构流水线集成
-
----
-
-## 状态
-
-实验性 / 早期系统设计
-
-不是编码助手 — 而是一个**代码演进控制系统**
+- [x] v1.0 — 稳定版：多语言分析、AI agent 集成、压缩 agent 格式
 
 ---
 
 ## 贡献
 
-参见 [TODOS.md](TODOS.md) 了解延期工作和贡献机会。
+参见 [TODOS.md](TODOS.md) 了解待办事项和贡献机会。
 
 ## 许可证
 
@@ -303,4 +186,4 @@ MIT
 
 - [skill.md](skill.md) — AI agent 集成指南
 - [CHANGELOG.md](CHANGELOG.md) — 版本历史
-- [TODOS.md](TODOS.md) — 延期工作
+- [TODOS.md](TODOS.md) — 待办事项
