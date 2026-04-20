@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -310,5 +311,162 @@ class PythonPluginTest {
         boolean foundSource = result.getModuleDeclarations().stream()
             .anyMatch(md -> md.id().startsWith("py:"));
         assertTrue(foundSource, "Declarations should contain a py:-prefixed module");
+    }
+
+    // === src/ layout tests ===
+
+    @Test
+    @DisplayName("parseFromContent handles src/ layout: node IDs match import targets")
+    void testSrcLayoutNodeIdsMatchImportTargets() throws Exception {
+        PythonPlugin plugin = new PythonPlugin();
+
+        // Create temp project with src/ layout
+        Path tempRoot = Files.createTempDirectory("archon-python-test");
+        try {
+            Path pkgDir = tempRoot.resolve("src").resolve("mypkg");
+            Files.createDirectories(pkgDir);
+            Files.writeString(pkgDir.resolve("__init__.py"), "");
+            Files.writeString(pkgDir.resolve("utils.py"), "from mypkg.helper import foo");
+
+            Path helperFile = tempRoot.resolve("src").resolve("mypkg").resolve("helper.py");
+            Files.writeString(helperFile, "def foo(): pass");
+
+            ParseContext context = new ParseContext(tempRoot, Set.of("py"));
+
+            // Parse utils.py
+            Path utilsFile = pkgDir.resolve("utils.py");
+            ParseResult result = plugin.parseFromContent(
+                utilsFile.toAbsolutePath().toString(),
+                Files.readString(utilsFile),
+                context
+            );
+
+            // Module ID should NOT have src/ prefix
+            String moduleId = result.getSourceModules().iterator().next();
+            assertTrue(moduleId.equals("py:mypkg/utils"),
+                "Module ID should be py:mypkg/utils, not py:src/mypkg/utils. Got: " + moduleId);
+
+            // Dependency target should also be py:mypkg/helper
+            List<DependencyDeclaration> deps = result.getDeclarations();
+            assertFalse(deps.isEmpty(), "Should have a dependency declaration");
+            assertEquals("py:mypkg/helper", deps.get(0).targetId(),
+                "Target ID should be py:mypkg/helper");
+        } finally {
+            // Cleanup
+            Files.walk(tempRoot)
+                .sorted(java.util.Comparator.reverseOrder())
+                .forEach(p -> { try { Files.delete(p); } catch (Exception e) {} });
+        }
+    }
+
+    @Test
+    @DisplayName("parseFromContent flat layout: no src/ prefix in node IDs")
+    void testFlatLayoutNodeIds() throws Exception {
+        PythonPlugin plugin = new PythonPlugin();
+
+        Path tempRoot = Files.createTempDirectory("archon-python-test");
+        try {
+            Path pkgDir = tempRoot.resolve("mypkg");
+            Files.createDirectories(pkgDir);
+            Files.writeString(pkgDir.resolve("__init__.py"), "");
+            Files.writeString(pkgDir.resolve("utils.py"), "from mypkg.helper import foo");
+
+            ParseContext context = new ParseContext(tempRoot, Set.of("py"));
+
+            Path utilsFile = pkgDir.resolve("utils.py");
+            ParseResult result = plugin.parseFromContent(
+                utilsFile.toAbsolutePath().toString(),
+                Files.readString(utilsFile),
+                context
+            );
+
+            String moduleId = result.getSourceModules().iterator().next();
+            assertEquals("py:mypkg/utils", moduleId,
+                "Module ID should be py:mypkg/utils for flat layout");
+
+            List<DependencyDeclaration> deps = result.getDeclarations();
+            assertFalse(deps.isEmpty(), "Should have a dependency declaration");
+            assertEquals("py:mypkg/helper", deps.get(0).targetId(),
+                "Target ID should be py:mypkg/helper");
+        } finally {
+            Files.walk(tempRoot)
+                .sorted(java.util.Comparator.reverseOrder())
+                .forEach(p -> { try { Files.delete(p); } catch (Exception e) {} });
+        }
+    }
+
+    @Test
+    @DisplayName("parseFromContent standalone file: no package, uses project root")
+    void testStandaloneFileNoPackage() throws Exception {
+        PythonPlugin plugin = new PythonPlugin();
+
+        Path tempRoot = Files.createTempDirectory("archon-python-test");
+        try {
+            Path mainFile = tempRoot.resolve("main.py");
+            Files.writeString(mainFile, "import requests");
+
+            ParseContext context = new ParseContext(tempRoot, Set.of("py"));
+
+            ParseResult result = plugin.parseFromContent(
+                mainFile.toAbsolutePath().toString(),
+                Files.readString(mainFile),
+                context
+            );
+
+            String moduleId = result.getSourceModules().iterator().next();
+            assertEquals("py:main", moduleId,
+                "Standalone file should have module ID py:main");
+        } finally {
+            Files.walk(tempRoot)
+                .sorted(java.util.Comparator.reverseOrder())
+                .forEach(p -> { try { Files.delete(p); } catch (Exception e) {} });
+        }
+    }
+
+    @Test
+    @DisplayName("parseFromContent src/ layout with relative from-imports resolves correctly")
+    void testSrcLayoutRelativeFromImports() throws Exception {
+        PythonPlugin plugin = new PythonPlugin();
+
+        Path tempRoot = Files.createTempDirectory("archon-python-test");
+        try {
+            Path pkgDir = tempRoot.resolve("src").resolve("mypkg");
+            Path subDir = pkgDir.resolve("sub");
+            Files.createDirectories(subDir);
+            Files.writeString(pkgDir.resolve("__init__.py"), "");
+            Files.writeString(subDir.resolve("__init__.py"), "");
+            // Use dotted relative imports that the extractor can parse (from ..foo import bar)
+            Files.writeString(subDir.resolve("utils.py"), "from ..helper import something");
+
+            Path helperFile = pkgDir.resolve("helper.py");
+            Files.writeString(helperFile, "def something(): pass");
+
+            ParseContext context = new ParseContext(tempRoot, Set.of("py"));
+
+            Path utilsFile = subDir.resolve("utils.py");
+            ParseResult result = plugin.parseFromContent(
+                utilsFile.toAbsolutePath().toString(),
+                Files.readString(utilsFile),
+                context
+            );
+
+            // Module ID should be py:mypkg/sub/utils (no src/ prefix)
+            String moduleId = result.getSourceModules().iterator().next();
+            assertEquals("py:mypkg/sub/utils", moduleId,
+                "Module ID should not include src/ prefix. Got: " + moduleId);
+
+            // Relative import should resolve to correct target
+            List<DependencyDeclaration> deps = result.getDeclarations();
+            assertFalse(deps.isEmpty(),
+                "Should have dependency declaration for relative import");
+
+            String targetId = deps.get(0).targetId();
+            assertEquals("py:mypkg/helper", targetId,
+                "Should resolve ..helper to py:mypkg/helper. Got: " + targetId);
+        } finally {
+            Files.walk(tempRoot)
+                .sorted(java.util.Comparator.reverseOrder())
+                .forEach(p -> { try { Files.delete(p); } catch (Exception e) {} });
+        }
     }
 }

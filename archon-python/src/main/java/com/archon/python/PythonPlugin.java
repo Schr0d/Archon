@@ -10,10 +10,13 @@ import com.archon.core.plugin.NodeType;
 import com.archon.core.plugin.ParseContext;
 import com.archon.core.plugin.ParseResult;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,6 +45,9 @@ public class PythonPlugin implements LanguagePlugin {
     private static final long MAX_FILE_SIZE = ParseContext.MAX_FILE_SIZE;
 
     private final PythonModuleResolver moduleResolver;
+
+    // Cache: parent directory → computed Python source root (avoids repeated filesystem checks)
+    private final Map<Path, Path> sourceRootCache = new HashMap<>();
 
     public PythonPlugin() {
         this.moduleResolver = new PythonModuleResolver();
@@ -78,8 +84,11 @@ public class PythonPlugin implements LanguagePlugin {
         }
 
         try {
+            // Detect Python source root (handles src/ layout vs flat layout)
+            Path pythonSourceRoot = findPythonSourceRoot(filePath, context.getSourceRoot());
+
             // Extract module name from file path
-            String moduleName = extractModuleName(filePath, context.getSourceRoot());
+            String moduleName = extractModuleName(filePath, pythonSourceRoot);
             String prefixedId = NAMESPACE + ":" + moduleName;
             sourceModules.add(prefixedId);
 
@@ -102,11 +111,11 @@ public class PythonPlugin implements LanguagePlugin {
                 // Check if it's a relative import (starts with dots)
                 if (importModule.startsWith(".")) {
                     // Resolve relative import
-                    String currentPackage = extractPackage(filePath, context.getSourceRoot());
+                    String currentPackage = extractPackage(filePath, pythonSourceRoot);
                     Optional<String> resolved = moduleResolver.resolve(
                         importModule,
                         currentPackage,
-                        context.getSourceRoot().toString()
+                        pythonSourceRoot.toString()
                     );
 
                     if (resolved.isPresent()) {
@@ -155,12 +164,68 @@ public class PythonPlugin implements LanguagePlugin {
     }
 
     /**
-     * Extract module name from file path.
-     * Converts: /src/utils/helpers.py → src/utils/helpers
+     * Detect the Python source root for a file by walking up from its parent
+     * directory, following __init__.py chains. The directory just above the
+     * topmost __init__.py is the Python package root.
+     *
+     * <p>Examples:
+     * <ul>
+     *   <li>src/playbuddy/game/x.py → game/ has __init__.py, playbuddy/ has __init__.py,
+     *       src/ does NOT → returns src/</li>
+     *   <li>playbuddy/game/x.py → returns projectRoot (flat layout)</li>
+     *   <li>main.py → returns projectRoot (no package)</li>
+     * </ul>
+     *
+     * @param filePath the Python file path
+     * @param projectRoot the project root directory
+     * @return the Python source root (package root for this file)
+     */
+    private Path findPythonSourceRoot(String filePath, Path projectRoot) {
+        try {
+            Path parentDir = Path.of(filePath).toAbsolutePath().getParent();
+            Path absoluteProjectRoot = projectRoot.toAbsolutePath();
+
+            if (parentDir == null || !parentDir.startsWith(absoluteProjectRoot)) {
+                return projectRoot;
+            }
+
+            // Check cache
+            Path cached = sourceRootCache.get(parentDir);
+            if (cached != null) {
+                return cached;
+            }
+
+            // Walk up from parent, following __init__.py chains
+            Path lastWithInit = null;
+            Path dir = parentDir;
+            while (dir != null && dir.startsWith(absoluteProjectRoot) && !dir.equals(absoluteProjectRoot)) {
+                if (Files.exists(dir.resolve("__init__.py"))) {
+                    lastWithInit = dir;
+                    dir = dir.getParent();
+                } else {
+                    break;
+                }
+            }
+
+            // The Python source root is the parent of the topmost directory with __init__.py
+            Path pythonSourceRoot = (lastWithInit != null) ? lastWithInit.getParent() : projectRoot;
+
+            sourceRootCache.put(parentDir, pythonSourceRoot);
+            return pythonSourceRoot;
+        } catch (Exception e) {
+            return projectRoot;
+        }
+    }
+
+    /**
+     * Extract module name from file path relative to the Python source root.
+     *
+     * <p>For src/ layout: src/playbuddy/game/x.py → playbuddy/game/x
+     * <p>For flat layout: playbuddy/game/x.py → playbuddy/game/x
      *
      * @param filePath the full path to the Python file
-     * @param sourceRoot the source root directory
-     * @return the module name
+     * @param sourceRoot the Python source root (detected via __init__.py chains)
+     * @return the module name (without namespace prefix)
      */
     private String extractModuleName(String filePath, Path sourceRoot) {
         try {
@@ -197,7 +262,7 @@ public class PythonPlugin implements LanguagePlugin {
      *
      * @param filePath the full path to the Python file
      * @param sourceRoot the source root directory
-     * @return the package name (e.g., "src.utils" or "" for root)
+     * @return the package name (e.g., "playbuddy.game" or "" for root)
      */
     private String extractPackage(String filePath, Path sourceRoot) {
         try {
@@ -211,7 +276,7 @@ public class PythonPlugin implements LanguagePlugin {
             }
 
             // Convert path separators to dots for package name
-            return dirPath.toString().replace("/", ".");
+            return dirPath.toString().replace("\\", ".").replace("/", ".");
         } catch (Exception e) {
             return ""; // Fallback to empty
         }
@@ -223,5 +288,6 @@ public class PythonPlugin implements LanguagePlugin {
     @Override
     public void reset() {
         moduleResolver.reset();
+        sourceRootCache.clear();
     }
 }
