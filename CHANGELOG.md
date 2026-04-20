@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1.0] - 2026-04-20
+
+### Fixed
+- **Python src/ layout produces 0 edges** — node IDs for projects using `src/` layout (e.g., `src/playbuddy/game/x.py`) got an extra `src/` prefix that didn't match import targets. Added `findPythonSourceRoot()` that walks up `__init__.py` chains to detect the actual Python package root, so node IDs now correctly omit the `src/` prefix.
+- **Windows backslash in relative imports** — `extractPackage()` didn't handle backslash path separators, causing relative import resolution to fail on Windows.
+
 ## [1.0.0] - 2026-04-16
 
 ### Changed
