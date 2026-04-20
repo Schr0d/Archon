@@ -151,8 +151,8 @@ Each plugin returns structured declarations. The core builds the graph, runs ana
 ## Building
 
 ```bash
-./gradlew test        # 424 tests
-./gradlew shadowJar   # Fat JAR at archon-cli/build/libs/archon-1.0.0.jar
+./gradlew test        # 428 tests
+./gradlew shadowJar   # Fat JAR at archon-cli/build/libs/archon-1.0.1.0.jar
 ```
 
 ---

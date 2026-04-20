@@ -151,8 +151,8 @@ archon-cli/      带有 shadow JAR 打包的 CLI
 ## 构建
 
 ```bash
-./gradlew test        # 424 个测试
-./gradlew shadowJar   # 输出 archon-cli/build/libs/archon-1.0.0.jar
+./gradlew test        # 428 个测试
+./gradlew shadowJar   # 输出 archon-cli/build/libs/archon-1.0.1.0.jar
 ```
 
 ---
